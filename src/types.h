@@ -2,68 +2,42 @@
  * Files containing all messages
  */
 
-/**
- * All datagrams are encoded with TLV
- * Header for all message
- */
-
 #include <sys/types.h>
 
-#define PAD1 1
-#define PADN 0
-#define HELLO 2
-#define NEIGHBOUR 3
-#define DATA 4
-#define ACK 5
-#define GO_AWAY 6
-#define WARNING 7
+#define BODY_PAD1 0
+#define BODY_PADN 1
+#define BODY_HELLO 2
+#define BODY_NEIGHBOUR 3
+#define BODY_DATA 4
+#define BODY_ACK 5
+#define BODY_GO_AWAY 6
+#define BODY_WARNING 7
 
-struct tlv_hdr {
-    u_int8_t type;
-    u_int8_t length;
-};
+#define AWAY_UNKNOWN 0
+#define AWAY_LEAVED 1
+#define AWAY_LOSTED 2
+#define AWAY_VIOLATED 3
 
+#define BODY_H_SIZE 2
+
+typedef u_int8_t type_t;
 typedef u_int64_t chat_id_t;
+typedef u_int32_t nouce_t;
 
-struct hello_msg {
-    chat_id_t source_id;
-    chat_id_t dest_id;
-};
 
-struct neighbour_msg {
-    unsigned char ip[16];
-    u_int16_t port;
-};
+typedef struct body {
+    type_t type;
+    type_t length;
+    void *content;
+    struct body *next;
+} body_t;
 
-/**
- * Ack message is data message without type and data fields
- */
-struct data_msg {
-    u_int64_t sender_id;
-    u_int32_t nonce;
-    u_int8_t type;
-    char data[];
-};
-
-#define UNKNOWN 0
-#define LEAVED 1
-#define LOSTED 2
-#define VIOLATED 3
-
-struct go_away_msg {
-    u_int8_t code;
-    char message[];
-};
 
 typedef struct message {
-    struct tlv_hdr hdr;
-    union {
-        struct hello_msg hello;
-        struct neighbour_msg neighbour;
-        struct data_msg data;
-        struct go_away_msg go_away;
-        char *warning;
-    };
+    type_t magic;
+    type_t version;
+    u_int16_t body_length;
+    body_t *body;
 } message_t;
 
 /**

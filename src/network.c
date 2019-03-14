@@ -9,9 +9,7 @@
 
 #include "types.h"
 #include "utils.h"
-
-chat_id_t id;
-neighbour_t *neighbours;
+#include "network.h"
 
 int
 init_network() {
@@ -20,7 +18,31 @@ init_network() {
     return 0;
 }
 
-// HAS NOT BEEN TESTED YET
+struct iovec *
+message_to_iovec(message_t *msg, size_t *nb_body) {
+    struct iovec *iov;
+    body_t *p;
+    size_t i;
+
+    *nb_body = (*nb_body) * 2 + 1;
+    iov = malloc((*nb_body) * sizeof(struct iovec));
+    if (!iov) return 0;
+
+    iov[0].iov_base = msg;
+    iov[0].iov_len = 4;
+
+    for (i = 1, p = msg->body; p; p = p->next, i++) {
+        iov[i].iov_base = p;
+        iov[i].iov_len = BODY_H_SIZE;
+        i++;
+        iov[i].iov_base = p->content;
+        iov[i].iov_len = p->length;
+    }
+
+    return iov;
+}
+
+
 int
 send_hello(char *hostname, char *service) {
     int rc, s;
@@ -42,24 +64,6 @@ send_hello(char *hostname, char *service) {
     if (p == 0) return -2;
     freeaddrinfo(r);
 
-    struct hello_msg hello = { 0 };
-    hello.source_id = htons(id);
-
-    message_t msg = {0};
-    msg.hdr.type = HELLO;
-    msg.hdr.length = 8;
-
-    rc = sendto(s, &msg, sizeof(char) * 10, 0, 0, 0);
-    if (rc < 0) {
-        perror("sendto:");
-        return -3;
-    }
-
-    rc = recvfrom(s, &msg, sizeof(char) * 26, 0, 0, 0);
-    if (rc < 0) {
-        perror("recvfom:");
-        return -4;
-    }
 
     return 0;
 }
