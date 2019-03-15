@@ -15,7 +15,7 @@
 
 #define AWAY_UNKNOWN 0
 #define AWAY_LEAVED 1
-#define AWAY_LOSTED 2
+#define AWAY_LOST 2
 #define AWAY_VIOLATED 3
 
 #define BODY_H_SIZE 2
