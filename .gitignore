@@ -5,3 +5,5 @@
 *.o
 *.fdb_latexmk
 rapport.pdf
+*.sublime*
+chat

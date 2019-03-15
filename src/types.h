@@ -47,7 +47,7 @@ struct data_msg {
 
 #define UNKNOWN 0
 #define LEAVED 1
-#define LOSTED 2
+#define LOST 2
 #define VIOLATED 3
 
 struct go_away_msg {

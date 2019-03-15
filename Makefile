@@ -1,4 +1,4 @@
-NAME = find_a_great_name_to_dont_have_to_type_chatgroup_udp_floating_anymore
+NAME = chat
 FILES = utils.c network.c main.c
 FP_FILES = $(addprefix src/, $(FILES))
 
