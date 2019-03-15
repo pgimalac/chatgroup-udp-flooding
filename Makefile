@@ -4,7 +4,7 @@ FP_FILES = $(addprefix src/, $(FILES))
 
 OBJ = $(FP_FILES:%.c=%.o)
 CC = gcc
-FLAGS = -Wall -Wextra
+FLAGS = -g -Wall -Wextra
 LIBS =
 
 all: $(NAME)

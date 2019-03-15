@@ -47,5 +47,7 @@ typedef struct neighbour_node {
     id_t id;
     time_t last_hello;
     time_t last_long_hello;
+    struct sockaddr *addr;
+    size_t addrlen;
     struct neighbour_node *next;
 } neighbour_t;
