@@ -87,7 +87,7 @@ int main(void) {
             printf("length: %d\n\n", p->length);
         }
 
-        //free_message(msg);
+        free_message(msg);
     }
 
     printf("Bye !\n");
