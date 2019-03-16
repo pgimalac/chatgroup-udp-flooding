@@ -64,12 +64,17 @@ int add_neighbour(char *hostname, char *service,
 
     if (p == 0) return -2;
 
+    struct sockaddr *copy = malloc(sizeof(struct sockaddr));
+    if (copy == NULL) return -3;
+    memcpy(copy, p->ai_addr, sizeof(struct sockaddr));
+
     neighbour_t *n = malloc(sizeof(neighbour_t));
-    if (!n) return -3;
+    if (n == NULL) return -4;
+
     n->id = 0;
     n->last_hello = 0;
     n->last_long_hello = 0;
-    n->addr = p->ai_addr;
+    n->addr = copy;
     n->addrlen = p->ai_addrlen;
     n->next = *neighbour;
     *neighbour = n;
@@ -110,6 +115,9 @@ int send_message(neighbour_t *neighbour, int sock,
     memcpy(CMSG_DATA(cmsg), &info, sizeof(struct in6_pktinfo));
 
     rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
+    free(hdr.msg_iov);
+    // free might change errno but prevents a memory leak
+    // find a way to avoid using free here ?
     if (rc < 0) return -2;
 
     return 0;

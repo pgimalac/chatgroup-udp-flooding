@@ -27,7 +27,7 @@ int main(void) {
 
     rc = init();
     if (rc != 0) return rc;
-    printf("id: %ld\n", id);
+    printf("id: %lu\n", id);
 
     s = start_server(PORT);
     if (s < 0) {
@@ -51,7 +51,8 @@ int main(void) {
     body_t pad = { 0 };
     pad.type = BODY_PADN;
     pad.length = 2;
-    pad.content = calloc(2, 1);
+    char buf[2] = {0}; // better than calloc(2)
+    pad.content = buf;
     pad.next = &hello;
 
     message_t message = { 0 };
