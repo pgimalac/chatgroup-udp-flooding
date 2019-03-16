@@ -36,13 +36,15 @@ int main(void) {
 
     rc = add_neighbour("jch.irif.fr", "1212", &neighbours);
     if (rc < 0) {
+        perror("add neighbour");
         return 2;
     }
 
+    chat_id_t i = htonl(id);
     body_t hello = { 0 };
     hello.type = BODY_HELLO;
     hello.length = 8;
-    hello.content = &id;
+    hello.content = &i;
     hello.next = 0;
 
     body_t pad = { 0 };
@@ -54,11 +56,25 @@ int main(void) {
     message_t message = { 0 };
     message.magic = 93;
     message.version = 2;
-    message.body_length = 14;
+    message.body_length = htons(14);
     message.body = &pad;
 
     rc = send_message(neighbours, s, &message, 2);
     if (rc < 0) {
         perror("send message");
+        return 1;
     }
+
+    while (1) {
+        struct in6_addr addr = { 0 };
+        rc = recv_message(s, &addr);
+        if (rc < 0) {
+            perror("receive message");
+            return 1;
+        }
+    }
+
+    printf("Bye !\n");
+
+    return 0;
 }

@@ -1,3 +1,6 @@
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 chat_id_t id;
 neighbour_t *neighbours;
 
@@ -13,6 +16,9 @@ add_neighbour(char *hostname, char *service,
 int
 send_message(neighbour_t *neighbour, int sock,
              message_t *msg, size_t nb_body);
+
+int
+recv_message(int sock, struct in6_addr *addr);
 
 int
 start_server(int port);
