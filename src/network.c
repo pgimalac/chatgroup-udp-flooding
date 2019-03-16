@@ -64,9 +64,9 @@ int add_neighbour(char *hostname, char *service,
 
     if (p == 0) return -2;
 
-    struct sockaddr *copy = malloc(sizeof(struct sockaddr));
+    struct sockaddr *copy = malloc(p->ai_addrlen);
     if (copy == NULL) return -3;
-    memcpy(copy, p->ai_addr, sizeof(struct sockaddr));
+    memcpy(copy, p->ai_addr, p->ai_addrlen);
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
     if (n == NULL) return -4;
@@ -84,8 +84,7 @@ int add_neighbour(char *hostname, char *service,
     return 0;
 }
 
-int send_message(neighbour_t *neighbour, int sock,
-             message_t *msg, size_t nb_body) {
+int send_message(neighbour_t *neighbour, int sock, message_t *msg, size_t nb_body) {
     int rc;
     struct msghdr hdr = { 0 };
     struct cmsghdr *cmsg;
