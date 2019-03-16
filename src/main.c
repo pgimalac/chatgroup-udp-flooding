@@ -9,12 +9,13 @@
 #include "utils.h"
 #include "network.h"
 
-int
-init() {
+#define PORT 4242
+
+int init() {
     int rc;
     rc = init_random();
     if (rc < 0) {
-        perror("init:");
+        perror("init");
         return 1;
     }
 
@@ -28,7 +29,7 @@ int main(void) {
     if (rc != 0) return rc;
     printf("id: %ld\n", id);
 
-    s = start_server(4242);
+    s = start_server(PORT);
     if (s < 0) {
         fprintf(stderr, "coudn't create socket\n");
         return 1;
@@ -60,5 +61,6 @@ int main(void) {
     rc = send_message(neighbours, s, &message, 2);
     if (rc < 0) {
         perror("send message");
+        printf("%d\n", rc);
     }
 }

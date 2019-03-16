@@ -6,25 +6,20 @@
 #include <netdb.h>
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "types.h"
-#include "utils.h"
 #include "network.h"
 
 // user address
 struct sockaddr_in6 local_addr;
 
-int
-init_network() {
+int init_network() {
     id = random_uint64();
     neighbours = 0;
     return 0;
 }
 
-size_t
-message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
+size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
     body_t *p;
     ssize_t i;
     struct iovec *iov;
@@ -48,8 +43,7 @@ message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
     return i;
 }
 
-int
-add_neighbour(char *hostname, char *service,
+int add_neighbour(char *hostname, char *service,
               neighbour_t **neighbour) {
     int rc, s;
     struct addrinfo hints, *r, *p;
@@ -85,8 +79,7 @@ add_neighbour(char *hostname, char *service,
     return 0;
 }
 
-int
-send_message(neighbour_t *neighbour, int sock,
+int send_message(neighbour_t *neighbour, int sock,
              message_t *msg, size_t nb_body) {
     int rc;
     struct msghdr hdr = { 0 };
@@ -116,15 +109,14 @@ send_message(neighbour_t *neighbour, int sock,
     cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
     memcpy(CMSG_DATA(cmsg), &info, sizeof(struct in6_pktinfo));
 
-    rc = sendmsg(sock, &hdr, 0);
+    rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
     if (rc < 0) return -2;
 
     return 0;
 }
 
 
-int
-start_server(int port) {
+int start_server(int port) {
     int rc, s;
     memset(&local_addr, 0, sizeof(struct sockaddr_in6));
 
@@ -142,9 +134,13 @@ start_server(int port) {
         return -2;
     }
 
-    char out[4000];
-    inet_ntop(AF_INET6, &local_addr, out, sizeof(local_addr));
-    printf("Start server at %s on port %d.\n", out, local_addr.sin6_port);
+    char out[INET6_ADDRSTRLEN];
+    if (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) == 0){
+        // both errors from inet_ntop aren't possible here but you never know
+        perror("inet_ntop");
+    } else {
+        printf("Start server at %s on port %d.\n", out, local_addr.sin6_port);
+    }
 
     int one = 1;
     rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));

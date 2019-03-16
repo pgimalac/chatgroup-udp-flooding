@@ -1,3 +1,6 @@
+#ifndef TYPES_INC
+#define TYPES_INC
+
 /**
  * Files containing all messages
  */
@@ -22,7 +25,7 @@
 
 typedef u_int8_t type_t;
 typedef u_int64_t chat_id_t;
-typedef u_int32_t nouce_t;
+typedef u_int32_t nonce_t;
 
 
 typedef struct body {
@@ -51,3 +54,5 @@ typedef struct neighbour_node {
     size_t addrlen;
     struct neighbour_node *next;
 } neighbour_t;
+
+#endif
