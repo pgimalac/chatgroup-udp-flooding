@@ -24,7 +24,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
     ssize_t i;
     struct iovec *iov;
 
-    nb = (nb + 1) << 1;
+    nb = (nb << 1) + 1;
     iov = malloc(nb * sizeof(struct iovec));
     if (!iov) return 0;
     *iov_dest = iov;
@@ -43,8 +43,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
     return i;
 }
 
-int add_neighbour(char *hostname, char *service,
-              neighbour_t **neighbour) {
+int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     int rc, s;
     struct addrinfo hints, *r, *p;
 
