@@ -1,11 +1,11 @@
-#ifndef TYPES_INC
-#define TYPES_INC
+#ifndef __H_TYPES
+#define __H_TYPES
+
+#include <sys/types.h>
 
 /**
  * Files containing all messages
  */
-
-#include <sys/types.h>
 
 #define BODY_PAD1 0
 #define BODY_PADN 1
