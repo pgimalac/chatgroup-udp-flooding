@@ -1,3 +1,6 @@
+#ifndef __H_TYPES
+#define __H_TYPES
+
 /**
  * Files containing all messages
  */
@@ -51,3 +54,5 @@ typedef struct neighbour_node {
     size_t addrlen;
     struct neighbour_node *next;
 } neighbour_t;
+
+#endif

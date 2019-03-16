@@ -66,12 +66,28 @@ int main(void) {
     }
 
     while (1) {
+        char c[4096];
+        size_t len = 4096;
         struct in6_addr addr = { 0 };
-        rc = recv_message(s, &addr);
+        rc = recv_message(s, &addr, c, &len);
         if (rc < 0) {
             perror("receive message");
             return 1;
         }
+
+        message_t *msg = bytes_to_message(c, len);
+        printf("Message description:\n");
+        printf("magic: %d\n", msg->magic);
+        printf("version: %d\n", msg->version);
+        printf("body length: %d\n\n", msg->body_length);
+
+        for(body_t *p = msg->body; p; p = p->next) {
+            printf("Next TLV\n");
+            printf("type: %d\n", p->type);
+            printf("length: %d\n\n", p->length);
+        }
+
+        //free_message(msg);
     }
 
     printf("Bye !\n");

@@ -123,7 +123,7 @@ send_message(neighbour_t *neighbour, int sock,
 }
 
 int
-recv_message(int sock, struct in6_addr *addr) {
+recv_message(int sock, struct in6_addr *addr, char *out, size_t *buflen) {
     int rc;
     unsigned char buf[4096];
     struct in6_pktinfo *info = 0;
@@ -148,7 +148,7 @@ recv_message(int sock, struct in6_addr *addr) {
     if (rc < 0) return -1;
 
     cmsg = CMSG_FIRSTHDR(&hdr);
-    while(cmsg != NULL) {
+    while(cmsg) {
         if ((cmsg->cmsg_level == IPPROTO_IPV6) &&
             (cmsg->cmsg_type == IPV6_PKTINFO)) {
             info = (struct in6_pktinfo*)CMSG_DATA(cmsg);
@@ -164,19 +164,62 @@ recv_message(int sock, struct in6_addr *addr) {
 
     *addr = info->ipi6_addr;
 
-    char out[128];
-    const char *p = inet_ntop(AF_INET6, &info->ipi6_addr, out, 128);
+    char ipstr[128];
+    const char *p = inet_ntop(AF_INET6, &info->ipi6_addr, ipstr, 128);
     if (!p) { // weird
         perror("inet");
     } else {
-        printf("Receive message from %s.\n", out);
+        printf("Receive message from %s.\n", ipstr);
     }
 
-    printf("magic %d\n", *((u_int8_t*)iov[0].iov_base));
-    printf("version %d\n", *((u_int8_t*)(iov[0].iov_base + 1)));
-    printf("body_length %d\n", ntohl(*((u_int16_t*)(iov[0].iov_base + 2))));
-
+    if (!out || !buflen) return 0;
+    if (*buflen > iov[0].iov_len) *buflen = iov[0].iov_len;
+    memcpy(out, buf, *buflen);
     return 0;
+}
+
+message_t *
+bytes_to_message(void *src, size_t buflen) {
+    message_t *msg = malloc(sizeof(message_t));
+    if (!msg) return 0;
+
+    size_t i = 0;
+    body_t *body, *bptr;
+
+    if (buflen < 4) return 0;
+
+    msg->magic = *((type_t*)src);
+    msg->version = *((type_t*)src + 1);
+    msg->body_length = ntohs(*((u_int16_t*)(src + 2)));
+    msg->body = 0;
+
+    void *buf = src + 4;
+
+    while (i < msg->body_length && i < buflen) {
+        body = malloc(sizeof(body_t));
+
+        body->type = *((type_t*)buf + i++);
+        if (body->type == BODY_PAD1) continue;
+
+        body->length = *((type_t*)buf + i++);
+
+        // TODO: from big endian to host
+        body->content = malloc(body->length);
+        memcpy(body->content, buf + i, body->length);
+        i += body->length;
+        body->next = 0;
+
+        // TODO: find something better
+        if (!msg->body) {
+            msg->body = body;
+            bptr = body;
+        }  else {
+            bptr->next = body;
+            bptr = body;
+        }
+    }
+
+    return msg;
 }
 
 int
