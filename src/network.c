@@ -86,13 +86,7 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
 int send_message(neighbour_t *neighbour, int sock, message_t *msg, size_t nb_body) {
     int rc;
     struct msghdr hdr = { 0 };
-    struct cmsghdr *cmsg;
     struct in6_pktinfo info;
-
-    union {
-        char cmsgbuf[CMSG_SPACE(sizeof(info))];
-        struct cmsghdr align;
-    } u;
 
     hdr.msg_name = neighbour->addr;
     hdr.msg_namelen = neighbour->addrlen;
@@ -101,16 +95,6 @@ int send_message(neighbour_t *neighbour, int sock, message_t *msg, size_t nb_bod
 
     memset(&info, 0, sizeof(info));
     info.ipi6_addr = local_addr.sin6_addr;
-
-    memset(u.cmsgbuf, 0, sizeof(u.cmsgbuf));
-    hdr.msg_control = u.cmsgbuf;
-    hdr.msg_controllen = sizeof(u.cmsgbuf);
-
-    cmsg = CMSG_FIRSTHDR(&hdr);
-    cmsg->cmsg_level = IPPROTO_IPV6;
-    cmsg->cmsg_type = IPV6_PKTINFO;
-    cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
-    memcpy(CMSG_DATA(cmsg), &info, sizeof(struct in6_pktinfo));
 
     rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
     free(hdr.msg_iov);
