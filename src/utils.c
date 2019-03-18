@@ -1,6 +1,7 @@
 #include <time.h>
 
 #include "utils.h"
+#include <stdio.h>
 
 int init_random() {
 
@@ -12,7 +13,7 @@ int init_random() {
 }
 
 u_int64_t random_uint64 () {
-    static const char rand_max_size = 64 - __builtin_clz(RAND_MAX);
+    static const char rand_max_size = __builtin_ctz(~RAND_MAX);
     // change for other compilers compatibility ?
     // RAND_MAX = 2 ^ rand_max_size
 
@@ -24,7 +25,7 @@ u_int64_t random_uint64 () {
 }
 
 u_int32_t random_uint32 () {
-    static const char rand_max_size = 32 - __builtin_clz(RAND_MAX);
+    static const char rand_max_size = __builtin_ctz(~RAND_MAX);
     // change for other compilers compatibility ?
     // RAND_MAX = 2 ^ rand_max_size
 
