@@ -98,8 +98,6 @@ int send_message(neighbour_t *neighbour, int sock, message_t *msg, size_t nb_bod
 
     rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
     free(hdr.msg_iov);
-    // free might change errno but prevents a memory leak
-    // find a way to avoid using free here ?
     if (rc < 0) return -2;
 
     return 0;
@@ -226,7 +224,7 @@ int start_server(int port) {
         // both errors from inet_ntop aren't possible here but you never know
         perror("inet_ntop");
     } else {
-        printf("Start server at %s on port %d.\n", out, local_addr.sin6_port);
+        printf("Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
     }
 
     int one = 1;
