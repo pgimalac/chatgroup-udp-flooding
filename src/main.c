@@ -8,8 +8,10 @@
 #include "types.h"
 #include "utils.h"
 #include "network.h"
+#include "tlv.h"
 
-#define PORT 4242
+#define MIN_PORT 1024
+#define MAX_PORT 49151
 
 int init() {
     int rc;
@@ -22,14 +24,25 @@ int init() {
     return init_network();
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     int rc, s;
 
     rc = init();
     if (rc != 0) return rc;
     printf("id: %lu\n", id);
 
-    s = start_server(PORT);
+    unsigned short port = 0;
+    if (argc >= 2){
+        char *pos;
+        long int port2 = strtol(argv[1], &pos, 0);
+        printf("%ld\n", port2);
+        if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT){
+            printf("ok\n");
+            port = (unsigned short)port2;
+        }
+    }
+
+    s = start_server(port);
     if (s < 0) {
         fprintf(stderr, "coudn't create socket\n");
         return 1;
@@ -41,18 +54,11 @@ int main(void) {
         return 2;
     }
 
-    chat_id_t i = htonl(id);
     body_t hello = { 0 };
-    hello.type = BODY_HELLO;
-    hello.length = 8;
-    hello.content = &i;
-    hello.next = 0;
+    hello.size = tlv_hello_short(&hello.content, id);
 
     body_t pad = { 0 };
-    pad.type = BODY_PADN;
-    pad.length = 2;
-    char buf[2] = {0}; // better than calloc(2)
-    pad.content = buf;
+    pad.size = tlv_padn(&hello.content, 2);
     pad.next = &hello;
 
     message_t message = { 0 };
@@ -85,8 +91,8 @@ int main(void) {
 
         for(body_t *p = msg->body; p; p = p->next) {
             printf("Next TLV\n");
-            printf("type: %d\n", p->type);
-            printf("length: %d\n\n", p->length);
+            printf("type: %d\n", p->content[0]);
+            printf("length: %d\n\n", p->content[1]);
         }
 
         free_message(msg);
