@@ -20,13 +20,16 @@ int init_network() {
     return 0;
 }
 
-size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
+size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     body_t *p;
     ssize_t i;
     struct iovec *iov;
 
-    nb++;
-    iov = malloc(nb * sizeof(struct iovec));
+    int nb = 1;
+    for (p = msg->body; p; p = p->next)
+        nb++;
+
+    iov = calloc(nb, sizeof(struct iovec));
     if (!iov) return 0;
     *iov_dest = iov;
 
@@ -84,14 +87,14 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     return 0;
 }
 
-int send_message(neighbour_t *neighbour, int sock, message_t *msg, size_t nb_body) {
+int send_message(neighbour_t *neighbour, int sock, message_t *msg) {
     int rc;
     struct msghdr hdr = { 0 };
     struct in6_pktinfo info;
 
     hdr.msg_name = neighbour->addr;
     hdr.msg_namelen = neighbour->addrlen;
-    hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov, nb_body);
+    hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov);
     if (!hdr.msg_iov) return -1;
 
     memset(&info, 0, sizeof(info));
@@ -174,9 +177,8 @@ int check_message(const char* buffer, const int buflen){
         if (buffer[i] == BODY_PAD1)
             i++;
         else{
-            if (i + 1 > buflen)
+            if (++i > buflen)
                 return -4;
-            i++;
             i += buffer[i];
         }
     }

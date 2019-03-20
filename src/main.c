@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 
     unsigned short port = 0;
     if (argc >= 2){
-        char *pos;
+        char *pos = 0;
         long int port2 = strtol(argv[1], &pos, 0);
         printf("%ld\n", port2);
         if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT){
@@ -67,14 +67,14 @@ int main(int argc, char **argv) {
     message.body_length = htons(hello.size + pad.size);
     message.body = &hello;
 
-    rc = send_message(neighbours, s, &message, 1);
+    rc = send_message(neighbours, s, &message);
     if (rc < 0) {
         perror("send message");
         return 1;
     }
 
     while (1) {
-        char c[4096];
+        char c[4096] = { 0 };
         size_t len = 4096;
         struct in6_addr addr = { 0 };
         rc = recv_message(s, &addr, c, &len);
