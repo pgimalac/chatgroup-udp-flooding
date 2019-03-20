@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "network.h"
+#include "tlv.h"
 
 // user address
 struct sockaddr_in6 local_addr;
@@ -19,12 +20,13 @@ int init_network() {
     return 0;
 }
 
-size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, const ssize_t nb) {
+size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, ssize_t nb) {
     body_t *p;
     ssize_t i;
     struct iovec *iov;
 
-    iov = malloc((nb + 1) * sizeof(struct iovec));
+    nb++;
+    iov = malloc(nb * sizeof(struct iovec));
     if (!iov) return 0;
     *iov_dest = iov;
 
@@ -39,7 +41,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest, const ssize_t n
     return i;
 }
 
-int add_neighbour(const char *hostname, const char *service, neighbour_t **neighbour) {
+int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     int rc, s;
     struct addrinfo hints, *r, *p;
 
@@ -64,7 +66,10 @@ int add_neighbour(const char *hostname, const char *service, neighbour_t **neigh
     memcpy(copy, p->ai_addr, p->ai_addrlen);
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
-    if (n == NULL) return -4;
+    if (n == NULL){
+        free(copy);
+        return -4;
+    }
 
     n->id = 0;
     n->last_hello = 0;
@@ -79,19 +84,18 @@ int add_neighbour(const char *hostname, const char *service, neighbour_t **neigh
     return 0;
 }
 
-int send_message(neighbour_t *neighbour, const int sock, message_t *msg, const size_t nb_body) {
+int send_message(neighbour_t *neighbour, int sock, message_t *msg, size_t nb_body) {
     int rc;
     struct msghdr hdr = { 0 };
+    struct in6_pktinfo info;
 
     hdr.msg_name = neighbour->addr;
     hdr.msg_namelen = neighbour->addrlen;
     hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov, nb_body);
     if (!hdr.msg_iov) return -1;
 
-    char out[INET6_ADDRSTRLEN];
-    if (inet_ntop(AF_INET6, &neighbour->addr, out, INET6_ADDRSTRLEN)){
-        printf("%s\n", out);
-    }
+    memset(&info, 0, sizeof(info));
+    info.ipi6_addr = local_addr.sin6_addr;
 
     rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
     free(hdr.msg_iov);
@@ -102,12 +106,12 @@ int send_message(neighbour_t *neighbour, const int sock, message_t *msg, const s
     return 0;
 }
 
-int recv_message(const int sock, struct in6_addr *addr, char *out, size_t *buflen) {
+int recv_message(int sock, struct in6_addr *addr, char *out, size_t *buflen) {
     int rc;
     unsigned char buf[4096];
     struct in6_pktinfo *info = 0;
     struct iovec iov[1];
-    struct msghdr hdr;
+    struct msghdr hdr = { 0 };
     struct cmsghdr *cmsg;
     union {
         unsigned char cmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
@@ -116,7 +120,6 @@ int recv_message(const int sock, struct in6_addr *addr, char *out, size_t *bufle
 
     iov[0].iov_base = buf;
     iov[0].iov_len = 4096;
-    memset(&hdr, 0, sizeof(hdr));
 
     hdr.msg_iov = iov;
     hdr.msg_iovlen = 1;
@@ -139,6 +142,7 @@ int recv_message(const int sock, struct in6_addr *addr, char *out, size_t *bufle
     if(info == NULL) {
         /* ce cas ne devrait pas arriver */
         fprintf(stderr, "IPV6_PKTINFO non trouvé\n");
+        return -2;
     }
 
     *addr = info->ipi6_addr;
@@ -146,77 +150,85 @@ int recv_message(const int sock, struct in6_addr *addr, char *out, size_t *bufle
     char ipstr[128];
     const char *p = inet_ntop(AF_INET6, &info->ipi6_addr, ipstr, 128);
     if (!p) { // weird
-        perror("inet");
+        perror("inet_ntop");
     } else {
         printf("Receive message from %s.\n", ipstr);
     }
 
     if (!out || !buflen) return 0;
-    if (*buflen > iov[0].iov_len) *buflen = iov[0].iov_len;
+    *buflen = rc;
     memcpy(out, buf, *buflen);
     return 0;
 }
 
-// todo : better error handling
-message_t* bytes_to_message(void *src, size_t buflen) {
+int check_message(const char* buffer, const int buflen){
+    if (buffer == NULL)
+        return -1;
+    if (buflen < 4)
+        return -2;
+    u_int16_t body_length = be16toh(*(u_int16_t*)(buffer + 2));
+    if (body_length + 4 != buflen)
+        return -3;
+    int i = 4;
+    while (i < buflen){
+        if (buffer[i] == BODY_PAD1)
+            i++;
+        else{
+            if (i + 1 > buflen)
+                return -4;
+            i++;
+            i += buffer[i];
+        }
+    }
+    if (i != buflen)
+        return -5;
+    return 0;
+}
+
+message_t* bytes_to_message(const char *src, const size_t buflen) {
+    int rc = check_message(src, buflen);
+    if (rc != 0){
+        printf("%d\n", rc);
+        return 0;
+    }
+
     message_t *msg = malloc(sizeof(message_t));
     if (!msg) return 0;
 
-    size_t i = 0;
+    size_t i = 4;
     body_t *body, *bptr;
 
-    if (buflen < 4) return 0;
-
-    msg->magic = *((type_t*)src);
-    msg->version = *((type_t*)src + 1);
-    msg->body_length = ntohs(*((u_int16_t*)(src + 2)));
+    msg->magic = src[0];
+    msg->version = src[1];
+    msg->body_length = ntohs(*(u_int16_t*)(src + 2));
     msg->body = 0;
 
-    char *buf = src + 4;
-    buflen -= 4;
-
-    while (i < msg->body_length && i < buflen) {
+    while (i < buflen) {
         body = malloc(sizeof(body_t));
         if (!body) // todo : better error handling
             break;
         memset(body, 0, sizeof(body_t));
 
-        body->size = 1;
-        if (*(buf + i) == BODY_PAD1){
+        if (src[i] == BODY_PAD1)
             body->size = 1;
-        } else {
-            if (buflen > i + 1){
-                free(body);
-                break; // todo : better error handling
-            }
-            body->size = 2 + *(buf + i + 1);
-        }
-        if (buflen > i + body->size){
-            free(body);
-            break; // todo : better error handling
-        }
+        else
+            body->size = 2 + src[i + 1];
         body->content = malloc(body->size);
-        if (!body->content){
-            free(body); // todo : better error handling
-            break;
-        }
-        memcpy(body->content, buf + i, body->size);
+        memcpy(body->content, src + i, body->size);
         i += body->size;
 
         // TODO: find something better
-        if (!msg->body) {
+        if (!msg->body)
             msg->body = body;
-            bptr = body;
-        }  else {
+        else
             bptr->next = body;
-            bptr = body;
-        }
+        bptr = body;
     }
 
     return msg;
 }
 
-int start_server(const unsigned short port) {
+int start_server(int port) {
     int rc, s;
     memset(&local_addr, 0, sizeof(struct sockaddr_in6));
 
@@ -240,7 +252,7 @@ int start_server(const unsigned short port) {
         perror("inet_ntop");
     } else {
         if (local_addr.sin6_port)
-            printf("Start server at %s on port %d.\n", out, local_addr.sin6_port);
+            printf("Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
         else
             printf("Start server at %s on a random port.\n", out);
     }

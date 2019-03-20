@@ -56,18 +56,18 @@ int main(int argc, char **argv) {
 
     body_t hello = { 0 };
     hello.size = tlv_hello_short(&hello.content, id);
-
+/*
     body_t pad = { 0 };
     pad.size = tlv_padn(&hello.content, 2);
     pad.next = &hello;
-
+*/
     message_t message = { 0 };
     message.magic = 93;
     message.version = 2;
-    message.body_length = htons(14);
-    message.body = &pad;
+    message.body_length = htons(hello.size);
+    message.body = &hello;
 
-    rc = send_message(neighbours, s, &message, 2);
+    rc = send_message(neighbours, s, &message, 1);
     if (rc < 0) {
         perror("send message");
         return 1;
@@ -84,18 +84,20 @@ int main(int argc, char **argv) {
         }
 
         message_t *msg = bytes_to_message(c, len);
-        printf("Message description:\n");
-        printf("magic: %d\n", msg->magic);
-        printf("version: %d\n", msg->version);
-        printf("body length: %d\n\n", msg->body_length);
+        if (msg){
+            printf("Message description:\n");
+            printf("magic: %d\n", msg->magic);
+            printf("version: %d\n", msg->version);
+            printf("body length: %d\n\n", msg->body_length);
 
-        for(body_t *p = msg->body; p; p = p->next) {
-            printf("Next TLV\n");
-            printf("type: %d\n", p->content[0]);
-            printf("length: %d\n\n", p->content[1]);
+            for(body_t *p = msg->body; p; p = p->next) {
+                printf("Next TLV\n");
+                printf("type: %d\n", p->content[0]);
+                printf("length: %d\n\n", p->content[1]);
+            }
+
+            free_message(msg);
         }
-
-        free_message(msg);
     }
 
     printf("Bye !\n");

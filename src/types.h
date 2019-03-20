@@ -2,16 +2,10 @@
 #define __H_TYPES
 
 #include <sys/types.h>
-#include "tlv.h"
 
 /**
  * Files containing all messages
  */
-
-#define AWAY_UNKNOWN 0
-#define AWAY_LEAVED 1
-#define AWAY_LOST 2
-#define AWAY_VIOLATED 3
 
 typedef u_int8_t type_t;
 typedef u_int64_t chat_id_t;
@@ -23,6 +17,7 @@ typedef struct body {
     int size;
     struct body *next;
 } body_t;
+
 
 typedef struct message {
     type_t magic;
