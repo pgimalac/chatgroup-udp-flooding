@@ -187,15 +187,14 @@ int check_message(const char* buffer, const int buflen){
     return 0;
 }
 
-message_t* bytes_to_message(const char *src, const size_t buflen) {
+int bytes_to_message(const char *src, const size_t buflen, message_t *msg) {
+    if (msg == NULL)
+        return -6;
     int rc = check_message(src, buflen);
     if (rc != 0){
         printf("%d\n", rc);
-        return 0;
+        return rc;
     }
-
-    message_t *msg = malloc(sizeof(message_t));
-    if (!msg) return 0;
 
     size_t i = 4;
     body_t *body, *bptr;
@@ -227,7 +226,7 @@ message_t* bytes_to_message(const char *src, const size_t buflen) {
         bptr = body;
     }
 
-    return msg;
+    return 0;
 }
 
 int start_server(int port) {

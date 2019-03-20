@@ -139,7 +139,6 @@ int tlv_goaway(char **buffer, const u_int8_t code, const char *message, const u_
 }
 
 int tlv_warning(char **buffer, const char *message, const u_int8_t messagelen){
-
     int size = HEADER_OFFSET + messagelen;
     *buffer = malloc(size);
 

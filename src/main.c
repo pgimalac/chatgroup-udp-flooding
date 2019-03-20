@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    message_t msg;
     while (1) {
         char c[4096] = { 0 };
         size_t len = 4096;
@@ -83,14 +84,14 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        message_t *msg = bytes_to_message(c, len);
-        if (msg){
+        rc = bytes_to_message(c, len, &msg);
+        if (rc == 0){
             printf("Message description:\n");
-            printf("magic: %d\n", msg->magic);
-            printf("version: %d\n", msg->version);
-            printf("body length: %d\n\n", msg->body_length);
+            printf("magic: %d\n", msg.magic);
+            printf("version: %d\n", msg.version);
+            printf("body length: %d\n\n", msg.body_length);
 
-            for(body_t *p = msg->body; p; p = p->next) {
+            for(body_t *p = msg.body; p; p = p->next) {
                 printf("Next TLV\n");
                 printf("type: %d\n", p->content[0]);
                 printf("length: %d\n", p->content[1]);
@@ -100,7 +101,7 @@ int main(int argc, char **argv) {
 */                printf("\n");
             }
 
-            free_message(msg);
+            free_message(&msg);
         }
     }
 
