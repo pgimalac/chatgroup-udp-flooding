@@ -54,17 +54,17 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    body_t pad = { 0 };
+    pad.size = tlv_padn(&pad.content, 2);
+
     body_t hello = { 0 };
     hello.size = tlv_hello_short(&hello.content, id);
-/*
-    body_t pad = { 0 };
-    pad.size = tlv_padn(&hello.content, 2);
-    pad.next = &hello;
-*/
+    hello.next = &pad;
+
     message_t message = { 0 };
     message.magic = 93;
     message.version = 2;
-    message.body_length = htons(hello.size);
+    message.body_length = htons(hello.size + pad.size);
     message.body = &hello;
 
     rc = send_message(neighbours, s, &message, 1);
@@ -93,7 +93,11 @@ int main(int argc, char **argv) {
             for(body_t *p = msg->body; p; p = p->next) {
                 printf("Next TLV\n");
                 printf("type: %d\n", p->content[0]);
-                printf("length: %d\n\n", p->content[1]);
+                printf("length: %d\n", p->content[1]);
+/*                printf("content :\n");
+                for (int i = 0; i < p->content[1]; i++)
+                    printf("%d ", 128 + p->content[2 + i]);
+*/                printf("\n");
             }
 
             free_message(msg);
