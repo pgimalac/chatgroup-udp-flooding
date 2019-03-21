@@ -109,7 +109,7 @@ int send_message(neighbour_t *neighbour, int sock, message_t *msg) {
     return 0;
 }
 
-int recv_message(int sock, struct in6_addr *addr, char *out, size_t *buflen) {
+int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen) {
     int rc;
     unsigned char buf[4096];
     struct in6_pktinfo *info = 0;
@@ -124,6 +124,8 @@ int recv_message(int sock, struct in6_addr *addr, char *out, size_t *buflen) {
     iov[0].iov_base = buf;
     iov[0].iov_len = 4096;
 
+    hdr.msg_name = addr;
+    hdr.msg_namelen = sizeof(*addr);
     hdr.msg_iov = iov;
     hdr.msg_iovlen = 1;
     hdr.msg_control = (struct cmsghdr*)u.cmsgbuf;
@@ -148,11 +150,8 @@ int recv_message(int sock, struct in6_addr *addr, char *out, size_t *buflen) {
         return -2;
     }
 
-    *addr = info->ipi6_addr;
-
-    char ipstr[128];
-    const char *p = inet_ntop(AF_INET6, &info->ipi6_addr, ipstr, 128);
-    if (!p) { // weird
+    char ipstr[INET6_ADDRSTRLEN];
+    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
         printf("Receive message from %s.\n", ipstr);

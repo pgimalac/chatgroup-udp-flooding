@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    rc = add_neighbour("jch.irif.fr", "1212", &neighbours);
+    rc = add_neighbour("2001:660:3301:9200::51c2:1b9b", "1212", &neighbours);
     if (rc < 0) {
         perror("add neighbour");
         return 2;
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     while (1) {
         char c[4096] = { 0 };
         size_t len = 4096;
-        struct in6_addr addr = { 0 };
+        struct sockaddr_in6 addr = { 0 };
         rc = recv_message(s, &addr, c, &len);
         if (rc < 0) {
             perror("receive message");
@@ -95,10 +95,6 @@ int main(int argc, char **argv) {
                 printf("Next TLV\n");
                 printf("type: %d\n", p->content[0]);
                 printf("length: %d\n", p->content[1]);
-/*                printf("content :\n");
-                for (int i = 0; i < p->content[1]; i++)
-                    printf("%d ", 128 + p->content[2 + i]);
-*/                printf("\n");
             }
 
             free_message(&msg);

@@ -16,7 +16,7 @@ size_t message_to_iovec(message_t*, struct iovec **);
 int add_neighbour(char*, char*, neighbour_t**);
 int send_message(neighbour_t*, int, message_t*);
 int start_server(int);
-int recv_message(int, struct in6_addr*, char*, size_t*);
+int recv_message(int, struct sockaddr_in6*, char*, size_t*);
 int bytes_to_message(const char*, const size_t, message_t*);
 
 #endif
