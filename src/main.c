@@ -113,7 +113,10 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        on_recv(c, len, &addr, sizeof(addr));
+        rc = on_recv(c, len, &addr, sizeof(addr));
+        if (rc < 0) {
+            fprintf(stderr, "Corrupted message.\n");
+        }
     }
 
     printf("Bye !\n");
