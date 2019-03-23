@@ -163,7 +163,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
     return 0;
 }
 
-int check_message(const char* buffer, const int buflen){
+int check_message_size(const char* buffer, int buflen){
     if (buffer == NULL)
         return -1;
     if (buflen < 4)
@@ -186,10 +186,10 @@ int check_message(const char* buffer, const int buflen){
     return 0;
 }
 
-int bytes_to_message(const char *src, const size_t buflen, message_t *msg) {
+int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     if (msg == NULL)
         return -6;
-    int rc = check_message(src, buflen);
+    int rc = check_message_size(src, buflen);
     if (rc != 0){
         printf("%d\n", rc);
         return rc;
@@ -204,25 +204,23 @@ int bytes_to_message(const char *src, const size_t buflen, message_t *msg) {
     msg->body = 0;
 
     while (i < buflen) {
+        printf("new body\n");
         body = malloc(sizeof(body_t));
         if (!body) // todo : better error handling
             break;
         memset(body, 0, sizeof(body_t));
 
-        if (src[i] == BODY_PAD1)
-            body->size = 1;
-        else
-            body->size = 2 + src[i + 1];
+        if (src[i] == BODY_PAD1) body->size = 1;
+        else body->size = 2 + src[i + 1];
         body->content = malloc(body->size);
         memcpy(body->content, src + i, body->size);
         i += body->size;
 
         // TODO: find something better
-        if (!msg->body)
-            msg->body = body;
-        else
-            bptr->next = body;
+        if (!msg->body) msg->body = body;
+        else bptr->next = body;
         bptr = body;
+        printf("next\n");
     }
 
     return 0;

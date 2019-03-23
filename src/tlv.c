@@ -15,7 +15,7 @@ int tlv_pad(char **buffer){
     return 1;
 }
 
-int tlv_padn(char **buffer, const u_int8_t n){
+int tlv_padn(char **buffer, u_int8_t n){
     int size = HEADER_OFFSET + n;
     *buffer = malloc(size);
     if (*buffer == NULL)
@@ -28,8 +28,8 @@ int tlv_padn(char **buffer, const u_int8_t n){
     return size;
 }
 
-int tlv_hello_short(char **buffer, const u_int64_t source){
-    u_int64_t n_source = htobe64(source);
+int tlv_hello_short(char **buffer, chat_id_t source){
+    chat_id_t n_source = htobe64(source);
 
     int size = HEADER_OFFSET + sizeof(n_source);
     *buffer = malloc(size);
@@ -43,7 +43,7 @@ int tlv_hello_short(char **buffer, const u_int64_t source){
     return size;
 }
 
-int tlv_hello_long(char **buffer, const u_int64_t source, const u_int64_t dest){
+int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
     u_int64_t n_source = htobe64(source);
     u_int64_t n_dest = htobe64(dest);
 
@@ -54,35 +54,33 @@ int tlv_hello_long(char **buffer, const u_int64_t source, const u_int64_t dest){
 
     char *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_HELLO;
-    (*buffer)[1] = sizeof(source);
+    (*buffer)[1] = sizeof(source) + sizeof(dest);
     memmove(offset, &n_source, sizeof(n_source));
     memmove(offset + sizeof(source), &n_dest, sizeof(n_dest));
 
     return size;
 }
 
-int tlv_neighbour(char **buffer, const char *addr, const u_int8_t addrlen, const u_int16_t port){
-    static const u_int8_t IP_MAX_SIZE = 16;
+int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
     u_int16_t n_port = htobe16(port);
-    if (addrlen > IP_MAX_SIZE)
-        return -2;
+    int size = HEADER_OFFSET + sizeof(struct in6_addr) + sizeof(n_port);
 
-    int size = HEADER_OFFSET + IP_MAX_SIZE + sizeof(n_port);
     *buffer = malloc(size);
     if (*buffer == NULL)
         return -1;
 
     char *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_NEIGHBOUR;
-    (*buffer)[1] = IP_MAX_SIZE + sizeof(n_port);
-    memmove(offset, addr, addrlen);
-    memset(offset + addrlen, 0, IP_MAX_SIZE - addrlen);
-    memmove(offset + IP_MAX_SIZE, &n_port, sizeof(n_port));
+    (*buffer)[1] = sizeof(struct in6_addr) + sizeof(n_port);
+    memmove(offset, addr, sizeof(struct in6_addr));
+    memmove(offset + sizeof(struct in6_addr), &n_port, sizeof(n_port));
 
     return size;
 }
 
-int tlv_data(char **buffer, const u_int64_t sender, const u_int32_t nonce, const u_int8_t type, const char *data, const u_int8_t datalen){
+int tlv_data(char **buffer,
+             chat_id_t sender, nonce_t nonce,
+             u_int8_t type, const char *data, u_int8_t datalen){
     u_int64_t n_sender = htobe64(sender);
     u_int32_t n_nonce = htobe32(nonce);
     u_int32_t true_size = datalen + sizeof(n_sender) + sizeof(n_nonce) + sizeof(type);
@@ -107,7 +105,7 @@ int tlv_data(char **buffer, const u_int64_t sender, const u_int32_t nonce, const
     return size;
 }
 
-int tlv_ack(char **buffer, const u_int64_t sender, const u_int32_t nonce){
+int tlv_ack(char **buffer, u_int64_t sender, u_int32_t nonce){
     u_int64_t n_sender = htobe64(sender);
     u_int64_t n_nonce = htobe64(nonce);
 
@@ -123,7 +121,8 @@ int tlv_ack(char **buffer, const u_int64_t sender, const u_int32_t nonce){
     return size;
 }
 
-int tlv_goaway(char **buffer, const u_int8_t code, const char *message, const u_int8_t messagelen){
+int tlv_goaway(char **buffer, u_int8_t code,
+               const char *message, u_int8_t messagelen){
     if (messagelen + sizeof(code) > 255)
         return -2;
 
@@ -138,7 +137,7 @@ int tlv_goaway(char **buffer, const u_int8_t code, const char *message, const u_
     return size;
 }
 
-int tlv_warning(char **buffer, const char *message, const u_int8_t messagelen){
+int tlv_warning(char **buffer, const char *message, u_int8_t messagelen){
     int size = HEADER_OFFSET + messagelen;
     *buffer = malloc(size);
 
