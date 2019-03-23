@@ -4,11 +4,14 @@
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/time.h>
 
 #include "types.h"
 #include "utils.h"
 #include "network.h"
 #include "tlv.h"
+#include "innondation.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
@@ -22,6 +25,31 @@ int init() {
     }
 
     return init_network();
+}
+
+int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr, size_t addrlen) {
+    int rc;
+    message_t msg;
+
+    rc = bytes_to_message(c, buflen, &msg);
+    if (rc < 0) return -1;
+
+    printf("Message description:\n");
+    printf("magic: %d\n", msg.magic);
+    printf("version: %d\n", msg.version);
+    printf("body length: %d\n\n", msg.body_length);
+
+    for(body_t *p = msg.body; p; p = p->next) {
+        printf("Next TLV\n");
+        printf("type: %d\n", p->content[0]);
+        printf("length: %d\n", p->content[1]);
+        if (p->content[0] == 2) {
+            update_hello((chat_id_t*)p->content + 2, p->content[1], addr, addrlen);
+        }
+    }
+
+    free_message(&msg);
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -48,57 +76,44 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    rc = add_neighbour("2001:660:3301:9200::51c2:1b9b", "1212", &neighbours);
+    rc = add_neighbour("jch.irif.fr", "1212", &potential_neighbours);
     if (rc < 0) {
         perror("add neighbour");
         return 2;
     }
 
-    body_t pad = { 0 };
-    pad.size = tlv_padn(&pad.content, 2);
-
-    body_t hello = { 0 };
-    hello.size = tlv_hello_short(&hello.content, id);
-    hello.next = &pad;
-
-    message_t message = { 0 };
-    message.magic = 93;
-    message.version = 2;
-    message.body_length = htons(hello.size + pad.size);
-    message.body = &hello;
-
-    rc = send_message(neighbours, s, &message);
-    if (rc < 0) {
-        perror("send message");
-        return 1;
-    }
-
-    message_t msg;
+    int size;
+    struct timeval tv = { 0 };
     while (1) {
+        size = hello_neighbours(s, &tv);
+        if (size < 8) {
+            hello_potential_neighbours(s);
+        }
+
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(s, &readfds);
+        rc = select(s + 1, &readfds, 0, 0, &tv);
+        if (rc < 0) {
+            perror("select");
+            continue;
+        }
+
+        if (rc == 0 || !FD_ISSET(s, &readfds))
+            continue;
+
         char c[4096] = { 0 };
         size_t len = 4096;
         struct sockaddr_in6 addr = { 0 };
         rc = recv_message(s, &addr, c, &len);
         if (rc < 0) {
+            if (errno == EAGAIN)
+                continue;
             perror("receive message");
-            return 1;
+            continue;
         }
 
-        rc = bytes_to_message(c, len, &msg);
-        if (rc == 0){
-            printf("Message description:\n");
-            printf("magic: %d\n", msg.magic);
-            printf("version: %d\n", msg.version);
-            printf("body length: %d\n\n", msg.body_length);
-
-            for(body_t *p = msg.body; p; p = p->next) {
-                printf("Next TLV\n");
-                printf("type: %d\n", p->content[0]);
-                printf("length: %d\n", p->content[1]);
-            }
-
-            free_message(&msg);
-        }
+        on_recv(c, len, &addr, sizeof(addr));
     }
 
     printf("Bye !\n");

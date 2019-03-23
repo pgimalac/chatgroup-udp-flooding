@@ -9,7 +9,7 @@
 
 
 chat_id_t id;
-neighbour_t *neighbours;
+neighbour_t *neighbours, *potential_neighbours;
 
 int init_network();
 

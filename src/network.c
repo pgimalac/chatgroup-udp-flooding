@@ -17,6 +17,7 @@ struct sockaddr_in6 local_addr;
 int init_network() {
     id = random_uint64();
     neighbours = 0;
+    potential_neighbours = 0;
     return 0;
 }
 
@@ -204,7 +205,6 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     msg->body = 0;
 
     while (i < buflen) {
-        printf("new body\n");
         body = malloc(sizeof(body_t));
         if (!body) // todo : better error handling
             break;
@@ -220,7 +220,6 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
         if (!msg->body) msg->body = body;
         else bptr->next = body;
         bptr = body;
-        printf("next\n");
     }
 
     return 0;
