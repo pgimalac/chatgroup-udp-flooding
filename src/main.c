@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    rc = add_neighbour("2001:660:3301:9200::51c2:1b9b", "1212", &neighbours);
+    rc = add_neighbour("jch.irif.fr", "1212", &neighbours);
     if (rc < 0) {
         perror("add neighbour");
         return 2;
@@ -98,6 +98,8 @@ int main(int argc, char **argv) {
             }
 
             free_message(&msg);
+        } else {
+            printf("error decripting the message : %d\n", rc);
         }
     }
 

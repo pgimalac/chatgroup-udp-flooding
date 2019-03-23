@@ -173,16 +173,13 @@ int check_message_size(const char* buffer, int buflen){
         return -3;
     int i = 4;
     while (i < buflen){
-        if (buffer[i] == BODY_PAD1)
-            i++;
-        else{
-            if (++i > buflen)
+        i++;
+        if (buffer[i - 1] != BODY_PAD1){
+            if (i >= buflen)
                 return -4;
-            i += buffer[i];
+            i += 1 + (u_int8_t)buffer[i];
         }
     }
-    if (i != buflen)
-        return -5;
     return 0;
 }
 
@@ -190,10 +187,7 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     if (msg == NULL)
         return -6;
     int rc = check_message_size(src, buflen);
-    if (rc != 0){
-        printf("%d\n", rc);
-        return rc;
-    }
+    if (rc != 0) return rc;
 
     size_t i = 4;
     body_t *body, *bptr;
@@ -204,7 +198,6 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     msg->body = 0;
 
     while (i < buflen) {
-        printf("new body\n");
         body = malloc(sizeof(body_t));
         if (!body) // todo : better error handling
             break;
@@ -220,7 +213,6 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
         if (!msg->body) msg->body = body;
         else bptr->next = body;
         bptr = body;
-        printf("next\n");
     }
 
     return 0;
