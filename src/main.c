@@ -29,32 +29,40 @@ int init() {
 }
 
 
-int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr, size_t addrlen) {
+int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr) {
     int rc;
     message_t msg;
+    char *warning;
 
     rc = bytes_to_message(c, buflen, &msg);
     if (rc < 0) return -1;
 
-    printf("Message description:\n");
-    printf("magic: %d\n", msg.magic);
-    printf("version: %d\n", msg.version);
-    printf("body length: %d\n\n", msg.body_length);
+    //printf("Message description:\n");
+    //printf("magic: %d\n", msg.magic);
+    //printf("version: %d\n", msg.version);
+    //printf("body length: %d\n\n", msg.body_length);
 
     for(body_t *p = msg.body; p; p = p->next) {
-        printf("Next TLV\n");
-        printf("type: %d\n", p->content[0]);
-        printf("length: %d\n", p->content[1]);
-        if (p->content[0] == 2) {
-            update_hello((chat_id_t*)p->content + 2,
+        //printf("Next TLV\n");
+        //printf("type: %d\n", p->content[0]);
+        //printf("length: %d\n", p->content[1]);
+        switch(p->content[0]) {
+        case BODY_HELLO:
+            update_hello((chat_id_t*)(p->content + 2),
                          p->content[1] / sizeof(chat_id_t),
-                         addr, addrlen);
-        } else if (p->content[0] == 7) {
-            char *msg = malloc(p->content[1] + 1);
-            memset(msg, 0, p->content[1] + 1);
-            memmove(msg, p->content + 2, p->content[1]);
-            printf("Warning Message: %s\n", msg);
-            free(msg);
+                         addr);
+            break;
+        case BODY_NEIGHBOUR:
+            update_neighbours((struct in6_addr*)(p->content + 2),
+                              *((u_int16_t*)(p->content + 18)));
+            break;
+        case BODY_WARNING:
+            warning = malloc(p->content[1] + 1);
+            memset(warning, 0, p->content[1] + 1);
+            memmove(warning, p->content + 2, p->content[1]);
+            printf("Warning Message: %s\n", warning);
+            free(warning);
+            break;
         }
     }
 
@@ -122,7 +130,7 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        rc = on_recv(c, len, &addr, sizeof(addr));
+        rc = on_recv(c, len, &addr);
         if (rc < 0) {
             fprintf(stderr, "Corrupted message.\n");
         }

@@ -56,15 +56,10 @@ int hello_neighbours(int sock, struct timeval *tv) {
 }
 
 int is_neighbour(neighbour_t *n, const struct sockaddr_in6 *addr) {
-    if (n->addrlen == sizeof(struct sockaddr_in6)) {
-        struct sockaddr_in6 *sin = (struct sockaddr_in6*)n->addr;
-        return
-            memcmp(&sin->sin6_addr, &addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
-            sin->sin6_port == addr->sin6_port;
-    }
-
-    // TODO: handle sockaddr
-    return 0;
+    struct sockaddr_in6 *sin = n->addr;
+    return
+        memcmp(&sin->sin6_addr, &addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
+        sin->sin6_port == addr->sin6_port;
 }
 
 neighbour_t *
@@ -93,8 +88,7 @@ remove_from_potential_neigbours(chat_id_t id, const struct sockaddr_in6 *addr) {
     return ret;
 }
 
-int update_hello(const chat_id_t *ids, size_t len,
-                 const struct sockaddr_in6 *addr, size_t addrlen) {
+int update_hello(const chat_id_t *ids, size_t len, const struct sockaddr_in6 *addr) {
     neighbour_t *n = 0;
     int now = time(0);
     chat_id_t source_id = be64toh(ids[0]);
@@ -107,9 +101,9 @@ int update_hello(const chat_id_t *ids, size_t len,
     }
 
     if (!n) {
-        struct sockaddr *copy = malloc(addrlen);
+        struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
         if (!copy) return -3;
-        memcpy(copy, addr, addrlen);
+        memcpy(copy, addr, sizeof(struct sockaddr_in6));
 
         n = malloc(sizeof(neighbour_t));
         if (!n) {
@@ -119,12 +113,39 @@ int update_hello(const chat_id_t *ids, size_t len,
 
         n->id = source_id;
         n->addr = copy;
-        n->addrlen = addrlen;
         n->next = neighbours;
         neighbours = n;
     }
 
     n->last_hello = now;
     n->last_long_hello = len == 2 ? now : 0;
+    return 0;
+}
+
+int update_neighbours(const struct in6_addr *ip, u_int16_t port) {
+    neighbour_t *p;
+
+    for (p = neighbours; p; p = p->next)
+        if (memcmp(ip, &p->addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
+            p->addr->sin6_port == port) return 1;
+
+    for (p = potential_neighbours; p; p = p->next)
+        if (memcmp(ip, &p->addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
+            p->addr->sin6_port == port) return 1;
+
+    struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
+    if (!addr) return -3;
+    memset(addr, 0, sizeof(struct sockaddr_in6));
+
+    p = malloc(sizeof(neighbour_t));
+    if (!p) {
+        free(addr);
+        return -2;
+    }
+
+    p->id = 0;
+    p->addr = addr;
+    p->next = potential_neighbours;
+    potential_neighbours = p;
     return 0;
 }

@@ -65,9 +65,18 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
 
     if (p == 0) return -2;
 
-    struct sockaddr *copy = malloc(p->ai_addrlen);
+    struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
     if (copy == NULL) return -3;
-    memcpy(copy, p->ai_addr, p->ai_addrlen);
+    memset(copy, 0, sizeof(struct sockaddr_in6));
+    copy->sin6_family = AF_INET6;
+    if (p->ai_family == AF_INET6) {
+        memmove(copy, p->ai_addr, p->ai_addrlen);
+    } else {
+        struct sockaddr_in *tmp = (struct sockaddr_in*)p->ai_addr;
+        copy->sin6_port = tmp->sin_port;
+        memmove(&copy->sin6_addr + 12, &tmp->sin_addr, sizeof(struct in_addr));
+        memset(&copy->sin6_addr + 10, 0xFF, 16);
+    }
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
     if (n == NULL){
@@ -79,7 +88,6 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     n->last_hello = 0;
     n->last_long_hello = 0;
     n->addr = copy;
-    n->addrlen = p->ai_addrlen;
     n->next = *neighbour;
     *neighbour = n;
 
@@ -94,7 +102,7 @@ int send_message(neighbour_t *neighbour, int sock, message_t *msg) {
     struct in6_pktinfo info;
 
     hdr.msg_name = neighbour->addr;
-    hdr.msg_namelen = neighbour->addrlen;
+    hdr.msg_namelen = sizeof(struct sockaddr_in6);
     hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov);
     if (!hdr.msg_iov) return -1;
 
