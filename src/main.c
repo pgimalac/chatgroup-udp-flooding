@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <string.h>
 
 #include "types.h"
 #include "utils.h"
@@ -27,6 +28,7 @@ int init() {
     return init_network();
 }
 
+
 int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr, size_t addrlen) {
     int rc;
     message_t msg;
@@ -44,7 +46,15 @@ int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr, size_t addrlen) {
         printf("type: %d\n", p->content[0]);
         printf("length: %d\n", p->content[1]);
         if (p->content[0] == 2) {
-            update_hello((chat_id_t*)p->content + 2, p->content[1], addr, addrlen);
+            update_hello((chat_id_t*)p->content + 2,
+                         p->content[1] / sizeof(chat_id_t),
+                         addr, addrlen);
+        } else if (p->content[0] == 7) {
+            char *msg = malloc(p->content[1] + 1);
+            memset(msg, 0, p->content[1] + 1);
+            memmove(msg, p->content + 2, p->content[1]);
+            printf("Warning Message: %s\n", msg);
+            free(msg);
         }
     }
 
@@ -57,7 +67,7 @@ int main(int argc, char **argv) {
 
     rc = init();
     if (rc != 0) return rc;
-    printf("id: %lu\n", id);
+    printf("%lu\n", id);
 
     unsigned short port = 0;
     if (argc >= 2){
@@ -86,9 +96,8 @@ int main(int argc, char **argv) {
     struct timeval tv = { 0 };
     while (1) {
         size = hello_neighbours(s, &tv);
-        if (size < 8) {
+        if (size < 8)
             hello_potential_neighbours(s);
-        }
 
         fd_set readfds;
         FD_ZERO(&readfds);
