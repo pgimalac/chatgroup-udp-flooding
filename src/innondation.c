@@ -2,6 +2,7 @@
 #include <time.h>
 #include <string.h>
 #include <endian.h>
+#include <arpa/inet.h>
 
 #include "types.h"
 #include "network.h"
@@ -23,6 +24,13 @@ void hello_potential_neighbours(int sock) {
 
         rc = send_message(p, sock, &message);
         if (rc < 0) perror("send message");
+
+        char ipstr[INET6_ADDRSTRLEN];
+        if (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+            perror("inet_ntop");
+        } else {
+            printf("Send message to %s.\n", ipstr);
+        }
     }
 }
 
@@ -92,6 +100,7 @@ int update_hello(const chat_id_t *ids, size_t len, const struct sockaddr_in6 *ad
     neighbour_t *n = 0;
     int now = time(0);
     chat_id_t source_id = be64toh(ids[0]);
+    printf("source id %lu\n", source_id);
 
     n = remove_from_potential_neigbours(source_id, addr);
 
@@ -136,6 +145,8 @@ int update_neighbours(const struct in6_addr *ip, u_int16_t port) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (!addr) return -3;
     memset(addr, 0, sizeof(struct sockaddr_in6));
+    memmove(&addr->sin6_addr, ip, sizeof(ip));
+    addr->sin6_port = port;
 
     p = malloc(sizeof(neighbour_t));
     if (!p) {

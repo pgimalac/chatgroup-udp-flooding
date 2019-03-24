@@ -44,8 +44,8 @@ int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr) {
 
     for(body_t *p = msg.body; p; p = p->next) {
         //printf("Next TLV\n");
-        //printf("type: %d\n", p->content[0]);
-        //printf("length: %d\n", p->content[1]);
+        printf("type: %d\n", p->content[0]);
+        printf("length: %d\n", p->content[1]);
         switch(p->content[0]) {
         case BODY_HELLO:
             update_hello((chat_id_t*)(p->content + 2),
