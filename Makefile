@@ -1,10 +1,10 @@
 NAME = chat
-FILES = utils.c tlv.c network.c innondation.c main.c
+FILES = utils.c tlv.c network.c handlers.c innondation.c main.c
 FP_FILES = $(addprefix src/, $(FILES))
 
 OBJ = $(FP_FILES:%.c=%.o)
 CC = gcc
-FLAGS = -g -Wall -Wextra
+FLAGS = -g -Wall -Wextra -Wno-unused-parameter
 LIBS =
 
 all: $(NAME)

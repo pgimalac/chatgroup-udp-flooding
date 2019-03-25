@@ -1,8 +1,10 @@
 #include "tlv.h"
+#include "network.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <endian.h>
+#include <stdio.h>
 
 #define HEADER_OFFSET 2
 
@@ -37,6 +39,7 @@ int tlv_hello_short(char **buffer, chat_id_t source){
 
     (*buffer)[0] = BODY_HELLO;
     (*buffer)[1] = sizeof(source);
+
     memmove(HEADER_OFFSET + *buffer, &source, sizeof(source));
 
     return size;
@@ -58,7 +61,7 @@ int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
 }
 
 int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
-    u_int16_t n_port = htobe16(port);
+    u_int16_t n_port = htons(port);
     int size = HEADER_OFFSET + sizeof(struct in6_addr) + sizeof(n_port);
 
     *buffer = malloc(size);
@@ -78,7 +81,7 @@ int tlv_data(char **buffer,
              chat_id_t sender, nonce_t nonce,
              u_int8_t type, const char *data, u_int8_t datalen){
     u_int64_t n_sender = htobe64(sender);
-    u_int32_t n_nonce = htobe32(nonce);
+    u_int32_t n_nonce = htonl(nonce);
     u_int32_t true_size = datalen + sizeof(n_sender) + sizeof(n_nonce) + sizeof(type);
     if (true_size > 255)
         return -2;

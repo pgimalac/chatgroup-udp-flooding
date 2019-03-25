@@ -88,6 +88,7 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     n->id = 0;
     n->last_hello = 0;
     n->last_long_hello = 0;
+    n->last_hello_send = 0;
     n->addr = copy;
     n->next = *neighbour;
     *neighbour = n;
