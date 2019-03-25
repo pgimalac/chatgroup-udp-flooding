@@ -37,13 +37,13 @@ int on_recv(char *c, size_t buflen, struct sockaddr_in6 *addr) {
     rc = bytes_to_message(c, buflen, &msg);
     if (rc < 0) return -1;
 
-    //printf("Message description:\n");
-    //printf("magic: %d\n", msg.magic);
-    //printf("version: %d\n", msg.version);
-    //printf("body length: %d\n\n", msg.body_length);
+    printf("Message description:\n");
+    printf("magic: %d\n", msg.magic);
+    printf("version: %d\n", msg.version);
+    printf("body length: %d\n", msg.body_length);
 
     for(body_t *p = msg.body; p; p = p->next) {
-        //printf("Next TLV\n");
+        printf("Next TLV\n");
         printf("type: %d\n", p->content[0]);
         printf("length: %d\n", p->content[1]);
         switch(p->content[0]) {
@@ -75,15 +75,13 @@ int main(int argc, char **argv) {
 
     rc = init();
     if (rc != 0) return rc;
-    printf("%lu\n", id);
+    printf("local id: %lu\n", id);
 
     unsigned short port = 0;
     if (argc >= 2){
         char *pos = 0;
         long int port2 = strtol(argv[1], &pos, 0);
-        printf("%ld\n", port2);
-        if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT){
-            printf("ok\n");
+        if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
             port = (unsigned short)port2;
         }
     }
@@ -95,6 +93,7 @@ int main(int argc, char **argv) {
     }
 
     rc = add_neighbour("jch.irif.fr", "1212", &potential_neighbours);
+
     if (rc < 0) {
         perror("add neighbour");
         return 2;

@@ -30,9 +30,10 @@ typedef struct message {
  * List of known neighbours
  */
 typedef struct neighbour_node {
-    id_t id;
+    chat_id_t id;
     time_t last_hello;
     time_t last_long_hello;
+    time_t last_hello_send;
     struct sockaddr_in6 *addr;
     struct neighbour_node *next;
 } neighbour_t;

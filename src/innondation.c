@@ -29,7 +29,7 @@ void hello_potential_neighbours(int sock) {
         if (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
             perror("inet_ntop");
         } else {
-            printf("Send message to %s.\n", ipstr);
+            printf("Send short hello to %s.\n", ipstr);
         }
     }
 }
@@ -38,7 +38,7 @@ int hello_neighbours(int sock, struct timeval *tv) {
     neighbour_t *p;
     int rc, gap, size = 0;
     time_t now = time(0);
-    tv->tv_sec = 30;
+    tv->tv_sec = 10;
     tv->tv_usec = 0;
 
     for (p = neighbours; p; p = p->next, size++) {
@@ -46,17 +46,21 @@ int hello_neighbours(int sock, struct timeval *tv) {
             gap = (now - p->last_hello) % 30; // todo change
             if (gap < tv->tv_sec) tv->tv_sec = gap;
 
-            body_t hello = { 0 };
-            hello.size = tlv_hello_long(&hello.content, id, p->id);
+            if (now - p->last_hello_send > 30) {
+                printf("Send long hello to %lu.\n", p->id);
+                body_t hello = { 0 };
+                hello.size = tlv_hello_long(&hello.content, id, p->id);
 
-            message_t message = { 0 };
-            message.magic = 93;
-            message.version = 2;
-            message.body_length = htons(hello.size);
-            message.body = &hello;
+                message_t message = { 0 };
+                message.magic = 93;
+                message.version = 2;
+                message.body_length = htons(hello.size);
+                message.body = &hello;
 
-            rc = send_message(p, sock, &message);
-            if (rc < 0) perror("send message");
+                p->last_hello_send = now;
+                rc = send_message(p, sock, &message);
+                if (rc < 0) perror("send message");
+            }
         }
     }
 
@@ -71,7 +75,7 @@ int is_neighbour(neighbour_t *n, const struct sockaddr_in6 *addr) {
 }
 
 neighbour_t *
-remove_from_potential_neigbours(chat_id_t id, const struct sockaddr_in6 *addr) {
+remove_from_potential_neigbours(chat_id_t source_id, const struct sockaddr_in6 *addr) {
     neighbour_t *ret = 0, *p;
 
     if (potential_neighbours) {
@@ -88,7 +92,8 @@ remove_from_potential_neigbours(chat_id_t id, const struct sockaddr_in6 *addr) {
     }
 
     if (ret) {
-        ret->id = id;
+        printf("Remove from potential id: %lu.\n", source_id);
+        ret->id = source_id;
         ret->next = neighbours;
         neighbours = ret;
     }
@@ -99,17 +104,31 @@ remove_from_potential_neigbours(chat_id_t id, const struct sockaddr_in6 *addr) {
 int update_hello(const chat_id_t *ids, size_t len, const struct sockaddr_in6 *addr) {
     neighbour_t *n = 0;
     int now = time(0);
-    chat_id_t source_id = be64toh(ids[0]);
-    printf("source id %lu\n", source_id);
+    chat_id_t source_id = ids[0];
+    char ipstr[INET6_ADDRSTRLEN];
+
+    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        printf("Receive hello %s from (%s, %u).\n",
+               len == 2 ? "long" : "short" , ipstr, addr->sin6_port);
+    }
+
+    if (len == 2 && ids[1] != id) {
+        fprintf(stderr, "%lu is not my id.\n", ids[1]);
+        return -1;
+    }
 
     n = remove_from_potential_neigbours(source_id, addr);
 
     if (!n) {
-        for (n = neighbours; n; n = n->next)
+        for (n = neighbours; n; n = n->next) {
             if (n->id == source_id) break;
+        }
     }
 
     if (!n) {
+        printf("New friend %lu.\n", source_id);
         struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
         if (!copy) return -3;
         memcpy(copy, addr, sizeof(struct sockaddr_in6));
@@ -120,6 +139,7 @@ int update_hello(const chat_id_t *ids, size_t len, const struct sockaddr_in6 *ad
             return -2;
         }
 
+        n->last_hello_send = 0;
         n->id = source_id;
         n->addr = copy;
         n->next = neighbours;
@@ -127,7 +147,9 @@ int update_hello(const chat_id_t *ids, size_t len, const struct sockaddr_in6 *ad
     }
 
     n->last_hello = now;
-    n->last_long_hello = len == 2 ? now : 0;
+    if (len > 2) {
+        n->last_long_hello = now;
+    }
     return 0;
 }
 
@@ -145,7 +167,7 @@ int update_neighbours(const struct in6_addr *ip, u_int16_t port) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (!addr) return -3;
     memset(addr, 0, sizeof(struct sockaddr_in6));
-    memmove(&addr->sin6_addr, ip, sizeof(ip));
+    memmove(&addr->sin6_addr, ip, sizeof(struct in6_addr));
     addr->sin6_port = port;
 
     p = malloc(sizeof(neighbour_t));

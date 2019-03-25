@@ -30,25 +30,20 @@ int tlv_padn(char **buffer, u_int8_t n){
 }
 
 int tlv_hello_short(char **buffer, chat_id_t source){
-    chat_id_t n_source = htobe64(source);
-
-    int size = HEADER_OFFSET + sizeof(n_source);
+    int size = HEADER_OFFSET + sizeof(source);
     *buffer = malloc(size);
     if (*buffer == NULL)
         return -1;
 
     (*buffer)[0] = BODY_HELLO;
     (*buffer)[1] = sizeof(source);
-    memmove(HEADER_OFFSET + *buffer, &n_source, sizeof(n_source));
+    memmove(HEADER_OFFSET + *buffer, &source, sizeof(source));
 
     return size;
 }
 
 int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
-    u_int64_t n_source = htobe64(source);
-    u_int64_t n_dest = htobe64(dest);
-
-    int size = HEADER_OFFSET + sizeof(n_source) + sizeof(n_dest);
+    int size = HEADER_OFFSET + sizeof(source) + sizeof(dest);
     *buffer = malloc(size);
     if (*buffer == NULL)
         return -1;
@@ -56,8 +51,8 @@ int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
     char *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_HELLO;
     (*buffer)[1] = sizeof(source) + sizeof(dest);
-    memmove(offset, &n_source, sizeof(n_source));
-    memmove(offset + sizeof(source), &n_dest, sizeof(n_dest));
+    memmove(offset, &source, sizeof(source));
+    memmove(offset + sizeof(source), &dest, sizeof(dest));
 
     return size;
 }
