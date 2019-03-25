@@ -74,8 +74,9 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     } else {
         struct sockaddr_in *tmp = (struct sockaddr_in*)p->ai_addr;
         copy->sin6_port = tmp->sin_port;
-        memmove(&copy->sin6_addr + 12, &tmp->sin_addr, sizeof(struct in_addr));
-        memset(&copy->sin6_addr + 10, 0xFF, 16);
+
+        memmove(copy->sin6_addr.s6_addr + 12, &tmp->sin_addr, sizeof(tmp->sin_addr));
+        memset(copy->sin6_addr.s6_addr + 10, 0xFF, 2);
     }
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
