@@ -5,10 +5,10 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include "tlv.h"
 #include "types.h"
 #include "utils.h"
 #include "network.h"
-#include "tlv.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
@@ -25,7 +25,7 @@ int init() {
 }
 
 int main(int argc, char **argv) {
-    int rc, s;
+    int rc;
 
     rc = init();
     if (rc != 0) return rc;
@@ -42,8 +42,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    s = start_server(port);
-    if (s < 0) {
+    sock = start_server(port);
+    if (sock < 0) {
         fprintf(stderr, "coudn't create socket\n");
         return 1;
     }
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     message.body_length = htons(hello.size + pad.size);
     message.body = &hello;
 
-    rc = send_message(neighbours, s, &message);
+    rc = send_message(neighbours, sock, &message);
     if (rc < 0) {
         perror("send message");
         return 1;
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
         char c[4096] = { 0 };
         size_t len = 4096;
         struct sockaddr_in6 addr = { 0 };
-        rc = recv_message(s, &addr, c, &len);
+        rc = recv_message(sock, &addr, c, &len);
         if (rc < 0) {
             perror("receive message");
             return 1;
@@ -90,12 +90,7 @@ int main(int argc, char **argv) {
             printf("magic: %d\n", msg.magic);
             printf("version: %d\n", msg.version);
             printf("body length: %d\n\n", msg.body_length);
-
-            for(body_t *p = msg.body; p; p = p->next) {
-                printf("Next TLV\n");
-                printf("type: %d\n", p->content[0]);
-                printf("length: %d\n", p->content[1]);
-            }
+            handle_tlv(msg.body);
 
             free_message(&msg);
         } else {

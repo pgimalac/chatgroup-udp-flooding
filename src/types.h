@@ -11,6 +11,8 @@ typedef u_int8_t type_t;
 typedef u_int64_t chat_id_t;
 typedef u_int32_t nonce_t;
 
+#define BODY_TYPE(body) body->content[0]
+#define BODY_SIZE(body) body->content[1]
 
 typedef struct body {
     char *content;

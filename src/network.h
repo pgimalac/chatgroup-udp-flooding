@@ -7,7 +7,7 @@
 #include "types.h"
 #include "utils.h"
 
-
+int sock;
 chat_id_t id;
 neighbour_t *neighbours;
 
