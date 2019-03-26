@@ -35,16 +35,19 @@ remove_from_potential_neigbours(chat_id_t source_id, const struct sockaddr_in6 *
             ret = potential_neighbours;
             potential_neighbours = ret->next;
         } else {
-            for (p = potential_neighbours; p->next; p = p->next)
+            int size = 1;
+            for (p = potential_neighbours; p->next; p = p->next, size++)
                 if (is_neighbour(p->next, addr)) {
                     ret = p->next;
                     p->next = ret->next;
                 }
+            printf("potential friends length %d\n", size);
         }
     }
 
     if (ret) {
         printf("Remove from potential id: %lu.\n", source_id);
+        ret->last_hello_send = 0;
         ret->id = source_id;
         ret->next = neighbours;
         neighbours = ret;
@@ -97,13 +100,13 @@ static void handle_hello(const char *tlv, const struct sockaddr_in6 *addr){
             return;
         }
 
+        n->last_hello_send = 0;
         n->id = src_id;
         n->addr = copy;
         n->next = neighbours;
         neighbours = n;
     }
 
-    n->last_hello_send = 0;
     n->last_hello = now;
     if (is_long) {
         n->last_long_hello = now;
@@ -160,11 +163,48 @@ static void handle_ack(const char *tlv, const struct sockaddr_in6 *addr){
 }
 
 static void handle_goaway(const char *tlv, const struct sockaddr_in6 *addr){
-    printf("GO AWAY\n");
+    char *msg = 0, ipstr[INET6_ADDRSTRLEN];
+    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        printf("Go away from (%s, %u).\n", ipstr, htons(addr->sin6_port));
+    }
+
+    switch(tlv[2]) {
+    case GO_AWAY_UNKNOWN:
+        printf("Ask you to go away for an unknown reason.\n");
+        break;
+    case GO_AWAY_LEAVE:
+        printf("Leaving the network.\n");
+        break;
+    case GO_AWAY_HELLO:
+        printf("You did not send long hello for too long.\n");
+        break;
+    case GO_AWAY_BROKEN:
+        printf("You broke the protocol.\n");
+        break;
+    }
+
+    if (tlv[1] > 0 && msg) {
+        msg = malloc(tlv[1]);
+        memcpy(msg, tlv + 3, tlv[1] - 1);
+        msg[(int)tlv[1]] = 0;
+        printf("Go away message: %s\n", msg);
+        free(msg);
+    }
 }
 
 static void handle_warning(const char *tlv, const struct sockaddr_in6 *addr){
-    printf("WARNING\n");
+    if (tlv[1] == 0) {
+        printf("Received empty hello\n");
+        return;
+    }
+
+    char *msg = malloc(tlv[1] + 1);
+    memcpy(msg, tlv + 2, tlv[1]);
+    msg[(int)tlv[1]] = 0;
+    printf("Warning: %s\n", msg);
+    free(msg);
 }
 
 static void handle_unknown(const char *tlv, const struct sockaddr_in6 *addr){

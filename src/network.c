@@ -53,7 +53,7 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = 0;
-    hints.ai_flags = 0;
+    hints.ai_flags = AI_V4MAPPED;
 
     rc = getaddrinfo (hostname, service, &hints, &r);
     if (rc < 0 || r == 0) return -1;
@@ -68,16 +68,7 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
     if (copy == NULL) return -3;
     memset(copy, 0, sizeof(struct sockaddr_in6));
-    copy->sin6_family = AF_INET6;
-    if (p->ai_family == AF_INET6) {
-        memmove(copy, p->ai_addr, p->ai_addrlen);
-    } else {
-        struct sockaddr_in *tmp = (struct sockaddr_in*)p->ai_addr;
-        copy->sin6_port = tmp->sin_port;
-
-        memmove(copy->sin6_addr.s6_addr + 12, &tmp->sin_addr, sizeof(tmp->sin_addr));
-        memset(copy->sin6_addr.s6_addr + 10, 0xFF, 2);
-    }
+    memmove(copy, p->ai_addr, p->ai_addrlen);
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
     if (n == NULL){

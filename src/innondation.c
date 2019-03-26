@@ -61,11 +61,9 @@ int hello_neighbours(int sock, struct timeval *tv) {
                 p->last_hello_send = now;
                 rc = send_message(p, sock, &message);
                 if (rc < 0) perror("send message");
-            } else if (delta < tv->tv_sec) {
-                tv->tv_sec = delta;
+            } else if (MAX_TIMEOUT - delta < tv->tv_sec) {
+                tv->tv_sec = MAX_TIMEOUT - delta;
             }
-
-
         }
     }
 
