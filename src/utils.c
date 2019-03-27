@@ -36,18 +36,19 @@ u_int32_t random_uint32 () {
     return r;
 }
 
-void free_message(message_t *msg) {
-    body_t *b, *p;
+void free_message(message_t *msg, short free_body) {
+    body_t *p, *b;
 
     if (!msg) return;
 
     p = msg->body;
 
-    while (p) {
+    while (p != NULL) {
         b = p;
         p = p->next;
 
         free(b->content);
-        free(b);
+        if (free_body & FREE_BODY)
+            free(b);
     }
 }

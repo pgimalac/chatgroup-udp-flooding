@@ -6,8 +6,6 @@
 #include <endian.h>
 #include <stdio.h>
 
-#define HEADER_OFFSET 2
-
 int tlv_pad(char **buffer){
     *buffer = malloc(1);
     if (*buffer == NULL)

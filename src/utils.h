@@ -5,6 +5,8 @@
 
 #include "types.h"
 
+#define FREE_BODY 1
+
 /**
  * Generic usefull functions
  */
@@ -15,6 +17,6 @@ u_int64_t random_uint64();
 
 u_int32_t random_uint32();
 
-void free_message(message_t *msg);
+void free_message(message_t *msg, short free_body);
 
 #endif

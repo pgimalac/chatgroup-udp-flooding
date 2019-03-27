@@ -8,6 +8,7 @@
 #include "network.h"
 #include "tlv.h"
 #include "innondation.h"
+#include "utils.h"
 
 #define MAX_TIMEOUT 30
 
@@ -15,16 +16,16 @@ void hello_potential_neighbours(int sock) {
     int rc;
     neighbour_t *p;
 
+    body_t hello = { 0 };
+    hello.size = tlv_hello_short(&hello.content, id);
+
+    message_t message = { 0 };
+    message.magic = 93;
+    message.version = 2;
+    message.body_length = htons(hello.size);
+    message.body = &hello;
+
     for (p = potential_neighbours; p; p = p->next) {
-        body_t hello = { 0 };
-        hello.size = tlv_hello_short(&hello.content, id);
-
-        message_t message = { 0 };
-        message.magic = 93;
-        message.version = 2;
-        message.body_length = htons(hello.size);
-        message.body = &hello;
-
         char ipstr[INET6_ADDRSTRLEN];
         if (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
             perror("inet_ntop");
@@ -35,6 +36,8 @@ void hello_potential_neighbours(int sock) {
         rc = send_message(p, sock, &message);
         if (rc < 0) perror("send message");
     }
+
+    free_message(&message, 0);
 }
 
 int hello_neighbours(int sock, struct timeval *tv) {
@@ -60,6 +63,7 @@ int hello_neighbours(int sock, struct timeval *tv) {
 
                 p->last_hello_send = now;
                 rc = send_message(p, sock, &message);
+                free_message(&message, 0);
                 if (rc < 0) perror("send message");
             } else if (delta < tv->tv_sec) {
                 tv->tv_sec = delta;

@@ -6,6 +6,8 @@
 
 #include "types.h"
 
+#define HEADER_OFFSET 2
+
 #define BODY_PAD1 0
 #define BODY_PADN 1
 #define BODY_HELLO 2
@@ -17,10 +19,20 @@
 
 #define DATA_KNOWN 0
 
+#define NUMBER_TLV_TYPE 8
+
 #define GO_AWAY_UNKNOWN 0
 #define GO_AWAY_LEAVE 1
 #define GO_AWAY_HELLO 2
 #define GO_AWAY_BROKEN 3
+
+#define PADNO0 -100
+#define HELLOSIZEINC -101
+#define NEIGSIZEINC -102
+#define DATASIZEINC -103
+#define ACKSIZEINC -104
+#define GOAWSIZEINC -105
+#define WARNSIZEINC -106
 
 int tlv_pad1(char **buffer);
 int tlv_padn(char **buffer, u_int8_t n);
@@ -33,5 +45,6 @@ int tlv_goaway(char **buffer, u_int8_t code, const char *message, u_int8_t messa
 int tlv_warning(char **buffer, const char *message, const u_int8_t messagelen);
 
 void handle_tlv(const body_t *tlv, const struct sockaddr_in6 *addr);
+int check_tlv_size(const char* tlv);
 
 #endif
