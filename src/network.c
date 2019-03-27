@@ -224,6 +224,9 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     msg->body_length = ntohs(*(u_int16_t*)(src + 2));
     msg->body = 0;
 
+    if (msg->body_length == 0)
+        return 0;
+
     while (i < buflen) {
         body = malloc(sizeof(body_t));
         if (!body){ // todo : better error handling
@@ -237,6 +240,8 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
         body->content = malloc(body->size);
         if (!body->content){ // todo : better error handling
             perror("malloc");
+            free(body);
+            body = 0;
             break;
         }
         memcpy(body->content, src + i, body->size);
@@ -246,6 +251,11 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
         if (!msg->body) msg->body = body;
         else bptr->next = body;
         bptr = body;
+    }
+
+    if (i < buflen){ // loop exit with break
+        free_message(msg, FREE_BODY);
+        return -7;
     }
 
     return 0;
