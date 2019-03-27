@@ -1,6 +1,6 @@
-#include <time.h>
-
 #include "utils.h"
+
+#include <time.h>
 #include <stdio.h>
 
 int init_random() {
@@ -51,4 +51,13 @@ void free_message(message_t *msg, short free_body) {
         if (free_body & FREE_BODY)
             free(b);
     }
+}
+
+// djb2 function from http://www.cse.yorku.ca/~oz/hash.html
+unsigned int hash(char *s) {
+    unsigned int hash = 5381;
+    int c;
+    while ((c = *s++))
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    return hash;
 }
