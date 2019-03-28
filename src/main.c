@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
             printf("body length: %d\n\n", msg.body_length);
             handle_tlv(msg.body, &addr);
 
-            free_message(&msg);
+            free_message(&msg, FREE_BODY);
         } else {
             fprintf(stderr, "Error decripting the message : %d\n", rc);
         }

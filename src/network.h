@@ -7,6 +7,17 @@
 #include "types.h"
 #include "utils.h"
 
+// the given buffer is NULL
+#define BUFNULL -1
+// the given buffer is too short
+#define BUFSH -2
+// the given size of the buffer is incoherent with the size of the message
+#define BUFINC -3
+// a tlv other than PAD1 is one byte long
+#define TLVSH  -4
+// the sum of all tlv is greater than the size of the buffer
+#define SUMLONG -5
+
 int sock;
 chat_id_t id;
 neighbour_t *neighbours, *potential_neighbours;

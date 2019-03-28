@@ -8,8 +8,6 @@
 #include "network.h"
 #include "tlv.h"
 
-#define NUMBER_TLV_TYPE 8
-
 static void handle_pad1(const char *tlv, const struct sockaddr_in6 *addr) {
     printf("Pad1 received\n");
 }
@@ -225,8 +223,7 @@ static void (*handlers[NUMBER_TLV_TYPE + 1])(const char*, const struct sockaddr_
 
 void handle_tlv(const body_t *tlv, const struct sockaddr_in6 *addr) {
     do {
-        if (tlv->content[0] != BODY_PAD1 &&
-            (tlv->content[0] >= NUMBER_TLV_TYPE || tlv->content[0] < 0)) {
+        if (tlv->content[0] >= NUMBER_TLV_TYPE || tlv->content[0] < 0) {
             handlers[NUMBER_TLV_TYPE](tlv->content, addr);
         } else {
             handlers[(int)tlv->content[0]](tlv->content, addr);

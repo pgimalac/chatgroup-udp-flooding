@@ -1,7 +1,8 @@
-#include <time.h>
-
 #include "utils.h"
+
+#include <time.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 
 int init_random() {
 
@@ -36,18 +37,34 @@ u_int32_t random_uint32 () {
     return r;
 }
 
-void free_message(message_t *msg) {
-    body_t *b, *p;
+void free_message(message_t *msg, short free_body) {
+    body_t *p, *b;
 
     if (!msg) return;
 
     p = msg->body;
 
-    while (p) {
+    while (p != NULL) {
         b = p;
         p = p->next;
 
         free(b->content);
-        free(b);
+        if (free_body & FREE_BODY)
+            free(b);
     }
+}
+
+unsigned int hash_neighbour(u_int8_t *ip, u_int16_t port) {
+    unsigned int hash = 5381;
+    for(int i = 0; i < INET6_ADDRSTRLEN; i++, ip++)
+        hash = ((hash << 5) + hash) + *ip + port;
+    return hash;
+}
+
+unsigned int hash(char *s) {
+    unsigned int hash = 5381;
+    int c;
+    while ((c = *s++))
+        hash = ((hash << 5) + hash) + c;
+    return hash;
 }

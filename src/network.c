@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "network.h"
 #include "tlv.h"
@@ -167,29 +168,44 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
 
 int check_message_size(const char* buffer, int buflen){
     if (buffer == NULL)
-        return -1;
+        return BUFNULL;
     if (buflen < 4)
-        return -2;
+        return BUFSH;
+
     u_int16_t body_length = be16toh(*(u_int16_t*)(buffer + 2));
     if (body_length + 4 != buflen)
-        return -3;
-    int i = 4;
+        return BUFINC;
+    int i = 4, body_num = 0, rc;
     while (i < buflen){
         i++;
         if (buffer[i - 1] != BODY_PAD1){
             if (i >= buflen)
-                return -4;
+                return TLVSH;
             i += 1 + (u_int8_t)buffer[i];
         }
+        body_num ++;
     }
-    return 0;
+
+    if (i != buflen)
+        return SUMLONG;
+
+    i = 4;
+    while (i < buflen){
+        rc = check_tlv_size(buffer + i);
+        assert(rc != 0);
+        if (rc < 0)
+            return rc;
+        i += rc;
+    }
+
+    return body_num;
 }
 
 int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     if (msg == NULL)
         return -6;
     int rc = check_message_size(src, buflen);
-    if (rc != 0) return rc;
+    if (rc < 0) return rc;
 
     size_t i = 4;
     body_t *body, *bptr;
@@ -199,15 +215,26 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     msg->body_length = ntohs(*(u_int16_t*)(src + 2));
     msg->body = 0;
 
+    if (msg->body_length == 0)
+        return 0;
+
     while (i < buflen) {
         body = malloc(sizeof(body_t));
-        if (!body) // todo : better error handling
+        if (!body){ // todo : better error handling
+            perror("malloc");
             break;
+        }
         memset(body, 0, sizeof(body_t));
 
         if (src[i] == BODY_PAD1) body->size = 1;
         else body->size = 2 + src[i + 1];
         body->content = malloc(body->size);
+        if (!body->content){ // todo : better error handling
+            perror("malloc");
+            free(body);
+            body = 0;
+            break;
+        }
         memcpy(body->content, src + i, body->size);
         i += body->size;
 
@@ -215,6 +242,11 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
         if (!msg->body) msg->body = body;
         else bptr->next = body;
         bptr = body;
+    }
+
+    if (i < buflen){ // loop exit with break
+        free_message(msg, FREE_BODY);
+        return -7;
     }
 
     return 0;
