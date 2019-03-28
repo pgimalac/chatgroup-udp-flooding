@@ -112,7 +112,7 @@ static short map_list_remove (list_t **lst, char *key, short f) {
         while ((*lst)->next && strcmp(key, ((map_elem*)(*lst)->next->val)->key))
             lst = &(*lst)->next;
 
-        if (!*lst)
+        if (!(*lst)->next)
             return 0;
 
         tmp = (*lst)->next;

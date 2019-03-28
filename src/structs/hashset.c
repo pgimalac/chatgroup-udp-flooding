@@ -13,6 +13,9 @@
 #define HASHSET_RATIO_UPPER_LIMIT 0.8
 #define HASHSET_RATIO_LOWER_LIMIT 0.1
 
+#define GET_IP(n) ((neighbour_t*)n)->addr->sin6_addr.s6_addr
+#define GET_PORT(n) ((neighbour_t*)n)->addr->sin6_port
+
 hashset_t* hashset_init(){
     hashset_t *h = malloc(sizeof(hashset_t));
     if (h){
@@ -28,12 +31,12 @@ hashset_t* hashset_init(){
 }
 
 static short resize(hashset_t *h, int capacity){
-    list_t** t = calloc(capacity, sizeof(list_t));
+    list_t** t = calloc(capacity, sizeof(list_t*));
     if (!t) return 0;
 
     for (int i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
         for (list_t* l = h->tab[i]; l != NULL; l = l->next)
-            list_add(&t[hash((char *)l->val) % capacity], l->val);
+            list_add(&t[hash_neighbour(GET_IP(l->val), GET_PORT(l->val)) % capacity], l->val);
 
     free(h->tab);
     h->capacity = capacity;
@@ -45,10 +48,8 @@ static short resize(hashset_t *h, int capacity){
 short hashset_contains(hashset_t *h, const u_int8_t* ip, u_int16_t port){
     if (h == NULL) return 0;
 
-    for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity];
-         l != NULL; l = l->next)
-        if (memcmp(&((neighbour_t*)l->val)->addr->sin6_addr.s6_addr, ip, 16) == 0
-            && port == ((neighbour_t*)l->val)->addr->sin6_port)
+    for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity]; l != NULL; l = l->next)
+        if (memcmp(&GET_IP(l->val), ip, 16) == 0 && port == GET_PORT(l->val))
             return 1;
 
     return 0;
@@ -57,10 +58,8 @@ short hashset_contains(hashset_t *h, const u_int8_t* ip, u_int16_t port){
 neighbour_t *hashset_get(hashset_t *h, const u_int8_t* ip, u_int16_t port) {
     if (h == NULL) return 0;
 
-    for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity];
-         l != NULL; l = l->next)
-        if (memcmp(&((neighbour_t*)l->val)->addr->sin6_addr.s6_addr, ip, 16) == 0
-            && port == ((neighbour_t*)l->val)->addr->sin6_port)
+    for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity]; l != NULL; l = l->next)
+        if (memcmp(&GET_IP(l->val), ip, 16) == 0 && port == GET_PORT(l->val))
             return (neighbour_t*)l->val;
 
     return 0;
@@ -69,8 +68,7 @@ neighbour_t *hashset_get(hashset_t *h, const u_int8_t* ip, u_int16_t port) {
 short hashset_add(hashset_t *h, neighbour_t* n){
     if (h == NULL) return 0;
 
-    struct sockaddr_in6 *s = n->addr;
-    u_int8_t *ip = s->sin6_addr.s6_addr;
+    u_int8_t *ip = n->addr->sin6_addr.s6_addr;
     u_int16_t port = n->addr->sin6_port;
     if(!hashset_contains(h, ip, port)){
         if (h->size + 1 > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
@@ -85,7 +83,7 @@ short hashset_add(hashset_t *h, neighbour_t* n){
 
 static short hashset_list_remove(list_t** l, const u_int8_t* ip, u_int16_t port){
     if (l != NULL){
-        if (memcmp(((neighbour_t*)(*l)->val)->addr->sin6_addr.s6_addr, ip, 16) == 0){
+        if (memcmp(GET_IP((*l)->val), ip, 16) == 0 && GET_PORT((*l)->val) == port){
             list_remove(l, 0);
             return 1;
         }
@@ -93,8 +91,8 @@ static short hashset_list_remove(list_t** l, const u_int8_t* ip, u_int16_t port)
         list_t* tmp;
         for(tmp = *l;
             tmp->next != NULL
-                && (memcmp(((neighbour_t*)tmp->next->val)->addr->sin6_addr.s6_addr, ip, 16)
-                    || ((neighbour_t*)tmp->next->val)->addr->sin6_port != port);
+                && (memcmp(GET_IP(tmp->next->val), ip, 16)
+                    || GET_PORT(tmp->next->val) != port);
             tmp = tmp->next) ;
 
         list_remove(&tmp->next, 0);
