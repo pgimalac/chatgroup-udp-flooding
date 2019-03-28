@@ -2,6 +2,7 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 
 int init_random() {
 
@@ -53,11 +54,17 @@ void free_message(message_t *msg, short free_body) {
     }
 }
 
-// djb2 function from http://www.cse.yorku.ca/~oz/hash.html
+unsigned int hash_neighbour(u_int8_t *ip, u_int16_t port) {
+    unsigned int hash = 5381;
+    for(int i = 0; i < INET6_ADDRSTRLEN; i++, ip++)
+        hash = ((hash << 5) + hash) + *ip + port;
+    return hash;
+}
+
 unsigned int hash(char *s) {
     unsigned int hash = 5381;
     int c;
     while ((c = *s++))
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+        hash = ((hash << 5) + hash) + c;
     return hash;
 }
