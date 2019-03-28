@@ -28,7 +28,7 @@ hashset_t* hashset_init(){
 }
 
 static short resize(hashset_t *h, int capacity){
-    list_t** t = calloc(capacity, sizeof(list_t));
+    list_t** t = calloc(capacity, sizeof(list_t*));
     if (!t) return 0;
 
     for (int i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
