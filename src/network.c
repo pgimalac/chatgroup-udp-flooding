@@ -11,14 +11,15 @@
 
 #include "network.h"
 #include "tlv.h"
+#include "hashset.h"
 
 // user address
 struct sockaddr_in6 local_addr;
 
 int init_network() {
     id = random_uint64();
-    neighbours = 0;
-    potential_neighbours = 0;
+    neighbours = hashset_init();
+    potential_neighbours = hashset_init();
     return 0;
 }
 
@@ -46,7 +47,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     return i;
 }
 
-int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
+int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     int rc, s;
     struct addrinfo hints, *r, *p;
 
@@ -82,8 +83,8 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     n->last_long_hello = 0;
     n->last_hello_send = 0;
     n->addr = copy;
-    n->next = *neighbour;
-    *neighbour = n;
+    n->next = 0;
+    hashset_add(neighbours, n);
 
     freeaddrinfo(r);
 

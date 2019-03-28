@@ -16,45 +16,6 @@ static void handle_padn(const char *tlv, const struct sockaddr_in6 *addr) {
     printf("Pad %d received\n", tlv[0]);
 }
 
-static int is_neighbour(neighbour_t *n, const struct sockaddr_in6 *addr) {
-    struct sockaddr_in6 *sin = n->addr;
-    return
-        memcmp(&sin->sin6_addr, &addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
-        sin->sin6_port == addr->sin6_port;
-}
-
-
-static neighbour_t *
-remove_from_potential_neigbours(chat_id_t source_id, const struct sockaddr_in6 *addr) {
-    neighbour_t *ret = 0, *p;
-
-    if (potential_neighbours) {
-        if (is_neighbour(potential_neighbours, addr)) {
-            ret = potential_neighbours;
-            potential_neighbours = ret->next;
-        } else {
-            int size = 1;
-            for (p = potential_neighbours; p->next; p = p->next, size++)
-                if (is_neighbour(p->next, addr)) {
-                    ret = p->next;
-                    p->next = ret->next;
-                }
-            printf("potential friends length %d\n", size);
-        }
-    }
-
-    if (ret) {
-        printf("Remove from potential id: %lu.\n", source_id);
-        ret->last_hello_send = 0;
-        ret->id = source_id;
-        ret->next = neighbours;
-        neighbours = ret;
-    }
-
-    return ret;
-}
-
-
 static void handle_hello(const char *tlv, const struct sockaddr_in6 *addr){
     neighbour_t *n = 0;
     int now = time(0), is_long = tlv[1] == 16;
@@ -78,15 +39,15 @@ static void handle_hello(const char *tlv, const struct sockaddr_in6 *addr){
         }
     }
 
-    n = remove_from_potential_neigbours(src_id, addr);
 
-    if (!n) {
-        for (n = neighbours; n; n = n->next) {
-            if (n->id == src_id) break;
-        }
-    }
-
-    if (!n) {
+    n = hashset_get(potential_neighbours, addr->sin6_addr.s6_addr, addr->sin6_port);
+    if (n) {
+        printf("Remove from potential id: %lu.\n", src_id);
+        n->last_hello_send = 0;
+        n->id = src_id;
+        hashset_add(neighbours, n);
+        hashset_remove(potential_neighbours, addr->sin6_addr.s6_addr, addr->sin6_port);
+    } else if ((n = hashset_get(neighbours, addr->sin6_addr.s6_addr, addr->sin6_port)) == 0) {
         printf("New friend %lu.\n", src_id);
         struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
         if (!copy) return;
@@ -101,8 +62,7 @@ static void handle_hello(const char *tlv, const struct sockaddr_in6 *addr){
         n->last_hello_send = 0;
         n->id = src_id;
         n->addr = copy;
-        n->next = neighbours;
-        neighbours = n;
+        hashset_add(neighbours, n);
     }
 
     n->last_hello = now;
@@ -113,19 +73,17 @@ static void handle_hello(const char *tlv, const struct sockaddr_in6 *addr){
 
 static void handle_neighbour(const char *tlv, const struct sockaddr_in6 *addr) {
     neighbour_t *p;
-    struct in6_addr *ip = (struct in6_addr*)(tlv + 2);
+    const unsigned char *ip = (const unsigned char*)tlv + 2;
     u_int16_t port;
     char ipstr[INET6_ADDRSTRLEN];
 
     memcpy(&port, tlv + sizeof(struct in6_addr) + 2, 2);
 
-    for (p = neighbours; p; p = p->next)
-        if (memcmp(ip, &p->addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
-            p->addr->sin6_port == port) return;
+    p = hashset_get(neighbours, ip, port);
+    if (p) return;
 
-    for (p = potential_neighbours; p; p = p->next)
-        if (memcmp(ip, &p->addr->sin6_addr, sizeof(struct in6_addr)) == 0 &&
-            p->addr->sin6_port == port) return;
+    p = hashset_get(potential_neighbours, ip, port);
+    if (p) return;
 
     struct sockaddr_in6 *n_addr = malloc(sizeof(struct sockaddr_in6));
     if (!n_addr) return;
@@ -142,8 +100,7 @@ static void handle_neighbour(const char *tlv, const struct sockaddr_in6 *addr) {
 
     p->id = 0;
     p->addr = n_addr;
-    p->next = potential_neighbours;
-    potential_neighbours = p;
+    hashset_add(potential_neighbours, p);
 
     if (inet_ntop(AF_INET6, &n_addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");

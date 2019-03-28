@@ -22,12 +22,14 @@ short hashset_add(hashset_t*, neighbour_t*);
 /**
  * Remove the given element of the set
  */
-short hashset_remove(hashset_t*, u_int8_t*, u_int16_t);
+short hashset_remove(hashset_t*, const u_int8_t*, u_int16_t);
 
 /**
  * return 1 if the given element is in the set, 0 otherwise
  */
-short hashset_contains(hashset_t*, u_int8_t*, u_int16_t);
+short hashset_contains(hashset_t*, const u_int8_t*, u_int16_t);
+
+neighbour_t *hashset_get(hashset_t *h, const u_int8_t* ip, u_int16_t port);
 
 /**
  * free all memory used by the set
