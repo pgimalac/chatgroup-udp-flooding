@@ -9,7 +9,7 @@
 #include "tlv.h"
 #include "innondation.h"
 #include "utils.h"
-#include "list.h"
+#include "structs/list.h"
 
 #define MAX_TIMEOUT 30
 

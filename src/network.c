@@ -11,7 +11,6 @@
 
 #include "network.h"
 #include "tlv.h"
-#include "hashset.h"
 
 // user address
 struct sockaddr_in6 local_addr;

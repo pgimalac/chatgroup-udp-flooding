@@ -6,7 +6,7 @@
 
 #include "types.h"
 #include "utils.h"
-#include "hashset.h"
+#include "structs/hashset.h"
 
 // the given buffer is NULL
 #define BUFNULL -1
