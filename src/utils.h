@@ -19,8 +19,8 @@ u_int32_t random_uint32();
 
 void free_message(message_t *msg, short free_body);
 
-unsigned int hash_neighbour(u_int8_t[16], u_int16_t);
+unsigned int hash_neighbour(const u_int8_t[16], u_int16_t);
 
-unsigned int hash(char*);
+unsigned int hash(const char*);
 
 #endif

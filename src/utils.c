@@ -54,14 +54,14 @@ void free_message(message_t *msg, short free_body) {
     }
 }
 
-unsigned int hash_neighbour(u_int8_t ip[16], u_int16_t port) {
+unsigned int hash_neighbour(const u_int8_t ip[16], u_int16_t port) {
     unsigned int hash = 5381;
     for(int i = 0; i < 16; i++, ip++)
         hash = ((hash << 5) + hash) + *ip + port;
     return hash;
 }
 
-unsigned int hash(char *s) {
+unsigned int hash(const char *s) {
     unsigned int hash = 5381;
     int c;
     while ((c = *s++))

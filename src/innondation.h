@@ -3,8 +3,8 @@
 
 #include "types.h"
 
-void hello_potential_neighbours(int sock);
+void hello_potential_neighbours();
 
-int hello_neighbours(int sock, struct timeval *tv);
+int hello_neighbours(struct timeval *tv);
 
 #endif

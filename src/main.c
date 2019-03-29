@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    rc = add_neighbour("jch.irif.fr", "1212", &potential_neighbours);
+    rc = add_neighbour("jch.irif.fr", "1212", potential_neighbours);
 
     if (rc < 0) {
         perror("add neighbour");
@@ -63,10 +63,10 @@ int main(int argc, char **argv) {
     message_t msg = { 0 };
 
     while (1) {
-        size = hello_neighbours(sock, &tv);
+        size = hello_neighbours(&tv);
         if (size < 8) {
             printf("You have %d friends, try to find new ones.\n", size);
-            hello_potential_neighbours(sock);
+            hello_potential_neighbours();
         }
 
         printf("\n\n");

@@ -6,6 +6,7 @@
 
 #include "types.h"
 #include "utils.h"
+#include "hashset.h"
 
 // the given buffer is NULL
 #define BUFNULL -1
@@ -20,13 +21,13 @@
 
 int sock;
 chat_id_t id;
-neighbour_t *neighbours, *potential_neighbours;
+hashset_t *neighbours, *potential_neighbours;
 
 int init_network();
 
 size_t message_to_iovec(message_t *msg, struct iovec **iov);
 
-int add_neighbour(char *hostname, char *service, neighbour_t**);
+int add_neighbour(char *hostname, char *service, hashset_t *neighbours);
 
 int send_message(neighbour_t *neighbour, int sock, message_t *msg);
 

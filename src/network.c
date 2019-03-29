@@ -11,14 +11,15 @@
 
 #include "network.h"
 #include "tlv.h"
+#include "hashset.h"
 
 // user address
 struct sockaddr_in6 local_addr;
 
 int init_network() {
     id = random_uint64();
-    neighbours = 0;
-    potential_neighbours = 0;
+    neighbours = hashset_init();
+    potential_neighbours = hashset_init();
     return 0;
 }
 
@@ -46,7 +47,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     return i;
 }
 
-int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
+int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     int rc, s;
     struct addrinfo hints, *r, *p;
 
@@ -54,7 +55,7 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = 0;
-    hints.ai_flags = 0;
+    hints.ai_flags = AI_V4MAPPED;
 
     rc = getaddrinfo (hostname, service, &hints, &r);
     if (rc < 0 || r == 0) return -1;
@@ -69,16 +70,7 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
     if (copy == NULL) return -3;
     memset(copy, 0, sizeof(struct sockaddr_in6));
-    copy->sin6_family = AF_INET6;
-    if (p->ai_family == AF_INET6) {
-        memmove(copy, p->ai_addr, p->ai_addrlen);
-    } else {
-        struct sockaddr_in *tmp = (struct sockaddr_in*)p->ai_addr;
-        copy->sin6_port = tmp->sin_port;
-
-        memmove(copy->sin6_addr.s6_addr + 12, &tmp->sin_addr, sizeof(tmp->sin_addr));
-        memset(copy->sin6_addr.s6_addr + 10, 0xFF, 2);
-    }
+    memmove(copy, p->ai_addr, p->ai_addrlen);
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
     if (n == NULL){
@@ -91,8 +83,8 @@ int add_neighbour(char *hostname, char *service, neighbour_t **neighbour) {
     n->last_long_hello = 0;
     n->last_hello_send = 0;
     n->addr = copy;
-    n->next = *neighbour;
-    *neighbour = n;
+    n->next = 0;
+    hashset_add(neighbours, n);
 
     freeaddrinfo(r);
 
