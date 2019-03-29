@@ -45,18 +45,18 @@ static short resize(hashset_t *h, int capacity){
     return 1;
 }
 
-short hashset_contains(hashset_t *h, u_int8_t* ip, u_int16_t port){
-    if (h == NULL) return 0;
+short hashset_contains(hashset_t *h, u_int8_t ip[16], u_int16_t port){
+    if (h == NULL || ip == NULL) return 0;
 
     for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity]; l != NULL; l = l->next)
-        if (memcmp(&GET_IP(l->val), ip, 16) == 0 && port == GET_PORT(l->val))
+        if (memcmp(GET_IP(l->val), ip, 16) == 0 && port == GET_PORT(l->val))
             return 1;
 
     return 0;
 }
 
 short hashset_add(hashset_t *h, neighbour_t* n){
-    if (h == NULL) return 0;
+    if (h == NULL || n == NULL) return 0;
 
     u_int8_t *ip = n->addr->sin6_addr.s6_addr;
     u_int16_t port = n->addr->sin6_port;
@@ -71,7 +71,7 @@ short hashset_add(hashset_t *h, neighbour_t* n){
     return 0;
 }
 
-static short hashset_list_remove(list_t** l, u_int8_t* ip, u_int16_t port){
+static short hashset_list_remove(list_t** l, u_int8_t ip[16], u_int16_t port){
     if (l != NULL){
         if (memcmp(GET_IP((*l)->val), ip, 16) == 0 && GET_PORT((*l)->val) == port){
             list_remove(l, 0);
@@ -90,7 +90,7 @@ static short hashset_list_remove(list_t** l, u_int8_t* ip, u_int16_t port){
     return 1;
 }
 
-short hashset_remove(hashset_t *h, u_int8_t* ip, u_int16_t port){
+short hashset_remove(hashset_t *h, u_int8_t ip[16], u_int16_t port){
     if (h != NULL && hashset_contains(h, ip, port)){
         int i = hash_neighbour(ip, port) % h->capacity;
         hashset_list_remove(&h->tab[i], ip, port);
