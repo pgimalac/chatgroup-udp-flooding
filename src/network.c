@@ -82,7 +82,6 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     n->last_long_hello = 0;
     n->last_hello_send = 0;
     n->addr = copy;
-    n->next = 0;
     hashset_add(neighbours, n);
 
     freeaddrinfo(r);

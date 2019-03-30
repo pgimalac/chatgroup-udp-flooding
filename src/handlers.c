@@ -147,6 +147,15 @@ static void handle_goaway(const char *tlv, const struct sockaddr_in6 *addr){
         printf("Go away message: %s\n", msg);
         free(msg);
     }
+
+    neighbour_t *n = hashset_get(neighbours, addr->sin6_addr.s6_addr, addr->sin6_port);
+    if (n) {
+        printf("Remove %lu from friends.\n", n->id);
+        hashset_remove(neighbours, addr->sin6_addr.s6_addr, addr->sin6_port);
+    }
+
+    printf("Add (%s, %u) to potential friends", ipstr, htons(addr->sin6_port));
+    hashset_add(potential_neighbours, n);
 }
 
 static void handle_warning(const char *tlv, const struct sockaddr_in6 *addr){
