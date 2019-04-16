@@ -29,6 +29,68 @@ int init() {
     return init_network();
 }
 
+void handle_reception () {
+    int rc;
+    char c[4096] = { 0 };
+    size_t len = 4096;
+    struct sockaddr_in6 addr = { 0 };
+    message_t msg = { 0 };
+
+    rc = recv_message(sock, &addr, c, &len);
+    if (rc < 0) {
+        if (errno == EAGAIN)
+            return;
+        perror("receive message");
+        return;
+    }
+
+    // maybe unnecessary
+    memset(&msg, 0, sizeof(message_t));
+    rc = bytes_to_message(c, len, &msg);
+    if (rc == 0){
+        printf("Message description:\n");
+        printf("magic: %d\n", msg.magic);
+        printf("version: %d\n", msg.version);
+        printf("body length: %d\n\n", msg.body_length);
+        handle_tlv(msg.body, &addr);
+
+        free_message(&msg, FREE_BODY);
+    } else {
+        fprintf(stderr, "Error decripting the message : %d\n", rc);
+    }
+}
+
+void handle_command() {
+    int rc;
+    char buffer[512];
+
+    // TODO: varaible length command
+    rc = read(0, buffer, 511);
+    if (rc < 0) {
+        perror("read stdin");
+        return;
+    }
+
+    buffer[511] = 0;
+
+    char *ins = strtok(buffer, " \n");
+    if (strcmp(ins, "add") == 0) {
+        char *name = strtok(0, " \n"), *service = strtok(0, " \n");
+        if (!name || !service) {
+            fprintf(stderr, "usage: add <addr> <port>\n");
+            return;
+        }
+
+        printf("Add %s, %s to potential neighbours\n", name, service);
+        rc = add_neighbour(name, service, potential_neighbours);
+        if (rc < 0) {
+            printf("rc %d\n", rc);
+            perror("add neighbour");
+            return;
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     int rc;
 
@@ -51,7 +113,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    rc = add_neighbour("jch.irif.fr", "1212", potential_neighbours);
 
     if (rc < 0) {
         perror("add neighbour");
@@ -60,7 +121,6 @@ int main(int argc, char **argv) {
 
     int size;
     struct timeval tv = { 0 };
-    message_t msg = { 0 };
 
     while (1) {
         size = hello_neighbours(&tv);
@@ -74,39 +134,21 @@ int main(int argc, char **argv) {
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(sock, &readfds);
+        FD_SET(0, &readfds);
+
         rc = select(sock + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
             perror("select");
             continue;
         }
 
-        if (rc == 0 || !FD_ISSET(sock, &readfds))
+        if (rc == 0)
             continue;
 
-        char c[4096] = { 0 };
-        size_t len = 4096;
-        struct sockaddr_in6 addr = { 0 };
-        rc = recv_message(sock, &addr, c, &len);
-        if (rc < 0) {
-            if (errno == EAGAIN)
-                continue;
-            perror("receive message");
-            continue;
-        }
-
-        // maybe unnecessary
-        memset(&msg, 0, sizeof(message_t));
-        rc = bytes_to_message(c, len, &msg);
-        if (rc == 0){
-            printf("Message description:\n");
-            printf("magic: %d\n", msg.magic);
-            printf("version: %d\n", msg.version);
-            printf("body length: %d\n\n", msg.body_length);
-            handle_tlv(msg.body, &addr);
-
-            free_message(&msg, FREE_BODY);
-        } else {
-            fprintf(stderr, "Error decripting the message : %d\n", rc);
+        if (FD_ISSET(sock, &readfds)) {
+            handle_reception();
+        } else if (FD_ISSET(0, &readfds)) {
+            handle_command();
         }
     }
 
