@@ -52,7 +52,14 @@ void handle_reception () {
         printf("magic: %d\n", msg.magic);
         printf("version: %d\n", msg.version);
         printf("body length: %d\n\n", msg.body_length);
-        handle_tlv(msg.body, &addr);
+
+        if (msg.magic != 93) {
+            fprintf(stderr, "Invalid magic value\n");
+        } else if (msg.version != 2) {
+            fprintf(stderr, "Invalid version\n");
+        } else {
+            handle_tlv(msg.body, &addr);
+        }
 
         free_message(&msg, FREE_BODY);
     } else {
@@ -63,6 +70,7 @@ void handle_reception () {
 void handle_command() {
     int rc;
     char buffer[512];
+    char *name = 0, *service = 0;
 
     // TODO: varaible length command
     rc = read(0, buffer, 511);
@@ -75,7 +83,8 @@ void handle_command() {
 
     char *ins = strtok(buffer, " \n");
     if (strcmp(ins, "add") == 0) {
-        char *name = strtok(0, " \n"), *service = strtok(0, " \n");
+        name = strtok(0, " \n");
+        service = strtok(0, " \n");
         if (!name || !service) {
             fprintf(stderr, "usage: add <addr> <port>\n");
             return;
@@ -120,6 +129,7 @@ int main(int argc, char **argv) {
     }
 
     int size;
+    message_t *msg;
     struct timeval tv = { 0 };
 
     while (1) {
@@ -127,6 +137,11 @@ int main(int argc, char **argv) {
         if (size < 8) {
             printf("You have %d friends, try to find new ones.\n", size);
             hello_potential_neighbours();
+        }
+
+        while((msg = pull_message())) {
+            send_message(sock, msg);
+            free_message(msg, FREE_BODY);
         }
 
         printf("\n\n");

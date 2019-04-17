@@ -17,31 +17,19 @@ void hello_potential_neighbours() {
     int rc, i;
     list_t *l;
     neighbour_t *p;
-    body_t hello = { 0 };
-    hello.size = tlv_hello_short(&hello.content, id);
-
-    message_t message = { 0 };
-    message.magic = 93;
-    message.version = 2;
-    message.body_length = htons(hello.size);
-    message.body = &hello;
+    body_t *hello;
 
     for (i = 0; i < potential_neighbours->capacity; i++) {
         for (l = potential_neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
-            char ipstr[INET6_ADDRSTRLEN];
-            if (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
-                perror("inet_ntop");
-            } else {
-                printf("Send short hello to %s.\n", ipstr);
+            hello = malloc(sizeof(body_t));
+            hello->size = tlv_hello_short(&hello->content, id);
+            rc = push_tlv(hello, p);
+            if (rc < 0) {
+                fprintf(stderr, "Could not insert short hello into message queue\n");
             }
-
-            rc = send_message(p, sock, &message);
-            if (rc < 0) perror("send message");
         }
     }
-
-    free_message(&message, 0);
 }
 
 int hello_neighbours(struct timeval *tv) {
@@ -58,20 +46,12 @@ int hello_neighbours(struct timeval *tv) {
             if (now - p->last_hello < 120) {
                 delta = now - p->last_hello_send;
                 if (delta >= 30) {
-                    printf("Send long hello to %lu.\n", p->id);
-                    body_t hello = { 0 };
-                    hello.size = tlv_hello_long(&hello.content, id, p->id);
-
-                    message_t message = { 0 };
-                    message.magic = 93;
-                    message.version = 2;
-                    message.body_length = htons(hello.size);
-                    message.body = &hello;
-
-                    p->last_hello_send = now;
-                    rc = send_message(p, sock, &message);
-                    free_message(&message, 0);
-                    if (rc < 0) perror("send message");
+                    body_t *hello = malloc(sizeof(body_t));
+                    hello->size = tlv_hello_long(&hello->content, id, p->id);
+                    rc = push_tlv(hello, p);
+                    if (rc < 0) {
+                        fprintf(stderr, "Could not insert long hello into message queue\n");
+                    }
                 } else if (MAX_TIMEOUT - delta < tv->tv_sec) {
                     tv->tv_sec = MAX_TIMEOUT - delta;
                 }

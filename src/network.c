@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "network.h"
 #include "tlv.h"
@@ -81,6 +82,7 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     n->last_hello = 0;
     n->last_long_hello = 0;
     n->last_hello_send = 0;
+    n->pmtu = 500;
     n->addr = copy;
     hashset_add(neighbours, n);
 
@@ -89,12 +91,38 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     return 0;
 }
 
-int send_message(neighbour_t *neighbour, int sock, message_t *msg) {
-    int rc;
+int send_message(int sock, message_t *msg) {
+    int rc, now = time(0);
     struct msghdr hdr = { 0 };
     struct in6_pktinfo info;
+    body_t *p;
+    char ipstr[INET6_ADDRSTRLEN];
 
-    hdr.msg_name = neighbour->addr;
+    msg->body_length = htons(msg->body_length);
+
+
+    if (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        printf("Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
+    }
+
+    for (p = msg->body; p; p = p->next) {
+        if (p->size == 1) {
+            printf("Containing PAD1\n");
+        } else if (p->content[0] == BODY_PADN) {
+            printf("Containing PadN %u\n", p->content[1]);
+        } else if (p->content[0] == BODY_HELLO) {
+            msg->dst->last_hello_send = now;
+            if (p->content[1] == 8) {
+                printf("Containing short hello.\n");
+            } else {
+                printf("Containing long hello.\n");
+            }
+        }
+    }
+
+    hdr.msg_name = msg->dst->addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
     hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov);
     if (!hdr.msg_iov) return -1;

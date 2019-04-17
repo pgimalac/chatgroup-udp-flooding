@@ -62,6 +62,7 @@ static void handle_hello(const char *tlv, const struct sockaddr_in6 *addr){
         n->last_hello_send = 0;
         n->id = src_id;
         n->addr = copy;
+        n->pmtu = 500;
         hashset_add(neighbours, n);
     }
 
@@ -79,11 +80,29 @@ static void handle_neighbour(const char *tlv, const struct sockaddr_in6 *addr) {
 
     memcpy(&port, tlv + sizeof(struct in6_addr) + 2, 2);
 
+    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        printf("Receive potential neighbour from (%s, %u).\n", ipstr, htons(addr->sin6_port));
+    }
+
+    if (inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        printf("New potential neighbour (%s, %u).\n", ipstr, htons(port));
+    }
+
     p = hashset_get(neighbours, ip, port);
-    if (p) return;
+    if (p) {
+        printf("Neighbour (%s, %u) already known.\n", ipstr, htons(port));
+        return;
+    }
 
     p = hashset_get(potential_neighbours, ip, port);
-    if (p) return;
+    if (p) {
+        printf("Neighbour (%s, %u) already known.\n", ipstr, htons(port));
+        return;
+    }
 
     struct sockaddr_in6 *n_addr = malloc(sizeof(struct sockaddr_in6));
     if (!n_addr) return;
@@ -100,13 +119,8 @@ static void handle_neighbour(const char *tlv, const struct sockaddr_in6 *addr) {
 
     p->id = 0;
     p->addr = n_addr;
+    p->pmtu = 500;
     hashset_add(potential_neighbours, p);
-
-    if (inet_ntop(AF_INET6, &n_addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
-        perror("inet_ntop");
-    } else {
-        printf("New potential neighbour (%s, %u).\n", ipstr, htons(addr->sin6_port));
-    }
 }
 
 static void handle_data(const char *tlv, const struct sockaddr_in6 *addr){
