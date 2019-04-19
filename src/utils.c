@@ -67,6 +67,7 @@ void free_message(message_t *msg, short free_body) {
         if (free_body & FREE_BODY)
             free(b);
     }
+    free(msg);
 }
 
 typedef struct msg_queue {
@@ -95,7 +96,10 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
         if (!p) return -1;
 
         p->msg = malloc(sizeof(message_t));
-        if (!p) return -2;
+        if (!p){
+            free(p);
+            return -2;
+        }
 
         p->msg->magic = 93;
         p->msg->version = 2;

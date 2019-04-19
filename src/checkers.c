@@ -61,7 +61,8 @@ static int (*checkers[NUMBER_TLV_TYPE + 1])(const char*) = {
     check_data,
     check_ack,
     check_goaway,
-    check_warning
+    check_warning,
+    check_unknown
 };
 
 int check_tlv_size(const char *tlv){
