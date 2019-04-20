@@ -34,7 +34,7 @@ void handle_reception () {
     char c[4096] = { 0 };
     size_t len = 4096;
     struct sockaddr_in6 addr = { 0 };
-    message_t msg = { 0 };
+    message_t *msg = 0;
 
     rc = recv_message(sock, &addr, c, &len);
     if (rc < 0) {
@@ -44,24 +44,22 @@ void handle_reception () {
         return;
     }
 
-    // maybe unnecessary
-    memset(&msg, 0, sizeof(message_t));
-    rc = bytes_to_message(c, len, &msg);
-    if (rc == 0){
+    msg = bytes_to_message(c, len);
+    if (msg){
         printf("Message description:\n");
-        printf("magic: %d\n", msg.magic);
-        printf("version: %d\n", msg.version);
-        printf("body length: %d\n\n", msg.body_length);
+        printf("magic: %d\n", msg->magic);
+        printf("version: %d\n", msg->version);
+        printf("body length: %d\n\n", msg->body_length);
 
-        if (msg.magic != 93) {
+        if (msg->magic != 93) {
             fprintf(stderr, "Invalid magic value\n");
-        } else if (msg.version != 2) {
+        } else if (msg->version != 2) {
             fprintf(stderr, "Invalid version\n");
         } else {
-            handle_tlv(msg.body, &addr);
+            handle_tlv(msg->body, &addr);
         }
 
-        free_message(&msg, FREE_BODY);
+        free_message(msg, FREE_BODY);
     } else {
         fprintf(stderr, "Error decripting the message : %d\n", rc);
     }

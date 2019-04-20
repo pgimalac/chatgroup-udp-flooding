@@ -35,6 +35,6 @@ int start_server(int port);
 
 int recv_message(int sock, struct sockaddr_in6 *peer_addr, char *buf, size_t *buflen);
 
-int bytes_to_message(const char *buf, size_t buflen, message_t *msg);
+message_t *bytes_to_message(const char *buf, size_t buflen);
 
 #endif

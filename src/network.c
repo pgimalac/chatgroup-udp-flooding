@@ -228,11 +228,14 @@ int check_message_size(const char* buffer, int buflen){
     return body_num;
 }
 
-int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
-    if (msg == NULL)
-        return -6;
+message_t *bytes_to_message(const char *src, size_t buflen) {
     int rc = check_message_size(src, buflen);
-    if (rc < 0) return rc;
+    if (rc < 0) return 0;
+
+    message_t *msg = malloc(sizeof(message_t));
+    if (!msg) {
+        return 0;
+    }
 
     size_t i = 4;
     body_t *body, *bptr;
@@ -242,8 +245,10 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
     msg->body_length = ntohs(*(u_int16_t*)(src + 2));
     msg->body = 0;
 
-    if (msg->body_length == 0)
+    if (msg->body_length == 0) {
+        free(msg);
         return 0;
+    }
 
     while (i < buflen) {
         body = malloc(sizeof(body_t));
@@ -251,17 +256,21 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
             perror("malloc");
             break;
         }
+
         memset(body, 0, sizeof(body_t));
 
         if (src[i] == BODY_PAD1) body->size = 1;
         else body->size = 2 + src[i + 1];
+
         body->content = malloc(body->size);
+
         if (!body->content){ // todo : better error handling
             perror("malloc");
             free(body);
             body = 0;
             break;
         }
+
         memcpy(body->content, src + i, body->size);
         i += body->size;
 
@@ -273,10 +282,10 @@ int bytes_to_message(const char *src, size_t buflen, message_t *msg) {
 
     if (i < buflen){ // loop exit with break
         free_message(msg, FREE_BODY);
-        return -7;
+        return 0;
     }
 
-    return 0;
+    return msg;
 }
 
 int start_server(int port) {
