@@ -12,6 +12,7 @@
 #include "types.h"
 #include "utils.h"
 #include "network.h"
+#include "commands.h"
 #include "tlv.h"
 #include "innondation.h"
 
@@ -22,11 +23,34 @@ int init() {
     int rc;
     rc = init_random();
     if (rc < 0) {
-        perror("init");
+        perror("init random");
         return 1;
     }
+    rc = init_network();
+    if (rc < 0) {
+        perror("init network");
+        return 2;
+    }
 
-    return init_network();
+    char buffer[30] = { 0 };
+    while (1){
+        printf("Enter your nickname (between 3 and 30 characters) : ");
+        fflush(stdout);
+
+        rc = read(1, buffer, 30);
+        fflush(stdin);
+        if (rc < 0){
+            perror("init nickname read");
+            return 3;
+        } else if (rc < 3)
+            fprintf(stderr, "Too short.\n");
+        else{
+            setnickname(buffer, rc);
+            break;
+        }
+    }
+
+    return 0;
 }
 
 void handle_reception () {
@@ -65,37 +89,22 @@ void handle_reception () {
     }
 }
 
-void handle_command() {
+void handle_input() {
     int rc;
-    char buffer[512];
-    char *name = 0, *service = 0;
+    char buffer[512] = { 0 };
 
-    // TODO: varaible length command
     rc = read(0, buffer, 511);
     if (rc < 0) {
         perror("read stdin");
         return;
     }
+    if (rc == 0)
+        return;
 
-    buffer[511] = 0;
-
-    char *ins = strtok(buffer, " \n");
-    if (strcmp(ins, "add") == 0) {
-        name = strtok(0, " \n");
-        service = strtok(0, " \n");
-        if (!name || !service) {
-            fprintf(stderr, "usage: add <addr> <port>\n");
-            return;
-        }
-
-        printf("Add %s, %s to potential neighbours\n", name, service);
-        rc = add_neighbour(name, service, potential_neighbours);
-        if (rc < 0) {
-            printf("rc %d\n", rc);
-            perror("add neighbour");
-            return;
-        }
-    }
+    if (buffer[0] == '@')
+        handle_command(buffer + 1);
+    else
+        send_data(buffer, rc);
 }
 
 int main(int argc, char **argv) {
@@ -161,7 +170,7 @@ int main(int argc, char **argv) {
         if (FD_ISSET(sock, &readfds)) {
             handle_reception();
         } else if (FD_ISSET(0, &readfds)) {
-            handle_command();
+            handle_input();
         }
     }
 

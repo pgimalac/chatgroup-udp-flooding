@@ -15,11 +15,26 @@
 
 // user address
 struct sockaddr_in6 local_addr;
+char *nickname = NULL;
+
+void setnickname(char *name, int size){
+    if (name != NULL){
+        free(nickname);
+        nickname = strndup(name, size);
+    }
+}
 
 int init_network() {
     id = random_uint64();
     neighbours = hashset_init();
+    if (neighbours == NULL){
+        return -1;
+    }
     potential_neighbours = hashset_init();
+    if (potential_neighbours == NULL){
+        free(neighbours);
+        return -1;
+    }
     return 0;
 }
 
@@ -193,7 +208,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
     return 0;
 }
 
-int check_message_size(const char* buffer, int buflen){
+static int check_message_size(const char* buffer, int buflen){
     if (buffer == NULL)
         return BUFNULL;
     if (buflen < 4)
@@ -325,4 +340,8 @@ int start_server(int port) {
     }
 
     return s;
+}
+
+void send_data(char *buffer, int size){
+
 }
