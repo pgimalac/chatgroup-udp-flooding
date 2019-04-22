@@ -32,7 +32,9 @@ void* list_remove(list_t** l, int i){
     if (k == i){
         list_t* tmp = *l;
         *l = (*l)->next;
-        return tmp->val;
+        void *val = tmp->val;
+        free(tmp);
+        return val;
     }
     return 0;
 }
@@ -42,14 +44,18 @@ short list_filter(list_t **l, int(*pred)(void*)) {
     int i = -1, k = 0;
 
     if (pred((*l)->val)) {
+        void *tmp = *l;
         *l = (*l)->next;
+        free(tmp);
         i = k++;
     }
 
     while (*l && (*l)->next) {
         if (pred((*l)->next->val)) {
             i = k++;
+            void *tmp = (*l)->next;
             (*l)->next = (*l)->next->next;
+            free(tmp);
         }
         l = &(*l)->next;
         k++;
