@@ -135,7 +135,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
-    char *ipstr[INET6_ADDRSTRLEN];
+    char ipstr[INET6_ADDRSTRLEN];
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
