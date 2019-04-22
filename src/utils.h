@@ -19,8 +19,12 @@ u_int32_t random_uint32();
 
 void free_message(message_t *msg, short free_body);
 
-unsigned int hash_neighbour(const u_int8_t[16], u_int16_t);
+unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port);
+
+unsigned int hash_neighbour(const neighbour_t *n);
 
 unsigned int hash(const char*);
+
+unsigned int hash_msg_id(const char idnonce[12]);
 
 #endif

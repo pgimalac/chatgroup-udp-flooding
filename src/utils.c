@@ -37,11 +37,15 @@ u_int32_t random_uint32 () {
     return r;
 }
 
-unsigned int hash_neighbour(const u_int8_t ip[16], u_int16_t port) {
+unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port) {
     unsigned int hash = 5381;
-    for(int i = 0; i < 16; i++, ip++)
-        hash = ((hash << 5) + hash) + *ip + port;
+    for(int i = 0; i < 16; i++)
+        hash = ((hash << 5) + hash) + ip[i] + port;
     return hash;
+}
+
+unsigned int hash_neighbour(const neighbour_t *n) {
+    return hash_neighbour_data((const u_int8_t*)&n->addr->sin6_addr, n->addr->sin6_port);
 }
 
 unsigned int hash(const char *s) {
@@ -49,6 +53,16 @@ unsigned int hash(const char *s) {
     int c;
     while ((c = *s++))
         hash = ((hash << 5) + hash) + c;
+    return hash;
+}
+
+unsigned int hash_msg_id(const char idnonce[12]) {
+    unsigned int hash = 5381;
+
+    for (int i = 0; i < 12; i++) {
+        hash = ((hash << 5) + hash) + idnonce[i];
+    }
+
     return hash;
 }
 

@@ -44,7 +44,7 @@ int tlv_ack(char **buffer, chat_id_t sender, nonce_t nonce);
 int tlv_goaway(char **buffer, u_int8_t code, const char *message, u_int8_t messagelen);
 int tlv_warning(char **buffer, const char *message, const u_int8_t messagelen);
 
-void handle_tlv(const body_t *tlv, const struct sockaddr_in6 *addr);
+void handle_tlv(const body_t *tlv, neighbour_t *);
 int check_tlv_size(const char* tlv);
 
 #endif

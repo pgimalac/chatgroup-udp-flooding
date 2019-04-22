@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -18,6 +19,17 @@
 #define MIN_PORT 1024
 #define MAX_PORT 49151
 
+char pseudo[50];
+char *pseudos[6] = {
+                "Raskolnikov",
+                "Mlle Swann",
+                "Joshep  K.",
+                "Humbert Humbert",
+                "Jacopo Belbo",
+                "Méphistophélès"
+};
+int pseudo_length = 6;
+
 int init() {
     int rc;
     rc = init_random();
@@ -25,6 +37,8 @@ int init() {
         perror("init");
         return 1;
     }
+
+    innondation_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
 
     return init_network();
 }
@@ -35,6 +49,7 @@ void handle_reception () {
     size_t len = 4096;
     struct sockaddr_in6 addr = { 0 };
     message_t *msg = 0;
+    neighbour_t *n = 0;
 
     rc = recv_message(sock, &addr, c, &len);
     if (rc < 0) {
@@ -51,12 +66,26 @@ void handle_reception () {
         printf("version: %d\n", msg->version);
         printf("body length: %d\n\n", msg->body_length);
 
+        n = hashset_get(neighbours,
+                        (const unsigned char*)(&addr.sin6_addr),
+                        addr.sin6_port);
+        if (!n) {
+            n = hashset_get(potential_neighbours,
+                            (const unsigned char*)&addr.sin6_addr,
+                            addr.sin6_port);
+            if (!n) {
+                n = new_neighbour((const unsigned char*)&addr.sin6_addr,
+                                  addr.sin6_port, potential_neighbours);
+                printf("Add to potential neighbours.\n");
+            }
+        }
+
         if (msg->magic != 93) {
             fprintf(stderr, "Invalid magic value\n");
         } else if (msg->version != 2) {
             fprintf(stderr, "Invalid version\n");
         } else {
-            handle_tlv(msg->body, &addr);
+            handle_tlv(msg->body, n);
         }
 
         free_message(msg, FREE_BODY);
@@ -67,8 +96,9 @@ void handle_reception () {
 
 void handle_command() {
     int rc;
-    char buffer[512];
-    char *name = 0, *service = 0;
+    char buffer[512] = { 0 }, tmp[521] = { 0 };
+    char *name = 0, *service = 0, *content = 0;
+    body_t *data;
 
     // TODO: varaible length command
     rc = read(0, buffer, 511);
@@ -80,6 +110,8 @@ void handle_command() {
     buffer[511] = 0;
 
     char *ins = strtok(buffer, " \n");
+    if (ins == 0) return;
+
     if (strcmp(ins, "add") == 0) {
         name = strtok(0, " \n");
         service = strtok(0, " \n");
@@ -88,13 +120,25 @@ void handle_command() {
             return;
         }
 
-        printf("Add %s, %s to potential neighbours\n", name, service);
         rc = add_neighbour(name, service, potential_neighbours);
         if (rc < 0) {
             printf("rc %d\n", rc);
             perror("add neighbour");
             return;
         }
+    } else if (strcmp(ins, "send") == 0) {
+        content = strtok(0, "\n");
+        if (content == 0) return;
+
+        sprintf(tmp, "%s: %s", pseudo, content);
+
+        data = malloc(sizeof(body_t));
+        data->size = tlv_data(&data->content, id, random_uint32(), 0, tmp, strlen(tmp));
+
+        rc = innondation_add_message(data->content, data->size);
+        rc = innondation_send_msg(data->content, data->size);
+        free(data->content);
+        free(data);
     }
 }
 
@@ -103,10 +147,10 @@ int main(int argc, char **argv) {
 
     rc = init();
     if (rc != 0) return rc;
-    printf("local id: %lu\n", id);
+    printf("local id: %lx\n", id);
 
     unsigned short port = 0;
-    if (argc >= 2){
+    if (argc > 1){
         char *pos = 0;
         long int port2 = strtol(argv[1], &pos, 0);
         if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
@@ -114,17 +158,23 @@ int main(int argc, char **argv) {
         }
     }
 
+    memset(pseudo, 0, 50);
+    if (argc >= 3) {
+        memcpy(pseudo, argv[2], 50);
+    } else {
+        int index = rand() % pseudo_length;
+        memcpy(pseudo, pseudos[index], strlen(pseudos[index]));
+    }
+
+    printf("Welcome %s.\n", pseudo);
+
     sock = start_server(port);
     if (sock < 0) {
         fprintf(stderr, "coudn't create socket\n");
         return 1;
     }
 
-
-    if (rc < 0) {
-        perror("add neighbour");
-        return 2;
-    }
+    printf("================================\n\n");
 
     int size;
     message_t *msg;
@@ -133,16 +183,14 @@ int main(int argc, char **argv) {
     while (1) {
         size = hello_neighbours(&tv);
         if (size < 8) {
-            printf("You have %d friends, try to find new ones.\n", size);
+            printf("You have %d friends, try to find new ones.\n\n", size);
             hello_potential_neighbours();
         }
 
         while((msg = pull_message())) {
-            send_message(sock, msg);
+            rc = send_message(sock, msg);
             free_message(msg, FREE_BODY);
         }
-
-        printf("\n\n");
 
         fd_set readfds;
         FD_ZERO(&readfds);

@@ -11,11 +11,11 @@
 #define HASHMAP_RATIO_LOWER_LIMIT 0.1
 
 typedef struct map_elem {
-    char *key;
-    neighbour_t *value;
+    void *key;
+    void *value;
 } map_elem;
 
-static map_elem *elem(char *key, neighbour_t *value) {
+static map_elem *elem(void *key, void *value) {
     map_elem *e = malloc(sizeof(map_elem));
     if (e) {
         e->key = key;
@@ -33,7 +33,7 @@ static short resize (hashmap_t *map, int capacity) {
     for (int i = 0; i < map->capacity; i++)
         for (list_t *l = map->tab[i]; l; ) {
             e = (map_elem*)list_pop(&l);
-            if (!list_add(&tab[hash(e->key) % map->capacity], e)){
+            if (!list_add(&tab[map->hash(e->key) % map->capacity], e)){
                 free(tab);
                 return 0;
             }
@@ -45,11 +45,13 @@ static short resize (hashmap_t *map, int capacity) {
     return 1;
 }
 
-hashmap_t *hashmap_init() {
+hashmap_t *hashmap_init(int keylen, unsigned int (*hash)(const void*)) {
     hashmap_t *map = malloc(sizeof(hashmap_t));
     if (map) {
         map->size = 0;
         map->capacity = HASHMAP_INITIAL_CAPACITY;
+        map->hash = hash;
+        map->keylen = keylen;
 
         map->tab = calloc(map->capacity, sizeof(list_t *));
         if(!map->tab) {
@@ -61,19 +63,19 @@ hashmap_t *hashmap_init() {
     return map;
 }
 
-static map_elem *get (hashmap_t *map, char *key) {
+static map_elem *get (hashmap_t *map, void *key) {
     if (map == NULL) return NULL;
 
     map_elem *e;
-    for (list_t *l = map->tab[hash(key) % map->capacity]; l; l = l->next) {
+    for (list_t *l = map->tab[map->hash(key) % map->capacity]; l; l = l->next) {
         e = (map_elem*)l->val;
-        if (strcmp(e->key, key) == 0) return e;
+        if (memcmp(e->key, key, map->keylen) == 0) return e;
     }
 
     return 0;
 }
 
-short hashmap_add(hashmap_t *map, char *key, neighbour_t *value, short f) {
+short hashmap_add(hashmap_t *map, void *key, void *value, short f) {
     if (map == 0) return 0;
 
     map_elem *e = get(map, key);
@@ -82,7 +84,7 @@ short hashmap_add(hashmap_t *map, char *key, neighbour_t *value, short f) {
             if (!resize(map, map->capacity * 2)) return -1;
 
         e = elem(key, value);
-        return e != NULL && list_add(&map->tab[hash(key) % map->capacity], e);
+        return e != NULL && list_add(&map->tab[map->hash(key) % map->capacity], e);
     }
 
     if (f){
@@ -95,12 +97,12 @@ short hashmap_add(hashmap_t *map, char *key, neighbour_t *value, short f) {
     return 1;
 }
 
-neighbour_t *hashmap_get(hashmap_t *map, char *key) {
+void *hashmap_get(hashmap_t *map, void *key) {
     struct map_elem *e = get(map, key);
     return e ? e->value : NULL;
 }
 
-static short map_list_remove (list_t **lst, char *key, short f) {
+static short map_list_remove (list_t **lst, void *key, short f) {
     if (!lst || !*lst)
         return 0;
 
@@ -127,9 +129,9 @@ static short map_list_remove (list_t **lst, char *key, short f) {
     return 1;
 }
 
-short hashmap_remove(hashmap_t *map, char *key, short f) {
+short hashmap_remove(hashmap_t *map, void *key, short f) {
     if (!map) return 0;
-    return map_list_remove(&map->tab[hash(key) % map->capacity], key, f);
+    return map_list_remove(&map->tab[map->hash(key) % map->capacity], key, f);
 }
 
 short hashmap_contains (hashmap_t *map, char *key) {

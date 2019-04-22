@@ -27,6 +27,9 @@ int init_network();
 
 size_t message_to_iovec(message_t *msg, struct iovec **iov);
 
+neighbour_t *
+new_neighbour(const unsigned char *ip, unsigned int port, hashset_t *neighbours);
+
 int add_neighbour(char *hostname, char *service, hashset_t *neighbours);
 
 int send_message(int sock, message_t *msg);

@@ -47,9 +47,37 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     return i;
 }
 
+neighbour_t *
+new_neighbour(const unsigned char *ip, unsigned int port, hashset_t *ns) {
+    struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
+    if (addr == NULL) return 0;
+    memset(addr, 0, sizeof(struct sockaddr_in6));
+    addr->sin6_family = AF_INET6;
+    addr->sin6_port = port;
+    memmove(&addr->sin6_addr, ip, sizeof(struct in6_addr));
+
+    neighbour_t *n = malloc(sizeof(neighbour_t));
+    if (n == NULL){
+        free(addr);
+        return 0;
+    }
+
+    n->id = 0;
+    n->last_hello = 0;
+    n->last_long_hello = 0;
+    n->last_hello_send = 0;
+    n->pmtu = 500;
+    n->addr = addr;
+    n->status = NEIGHBOUR_POT;
+    hashset_add(ns, n);
+    return n;
+}
+
 int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     int rc, s;
+    char ipstr[INET6_ADDRSTRLEN];
     struct addrinfo hints, *r, *p;
+    struct sockaddr_in6 *addr;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
@@ -67,24 +95,16 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
 
     if (p == 0) return -2;
 
-    struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
-    if (copy == NULL) return -3;
-    memset(copy, 0, sizeof(struct sockaddr_in6));
-    memmove(copy, p->ai_addr, p->ai_addrlen);
+    addr = (struct sockaddr_in6*)p->ai_addr;
+    if (!new_neighbour((unsigned char*)(&addr->sin6_addr), addr->sin6_port, neighbours))
+        return -3;
 
-    neighbour_t *n = malloc(sizeof(neighbour_t));
-    if (n == NULL){
-        free(copy);
-        return -4;
+    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        printf("Add %s, %d to potential neighbours\n", ipstr, htons(addr->sin6_port));
     }
 
-    n->id = 0;
-    n->last_hello = 0;
-    n->last_long_hello = 0;
-    n->last_hello_send = 0;
-    n->pmtu = 500;
-    n->addr = copy;
-    hashset_add(neighbours, n);
 
     freeaddrinfo(r);
 
@@ -104,23 +124,56 @@ int send_message(int sock, message_t *msg) {
     if (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
+        printf("> Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
     }
 
     for (p = msg->body; p; p = p->next) {
         if (p->size == 1) {
-            printf("Containing PAD1\n");
-        } else if (p->content[0] == BODY_PADN) {
-            printf("Containing PadN %u\n", p->content[1]);
-        } else if (p->content[0] == BODY_HELLO) {
+            printf("* Containing PAD1\n");
+            continue;
+        }
+
+        switch (p->content[0]) {
+        case BODY_PADN:
+            printf("* Containing PadN %u\n", p->content[1]);
+            break;
+
+        case BODY_HELLO:
             msg->dst->last_hello_send = now;
             if (p->content[1] == 8) {
-                printf("Containing short hello.\n");
+                printf("* Containing short hello.\n");
             } else {
-                printf("Containing long hello.\n");
+                printf("* Containing long hello.\n");
             }
+            break;
+
+        case BODY_NEIGHBOUR:
+            printf("* Containing neighbour.\n");
+            break;
+
+        case BODY_DATA:
+            printf("* Containing data.\n");
+            break;
+
+        case BODY_ACK:
+            printf("* Containing ack.\n");
+            break;
+
+        case BODY_GO_AWAY:
+            printf("* Containing go away %u.\n", p->content[2]);
+            break;
+
+        case BODY_WARNING:
+            printf("* Containing warning.\n");
+            break;
+
+        default:
+            printf("* Containing an unknow tlv.\n");
+            break;
         }
     }
+
+    printf("\n");
 
     hdr.msg_name = msg->dst->addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
@@ -184,7 +237,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
     if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("Receive message from %s.\n", ipstr);
+        printf("Receive message from (%s, %u).\n", ipstr, htons(addr->sin6_port));
     }
 
     if (!out || !buflen) return 0;
