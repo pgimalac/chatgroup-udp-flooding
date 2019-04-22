@@ -102,12 +102,10 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("Add %s, %d to potential neighbours\n", ipstr, htons(addr->sin6_port));
+        dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, htons(addr->sin6_port));
     }
 
-
     freeaddrinfo(r);
-
     return 0;
 }
 
@@ -120,60 +118,59 @@ int send_message(int sock, message_t *msg) {
 
     msg->body_length = htons(msg->body_length);
 
-
     if (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("> Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
+        dprintf(logfd, "> Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
     }
 
     for (p = msg->body; p; p = p->next) {
         if (p->size == 1) {
-            printf("* Containing PAD1\n");
+            dprintf(logfd, "* Containing PAD1\n");
             continue;
         }
 
         switch (p->content[0]) {
         case BODY_PADN:
-            printf("* Containing PadN %u\n", p->content[1]);
+            dprintf(logfd, "* Containing PadN %u\n", p->content[1]);
             break;
 
         case BODY_HELLO:
             msg->dst->last_hello_send = now;
             if (p->content[1] == 8) {
-                printf("* Containing short hello.\n");
+                dprintf(logfd, "* Containing short hello.\n");
             } else {
-                printf("* Containing long hello.\n");
+                dprintf(logfd, "* Containing long hello.\n");
             }
             break;
 
         case BODY_NEIGHBOUR:
-            printf("* Containing neighbour.\n");
+            dprintf(logfd, "* Containing neighbour.\n");
             break;
 
         case BODY_DATA:
-            printf("* Containing data.\n");
+            dprintf(logfd, "* Containing data.\n");
             break;
 
         case BODY_ACK:
-            printf("* Containing ack.\n");
+            dprintf(logfd, "* Containing ack.\n");
             break;
 
         case BODY_GO_AWAY:
-            printf("* Containing go away %u.\n", p->content[2]);
+            dprintf(logfd, "* Containing go away %u.\n", p->content[2]);
             break;
 
         case BODY_WARNING:
-            printf("* Containing warning.\n");
+            dprintf(logfd, "* Containing warning.\n");
             break;
 
         default:
-            printf("* Containing an unknow tlv.\n");
+            dprintf(logfd, "* Containing an unknow tlv.\n");
             break;
         }
     }
 
-    printf("\n");
+    dprintf(logfd, "\n");
 
     hdr.msg_name = msg->dst->addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
@@ -237,7 +234,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
     if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("Receive message from (%s, %u).\n", ipstr, htons(addr->sin6_port));
+        dprintf(logfd, "Receive message from (%s, %u).\n", ipstr, htons(addr->sin6_port));
     }
 
     if (!out || !buflen) return 0;
@@ -365,9 +362,9 @@ int start_server(int port) {
         perror("inet_ntop");
     } else {
         if (local_addr.sin6_port)
-            printf("Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
+            dprintf(logfd, "Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
         else
-            printf("Start server at %s on a random port.\n", out);
+            dprintf(logfd, "Start server at %s on a random port.\n", out);
     }
 
     int one = 1;

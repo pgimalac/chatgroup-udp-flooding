@@ -5,6 +5,7 @@
 
 #include "types.h"
 
+#define logfd 2
 #define FREE_BODY 1
 
 /**

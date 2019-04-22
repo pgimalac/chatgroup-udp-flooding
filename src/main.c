@@ -61,10 +61,10 @@ void handle_reception () {
 
     msg = bytes_to_message(c, len);
     if (msg){
-        printf("Message description:\n");
-        printf("magic: %d\n", msg->magic);
-        printf("version: %d\n", msg->version);
-        printf("body length: %d\n\n", msg->body_length);
+        dprintf(logfd, "Message description:\n");
+        dprintf(logfd, "magic: %d\n", msg->magic);
+        dprintf(logfd, "version: %d\n", msg->version);
+        dprintf(logfd, "body length: %d\n\n", msg->body_length);
 
         n = hashset_get(neighbours,
                         (const unsigned char*)(&addr.sin6_addr),
@@ -76,7 +76,7 @@ void handle_reception () {
             if (!n) {
                 n = new_neighbour((const unsigned char*)&addr.sin6_addr,
                                   addr.sin6_port, potential_neighbours);
-                printf("Add to potential neighbours.\n");
+                dprintf(logfd, "Add to potential neighbours.\n");
             }
         }
 
@@ -122,7 +122,6 @@ void handle_command() {
 
         rc = add_neighbour(name, service, potential_neighbours);
         if (rc < 0) {
-            printf("rc %d\n", rc);
             perror("add neighbour");
             return;
         }
@@ -147,7 +146,7 @@ int main(int argc, char **argv) {
 
     rc = init();
     if (rc != 0) return rc;
-    printf("local id: %lx\n", id);
+    dprintf(logfd, "local id: %lx\n", id);
 
     unsigned short port = 0;
     if (argc > 1){
@@ -183,7 +182,7 @@ int main(int argc, char **argv) {
     while (1) {
         size = hello_neighbours(&tv);
         if (size < 8) {
-            printf("You have %d friends, try to find new ones.\n\n", size);
+            dprintf(logfd, "You have %d friends, try to find new ones.\n\n", size);
             hello_potential_neighbours();
         }
 

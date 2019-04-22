@@ -59,7 +59,7 @@ int hello_neighbours(struct timeval *tv) {
         }
     }
 
-    printf("Timeout before next send loop %ld.\n", tv->tv_sec);
+    dprintf(logfd, "Timeout before next send loop %ld.\n", tv->tv_sec);
 
     return size;
 }
@@ -149,7 +149,7 @@ int innondation_send_msg(const char *data, int size) {
             body = malloc(sizeof(body_t));
             if (!body) continue;
 
-            body->content = malloc(data[1]);
+            body->content = malloc(size);
             if (!body->content) {
                 free(body);
                 continue;
