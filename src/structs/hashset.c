@@ -36,7 +36,7 @@ static short resize(hashset_t *h, int capacity){
 
     for (int i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
         for (list_t* l = h->tab[i]; l != NULL; l = l->next)
-            list_add(&t[hash_neighbour(GET_IP(l->val), GET_PORT(l->val)) % capacity], l->val);
+            list_add(&t[hash_neighbour_data(GET_IP(l->val), GET_PORT(l->val)) % capacity], l->val);
 
     free(h->tab);
     h->capacity = capacity;
@@ -48,7 +48,7 @@ static short resize(hashset_t *h, int capacity){
 short hashset_contains(hashset_t *h, const u_int8_t ip[16], u_int16_t port){
     if (h == NULL || ip == NULL) return 0;
 
-    for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity]; l != NULL; l = l->next)
+    for (list_t* l = h->tab[hash_neighbour_data(ip, port) % h->capacity]; l != NULL; l = l->next)
         if (memcmp(GET_IP(l->val), ip, 16) == 0 && port == GET_PORT(l->val))
             return 1;
 
@@ -58,7 +58,7 @@ short hashset_contains(hashset_t *h, const u_int8_t ip[16], u_int16_t port){
 neighbour_t *hashset_get(hashset_t *h, const u_int8_t* ip, u_int16_t port) {
     if (h == NULL) return 0;
 
-    for (list_t* l = h->tab[hash_neighbour(ip, port) % h->capacity]; l != NULL; l = l->next)
+    for (list_t* l = h->tab[hash_neighbour_data(ip, port) % h->capacity]; l != NULL; l = l->next)
         if (memcmp(&GET_IP(l->val), ip, 16) == 0 && port == GET_PORT(l->val))
             return (neighbour_t*)l->val;
 
@@ -73,8 +73,8 @@ short hashset_add(hashset_t *h, neighbour_t* n){
     if(!hashset_contains(h, ip, port)){
         if (h->size + 1 > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
             resize(h, h->capacity * 2);
-        list_add(&h->tab[hash_neighbour(ip, port) % h->capacity], n);
-        h->size ++;
+        list_add(&h->tab[hash_neighbour_data(ip, port) % h->capacity], n);
+        h->size++;
         return 1;
     }
 
@@ -102,7 +102,7 @@ static short hashset_list_remove(list_t** l, const u_int8_t ip[16], u_int16_t po
 
 short hashset_remove(hashset_t *h, const u_int8_t ip[16], u_int16_t port){
     if (h != NULL && hashset_contains(h, ip, port)){
-        int i = hash_neighbour(ip, port) % h->capacity;
+        int i = hash_neighbour_data(ip, port) % h->capacity;
         hashset_list_remove(&h->tab[i], ip, port);
         h->size--;
         if (h->size < HASHSET_RATIO_LOWER_LIMIT * h->capacity &&

@@ -78,9 +78,7 @@ int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
 int tlv_data(char **buffer,
              chat_id_t sender, nonce_t nonce,
              u_int8_t type, const char *data, u_int8_t datalen){
-    u_int64_t n_sender = htobe64(sender);
-    u_int32_t n_nonce = htonl(nonce);
-    u_int32_t true_size = datalen + sizeof(n_sender) + sizeof(n_nonce) + sizeof(type);
+    u_int32_t true_size = datalen + sizeof(sender) + sizeof(nonce) + sizeof(type);
     if (true_size > 255)
         return -2;
 
@@ -92,10 +90,10 @@ int tlv_data(char **buffer,
     char *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_DATA;
     (*buffer)[1] = (u_int8_t) true_size;
-    memmove(offset, &n_sender, sizeof(n_sender));
-    offset += sizeof(n_sender);
-    memmove(offset, &n_nonce, sizeof(n_nonce));
-    offset += sizeof(n_nonce);
+    memmove(offset, &sender, sizeof(sender));
+    offset += sizeof(sender);
+    memmove(offset, &nonce, sizeof(nonce));
+    offset += sizeof(nonce);
     *offset = type;
     memmove(offset + 1, data, datalen);
 

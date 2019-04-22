@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -15,9 +16,12 @@
 #include "commands.h"
 #include "tlv.h"
 #include "innondation.h"
+#include "pseudo.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
+
+#define COMMAND '/'
 
 int init() {
     int rc;
@@ -32,23 +36,7 @@ int init() {
         return 2;
     }
 
-    char buffer[30] = { 0 };
-    while (1){
-        printf("Enter your nickname (between 3 and 30 characters) : ");
-        fflush(stdout);
-
-        rc = read(1, buffer, 30);
-        fflush(stdin);
-        if (rc < 0){
-            perror("init nickname read");
-            return 3;
-        } else if (rc < 3)
-            fprintf(stderr, "Too short.\n");
-        else{
-            setnickname(buffer, rc);
-            break;
-        }
-    }
+    innondation_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
 
     return 0;
 }
@@ -59,6 +47,7 @@ void handle_reception () {
     size_t len = 4096;
     struct sockaddr_in6 addr = { 0 };
     message_t *msg = 0;
+    neighbour_t *n = 0;
 
     rc = recv_message(sock, &addr, c, &len);
     if (rc < 0) {
@@ -70,17 +59,31 @@ void handle_reception () {
 
     msg = bytes_to_message(c, len);
     if (msg){
-        printf("Message description:\n");
-        printf("magic: %d\n", msg->magic);
-        printf("version: %d\n", msg->version);
-        printf("body length: %d\n\n", msg->body_length);
+        dprintf(logfd, "Message description:\n");
+        dprintf(logfd, "magic: %d\n", msg->magic);
+        dprintf(logfd, "version: %d\n", msg->version);
+        dprintf(logfd, "body length: %d\n\n", msg->body_length);
+
+        n = hashset_get(neighbours,
+                        (const unsigned char*)(&addr.sin6_addr),
+                        addr.sin6_port);
+        if (!n) {
+            n = hashset_get(potential_neighbours,
+                            addr.sin6_addr.s6_addr,
+                            addr.sin6_port);
+            if (!n) {
+                n = new_neighbour((const unsigned char*)&addr.sin6_addr,
+                                  addr.sin6_port, potential_neighbours);
+                dprintf(logfd, "Add to potential neighbours.\n");
+            }
+        }
 
         if (msg->magic != 93) {
             fprintf(stderr, "Invalid magic value\n");
         } else if (msg->version != 2) {
             fprintf(stderr, "Invalid version\n");
         } else {
-            handle_tlv(msg->body, &addr);
+            handle_tlv(msg->body, n);
         }
 
         free_message(msg, FREE_BODY);
@@ -101,7 +104,7 @@ void handle_input() {
     if (rc == 0)
         return;
 
-    if (buffer[0] == '@')
+    if (buffer[0] == COMMAND)
         handle_command(buffer + 1);
     else
         send_data(buffer, rc);
@@ -112,10 +115,10 @@ int main(int argc, char **argv) {
 
     rc = init();
     if (rc != 0) return rc;
-    printf("local id: %lu\n", id);
+    dprintf(logfd, "local id: %lx\n", id);
 
     unsigned short port = 0;
-    if (argc >= 2){
+    if (argc > 1){
         char *pos = 0;
         long int port2 = strtol(argv[1], &pos, 0);
         if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
@@ -123,17 +126,20 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (argc >= 3)
+        setPseudo(argv[2], strlen(argv[2]));
+    else
+        setRandomPseudo();
+
+    printf("Welcome %s.\n", getPseudo());
+
     sock = start_server(port);
     if (sock < 0) {
         fprintf(stderr, "coudn't create socket\n");
         return 1;
     }
 
-
-    if (rc < 0) {
-        perror("add neighbour");
-        return 2;
-    }
+    printf("================================\n\n");
 
     int size;
     message_t *msg;
@@ -142,7 +148,7 @@ int main(int argc, char **argv) {
     while (1) {
         size = hello_neighbours(&tv);
         if (size < 8) {
-            printf("You have %d friends, try to find new ones.\n", size);
+            dprintf(logfd, "You have %d friends, try to find new ones.\n\n", size);
             hello_potential_neighbours();
         }
 
@@ -150,8 +156,6 @@ int main(int argc, char **argv) {
             send_message(sock, msg);
             free_message(msg, FREE_BODY);
         }
-
-        printf("\n\n");
 
         fd_set readfds;
         FD_ZERO(&readfds);

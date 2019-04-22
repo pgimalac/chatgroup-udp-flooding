@@ -62,35 +62,19 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     return i;
 }
 
-int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
-    int rc, s;
-    struct addrinfo hints, *r, *p;
-
-    memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = 0;
-    hints.ai_flags = AI_V4MAPPED;
-
-    rc = getaddrinfo (hostname, service, &hints, &r);
-    if (rc < 0 || r == 0) return -1;
-
-    for (p = r;
-         (0 != p) && ((s = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) <= 0);
-         p = p->ai_next);
-    close(s);
-
-    if (p == 0) return -2;
-
-    struct sockaddr_in6 *copy = malloc(sizeof(struct sockaddr_in6));
-    if (copy == NULL) return -3;
-    memset(copy, 0, sizeof(struct sockaddr_in6));
-    memmove(copy, p->ai_addr, p->ai_addrlen);
+neighbour_t *
+new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port, hashset_t *ns) {
+    struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
+    if (addr == NULL) return 0;
+    memset(addr, 0, sizeof(struct sockaddr_in6));
+    addr->sin6_family = AF_INET6;
+    addr->sin6_port = port;
+    memmove(addr->sin6_addr.s6_addr, ip, sizeof(struct in6_addr));
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
     if (n == NULL){
-        free(copy);
-        return -4;
+        free(addr);
+        return 0;
     }
 
     n->id = 0;
@@ -98,11 +82,57 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     n->last_long_hello = 0;
     n->last_hello_send = 0;
     n->pmtu = 500;
-    n->addr = copy;
-    hashset_add(neighbours, n);
+    n->addr = addr;
+    n->status = NEIGHBOUR_POT;
+    hashset_add(ns, n);
+    return n;
+}
+
+int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
+    int rc, s;
+    char ipstr[INET6_ADDRSTRLEN] = { 0 };
+    struct addrinfo hints, *r, *p;
+    struct sockaddr_in6 *addr;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_V4MAPPED | AI_ALL;
+
+    rc = getaddrinfo (hostname, service, &hints, &r);
+    if (rc < 0 || r == 0){
+        return -1;
+    }
+
+    for (p = r; p != NULL; p = p->ai_next) {
+        s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (s == -1)
+            continue;
+
+//        if (bind(s, p->ai_addr, p->ai_addrlen) == 0)
+        close(s);
+        break;
+
+    }
+
+    if (p == 0){
+        freeaddrinfo(r);
+        return -2;
+    }
+
+    addr = (struct sockaddr_in6*)p->ai_addr;
+    if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, neighbours)) {
+        freeaddrinfo(r);
+        return -3;
+    }
+
+    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, htons(addr->sin6_port));
+    }
 
     freeaddrinfo(r);
-
     return 0;
 }
 
@@ -115,27 +145,59 @@ int send_message(int sock, message_t *msg) {
 
     msg->body_length = htons(msg->body_length);
 
-
     if (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
+        dprintf(logfd, "> Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
     }
 
     for (p = msg->body; p; p = p->next) {
         if (p->size == 1) {
-            printf("Containing PAD1\n");
-        } else if (p->content[0] == BODY_PADN) {
-            printf("Containing PadN %u\n", p->content[1]);
-        } else if (p->content[0] == BODY_HELLO) {
+            dprintf(logfd, "* Containing PAD1\n");
+            continue;
+        }
+
+        switch (p->content[0]) {
+        case BODY_PADN:
+            dprintf(logfd, "* Containing PadN %u\n", p->content[1]);
+            break;
+
+        case BODY_HELLO:
             msg->dst->last_hello_send = now;
             if (p->content[1] == 8) {
-                printf("Containing short hello.\n");
+                dprintf(logfd, "* Containing short hello.\n");
             } else {
-                printf("Containing long hello.\n");
+                dprintf(logfd, "* Containing long hello.\n");
             }
+            break;
+
+        case BODY_NEIGHBOUR:
+            dprintf(logfd, "* Containing neighbour.\n");
+            break;
+
+        case BODY_DATA:
+            dprintf(logfd, "* Containing data.\n");
+            break;
+
+        case BODY_ACK:
+            dprintf(logfd, "* Containing ack.\n");
+            break;
+
+        case BODY_GO_AWAY:
+            dprintf(logfd, "* Containing go away %u.\n", p->content[2]);
+            break;
+
+        case BODY_WARNING:
+            dprintf(logfd, "* Containing warning.\n");
+            break;
+
+        default:
+            dprintf(logfd, "* Containing an unknow tlv.\n");
+            break;
         }
     }
+
+    dprintf(logfd, "\n");
 
     hdr.msg_name = msg->dst->addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
@@ -199,7 +261,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
     if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        printf("Receive message from %s.\n", ipstr);
+        dprintf(logfd, "Receive message from (%s, %u).\n", ipstr, htons(addr->sin6_port));
     }
 
     if (!out || !buflen) return 0;
@@ -327,9 +389,9 @@ int start_server(int port) {
         perror("inet_ntop");
     } else {
         if (local_addr.sin6_port)
-            printf("Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
+            dprintf(logfd, "Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
         else
-            printf("Start server at %s on a random port.\n", out);
+            dprintf(logfd, "Start server at %s on a random port.\n", out);
     }
 
     int one = 1;
@@ -340,8 +402,4 @@ int start_server(int port) {
     }
 
     return s;
-}
-
-void send_data(char *buffer, int size){
-
 }

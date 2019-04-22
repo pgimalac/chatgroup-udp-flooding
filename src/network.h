@@ -29,6 +29,9 @@ int init_network();
 
 size_t message_to_iovec(message_t *msg, struct iovec **iov);
 
+neighbour_t *
+new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port, hashset_t *neighbours);
+
 int add_neighbour(char *hostname, char *service, hashset_t *neighbours);
 
 int send_message(int sock, message_t *msg);
@@ -38,7 +41,5 @@ int start_server(int port);
 int recv_message(int sock, struct sockaddr_in6 *peer_addr, char *buf, size_t *buflen);
 
 message_t *bytes_to_message(const char *buf, size_t buflen);
-
-void send_data(char *, int);
 
 #endif
