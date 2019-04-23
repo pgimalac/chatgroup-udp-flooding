@@ -5,7 +5,7 @@
 
 void send_data(const char *buffer, int size);
 
-void hello_potential_neighbours();
+void hello_potential_neighbours(struct timeval *tv);
 
 int hello_neighbours(struct timeval *tv);
 

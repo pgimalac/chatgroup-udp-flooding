@@ -150,8 +150,8 @@ int main(int argc, char **argv) {
     while (1) {
         size = hello_neighbours(&tv);
         if (size < 8) {
-            dprintf(logfd, "You have %d friends, try to find new ones.\n\n", size);
-            hello_potential_neighbours();
+            dprintf(logfd, "You have %d friends, try to find new ones.\n", size);
+            hello_potential_neighbours(&tv);
         }
 
         message_innondation(&tv);
@@ -160,6 +160,8 @@ int main(int argc, char **argv) {
             send_message(sock, msg);
             free_message(msg, FREE_BODY);
         }
+
+        dprintf(logfd, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
 
         fd_set readfds;
         FD_ZERO(&readfds);
