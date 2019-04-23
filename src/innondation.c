@@ -13,12 +13,13 @@
 
 #define MAX_TIMEOUT 30
 
-void send_data(char *buffer, int size){
-    char *content = strtok(0, "\n"), tmp[521] = { 0 };
+void send_data(const char *buffer, int size){
+    char tmp[521] = { 0 };
     body_t *data;
-    if (content == 0) return;
 
-    sprintf(tmp, "%s: %s", getPseudo(), content);
+    if (buffer == 0) return;
+
+    snprintf(tmp, 511, "%s: %s", getPseudo(), buffer);
 
     data = malloc(sizeof(body_t));
     data->size = tlv_data(&data->content, id, random_uint32(), 0, tmp, strlen(tmp));

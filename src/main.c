@@ -101,13 +101,12 @@ void handle_input() {
         perror("read stdin");
         return;
     }
+
     if (rc == 0)
         return;
 
-    if (buffer[0] == COMMAND)
-        handle_command(buffer + 1);
-    else
-        send_data(buffer, rc);
+    if (buffer[0] == COMMAND) handle_command(buffer + 1);
+    else send_data(buffer, rc);
 }
 
 int main(int argc, char **argv) {

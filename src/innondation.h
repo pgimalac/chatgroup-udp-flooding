@@ -5,7 +5,7 @@
 
 hashmap_t *innondation_map;
 
-void send_data(char *buffer, int size);
+void send_data(const char *buffer, int size);
 
 void hello_potential_neighbours();
 
