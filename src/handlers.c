@@ -126,7 +126,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     body->size = 14;
 
     push_tlv(body, n);
-    hashmap_remove(map, n, 0);
+    hashmap_remove(map, n, 1);
     innondation_send_msg(tlv + 2);
 }
 

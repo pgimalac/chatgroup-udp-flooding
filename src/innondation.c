@@ -119,6 +119,7 @@ int innondation_add_message(const char *data, int size) {
 
     hashmap_add(innondation_map, dataid, ns);
     hashmap_add(data_map, dataid, datacopy);
+    free(dataid);
 
     return 0;
 }
@@ -151,12 +152,6 @@ int innondation_send_msg(const char *dataid) {
                                        "You did not answer to data for too long.", 40);
                 push_tlv(body, dinfo->neighbour);
 
-                hashset_remove(neighbours,
-                               dinfo->neighbour->addr->sin6_addr.s6_addr,
-                               dinfo->neighbour->addr->sin6_port);
-                hashset_add(potential_neighbours, dinfo->neighbour);
-                hashmap_remove(map, dinfo->neighbour, 1);
-
                 if (inet_ntop(AF_INET6,
                               &dinfo->neighbour->addr->sin6_addr,
                               ipstr, INET6_ADDRSTRLEN) == 0){
@@ -165,6 +160,11 @@ int innondation_send_msg(const char *dataid) {
                     printf("Remove (%s, %u) from neighbour list and add to potential neighbours. He did not answer to data for too long.\n", ipstr, htons(dinfo->neighbour->addr->sin6_port));
                 }
 
+                hashset_remove(neighbours,
+                               dinfo->neighbour->addr->sin6_addr.s6_addr,
+                               dinfo->neighbour->addr->sin6_port);
+                hashset_add(potential_neighbours, dinfo->neighbour);
+                hashmap_remove(map, dinfo->neighbour, 1);
                 continue;
             }
 
@@ -191,7 +191,7 @@ int innondation_send_msg(const char *dataid) {
     }
 
     if (count == 0) {
-        hashmap_remove(data_map, dup, 0);
+        hashmap_remove(data_map, dup, 1);
         hashmap_remove(innondation_map, dup, 1);
     }
 

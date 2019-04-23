@@ -103,7 +103,7 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
         return 0;
 
     list_t* tmp;
-    if (memcmp(key, ((map_elem*)(*lst)->val)->key, keylen) == 0){
+    if (memcmp(key, ((map_elem*)(*lst)->val)->key, keylen) == 0) {
         tmp = (*lst);
         *lst = (*lst)->next;
     } else {
@@ -116,10 +116,12 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
         tmp = (*lst)->next;
         (*lst)->next = tmp->next;
     }
+
     if (f){
         free(((map_elem*)tmp->val)->key);
         free(((map_elem*)tmp->val)->value);
     }
+
     free(tmp->val);
     free(tmp);
     return 1;
