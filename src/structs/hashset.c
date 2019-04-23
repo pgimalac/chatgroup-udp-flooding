@@ -30,6 +30,10 @@ hashset_t* hashset_init(){
     return h;
 }
 
+short hashset_isempty(hashset_t *t){
+    return t->size == 0;
+}
+
 static short resize(hashset_t *h, int capacity){
     list_t** t = calloc(capacity, sizeof(list_t*));
     if (!t) return 0;
@@ -114,7 +118,7 @@ short hashset_remove(hashset_t *h, const u_int8_t ip[16], u_int16_t port){
 }
 
 
-void hashset_iter(hashset_t *h, void(*f)(neighbour_t*)) {
+void hashset_iter(hashset_t *h, void(*f)(const neighbour_t*)) {
     for (int i = 0; i < h->capacity; i++) {
         if (h->tab[i]) list_iter(h->tab[i], (void(*)(void*))f);
     }

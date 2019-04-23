@@ -15,6 +15,11 @@ typedef struct hashset_t {
 hashset_t* hashset_init();
 
 /**
+ * Returns if the hashset is empty
+ */
+short hashset_isempty(hashset_t*);
+
+/**
  * Add the given element in the given set
  */
 short hashset_add(hashset_t*, neighbour_t*);
@@ -38,5 +43,10 @@ neighbour_t *hashset_get(hashset_t *h, const u_int8_t* ip, u_int16_t port);
  * free all memory used by the set
  */
 void hashset_destroy(hashset_t*);
+
+/**
+ * iterate though all the elements of the hashset
+ */
+void hashset_iter(hashset_t *h, void(*)(const neighbour_t*));
 
 #endif
