@@ -77,10 +77,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
         return 0;
     }
 
-    n->id = 0;
-    n->last_hello = 0;
-    n->last_long_hello = 0;
-    n->last_hello_send = 0;
+    memset(n, 0, sizeof(neighbour_t));
     n->pmtu = 500;
     n->addr = addr;
     n->status = NEIGHBOUR_POT;
@@ -139,7 +136,6 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
 int send_message(int sock, message_t *msg) {
     int rc, now = time(0);
     struct msghdr hdr = { 0 };
-    struct in6_pktinfo info;
     body_t *p;
     char ipstr[INET6_ADDRSTRLEN];
     hashmap_t *map;
@@ -212,9 +208,6 @@ int send_message(int sock, message_t *msg) {
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
     hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov);
     if (!hdr.msg_iov) return -1;
-
-    memset(&info, 0, sizeof(info));
-    info.ipi6_addr = local_addr.sin6_addr;
 
     rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
     free(hdr.msg_iov);

@@ -81,7 +81,14 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
         void * newkey = malloc(map->keylen);
         memcpy(newkey, key, map->keylen);
         e = elem(newkey, value);
-        return e != NULL && list_add(&map->tab[map->hash(key) % map->capacity], e);
+        if (e == NULL){
+            free(newkey);
+            return 0;
+        }
+        if (!list_add(&map->tab[map->hash(key) % map->capacity], e)){
+            free(newkey);
+            return 0;
+        }
     }
 
     return 1;
