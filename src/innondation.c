@@ -111,7 +111,7 @@ int innondation_add_message(const char *data, int size) {
             dinfo->time = now;
             dinfo->last_send = 0;
 
-            hashmap_add(ns, p, dinfo, 1);
+            hashmap_add(ns, p, dinfo);
         }
     }
 
@@ -121,8 +121,8 @@ int innondation_add_message(const char *data, int size) {
     datacopy = malloc(size);
     memcpy(datacopy, data, size);
 
-    hashmap_add(innondation_map, dataid, ns, 1);
-    hashmap_add(data_map, dataid, datacopy, 1);
+    hashmap_add(innondation_map, dataid, ns);
+    hashmap_add(data_map, dataid, datacopy);
 
     return 0;
 }

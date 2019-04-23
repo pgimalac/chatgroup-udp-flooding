@@ -141,7 +141,7 @@ int send_message(int sock, message_t *msg) {
     struct msghdr hdr = { 0 };
     struct in6_pktinfo info;
     body_t *p;
-    char ipstr[INET6_ADDRSTRLEN], *dataid;
+    char ipstr[INET6_ADDRSTRLEN];
     hashmap_t *map;
     data_info_t *dinfo;
 
