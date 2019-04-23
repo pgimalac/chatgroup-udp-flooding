@@ -82,7 +82,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
     n->addr = addr;
     n->status = NEIGHBOUR_POT;
     hashset_add(ns, n);
-    return n;
+    return hashset_get(ns, ip, port);
 }
 
 int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {

@@ -3,6 +3,7 @@
 
 #include "list.h"
 #include "types.h"
+#include <netinet/in.h>
 
 typedef struct hashset_t {
     int size, capacity;
@@ -27,17 +28,17 @@ short hashset_add(hashset_t*, neighbour_t*);
 /**
  * Remove the given element of the set
  */
-short hashset_remove(hashset_t*, const u_int8_t[16], u_int16_t);
+short hashset_remove(hashset_t*, const u_int8_t[sizeof(struct in6_addr)], u_int16_t);
 
 /**
  * return 1 if the given element is in the set, 0 otherwise
  */
-short hashset_contains(hashset_t*, const u_int8_t[16], u_int16_t);
+short hashset_contains(hashset_t*, const u_int8_t[sizeof(struct in6_addr)], u_int16_t);
 
 /**
  * returns the neighbour_t with the given ip and port, if there is none then NULL
  */
-neighbour_t *hashset_get(hashset_t *h, const u_int8_t* ip, u_int16_t port);
+neighbour_t *hashset_get(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port);
 
 /**
  * free all memory used by the set
