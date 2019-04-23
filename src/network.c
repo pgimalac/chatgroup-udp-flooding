@@ -103,13 +103,11 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
 
     for (p = r; p != NULL; p = p->ai_next) {
         s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (s == -1)
-            continue;
 
-//        if (bind(s, p->ai_addr, p->ai_addrlen) == 0)
-        close(s);
-        break;
-
+        if (s >= 0){
+            close(s);
+            break;
+        }
     }
 
     if (p == 0){
@@ -341,7 +339,7 @@ message_t *bytes_to_message(const char *src, size_t buflen) {
         if (src[i] == BODY_PAD1) body->size = 1;
         else body->size = 2 + src[i + 1];
 
-        body->content = malloc(body->size);
+        body->content = voidndup(src + i, body->size);
 
         if (!body->content){ // todo : better error handling
             perror("malloc");
@@ -350,7 +348,6 @@ message_t *bytes_to_message(const char *src, size_t buflen) {
             break;
         }
 
-        memcpy(body->content, src + i, body->size);
         i += body->size;
 
         // TODO: find something better

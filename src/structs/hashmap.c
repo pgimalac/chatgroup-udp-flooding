@@ -78,8 +78,7 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
         if (map->size + 1 > HASHMAP_RATIO_UPPER_LIMIT * map->capacity)
             if (!resize(map, map->capacity * 2)) return -1;
 
-        void * newkey = malloc(map->keylen);
-        memcpy(newkey, key, map->keylen);
+        void * newkey = voidndup(key, map->keylen);
         e = elem(newkey, value);
         if (e == NULL){
             free(newkey);

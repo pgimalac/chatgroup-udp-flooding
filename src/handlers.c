@@ -145,7 +145,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
     }
 
     // memory leak here
-    hashmap_remove(map, n, 0);
+    hashmap_remove(map, n, 1);
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){

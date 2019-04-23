@@ -105,21 +105,17 @@ int innondation_add_message(const char *data, int size) {
             if (!dinfo) {
                 continue;
             }
+            memset(dinfo, 0, sizeof(data_info_t));
 
             dinfo->neighbour = p;
-            dinfo->send_count = 0;
             dinfo->time = now;
-            dinfo->last_send = 0;
 
             hashmap_add(ns, p, dinfo);
         }
     }
 
-    dataid = malloc(12);
-    memmove(dataid, data + 2, 12);
-
-    datacopy = malloc(size);
-    memcpy(datacopy, data, size);
+    dataid = voidndup(data + 2, 12);
+    datacopy = voidndup(data, size);
 
     hashmap_add(innondation_map, dataid, ns);
     hashmap_add(data_map, dataid, datacopy);
@@ -178,13 +174,12 @@ int innondation_send_msg(const char *dataid) {
                 body = malloc(sizeof(body_t));
                 if (!body) continue;
 
-                body->content = malloc(size);
+                body->content = voidndup(data, size);
                 if (!body->content) {
                     free(body);
                     continue;
                 }
 
-                memcpy(body->content, data, size);
                 body->size = size;
                 push_tlv(body, dinfo->neighbour);
             }

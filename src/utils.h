@@ -12,6 +12,8 @@
  * Generic usefull functions
  */
 
+void* voidndup(const void*, int);
+
 int init_random();
 
 u_int64_t random_uint64();

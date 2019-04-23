@@ -3,6 +3,16 @@
 #include <time.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <string.h>
+
+void* voidndup(const void *o, int n){
+    void *cpy = malloc(n);
+
+    if (cpy != NULL)
+        memcpy(cpy, o, n);
+
+    return cpy;
+}
 
 int init_random() {
 
