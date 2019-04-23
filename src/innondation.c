@@ -14,19 +14,20 @@
 #define MAX_TIMEOUT 30
 
 void send_data(const char *buffer, int size){
-    char tmp[521] = { 0 };
+    char tmp[521] = { 0 }, dataid[12];
     body_t *data;
 
-    if (buffer == 0) return;
+    if (buffer == 0 || size <= 0) return;
 
     snprintf(tmp, 511, "%s: %s", getPseudo(), buffer);
 
     data = malloc(sizeof(body_t));
     data->size = tlv_data(&data->content, id, random_uint32(), 0, tmp, strlen(tmp));
 
+    memcpy(dataid, data->content + 2, 12);
+
     //TODO handle errors
     innondation_add_message(data->content, data->size);
-    innondation_send_msg(data->content, data->size);
     free(data->content);
     free(data);
 }
@@ -88,7 +89,7 @@ int innondation_add_message(const char *data, int size) {
     int now = time(0);
     int i;
     list_t *l;
-    char *dataid;
+    char *dataid, *datacopy;
 
     hashmap_t *ns = hashmap_init(sizeof(neighbour_t),
                                  (unsigned int(*)(const void*))hash_neighbour);
@@ -108,6 +109,7 @@ int innondation_add_message(const char *data, int size) {
             dinfo->neighbour = p;
             dinfo->send_count = 0;
             dinfo->time = now;
+            dinfo->last_send = 0;
 
             hashmap_add(ns, p, dinfo, 1);
         }
@@ -116,67 +118,109 @@ int innondation_add_message(const char *data, int size) {
     dataid = malloc(12);
     memmove(dataid, data + 2, 12);
 
+    datacopy = malloc(size);
+    memcpy(datacopy, data, size);
+
     hashmap_add(innondation_map, dataid, ns, 1);
+    hashmap_add(data_map, dataid, datacopy, 1);
 
     return 0;
 }
 
-int innondation_send_msg(const char *data, int size) {
-    int i;
+int innondation_send_msg(const char *dataid) {
+    size_t i, size, count = 0;
+    time_t tv = MAX_TIMEOUT, delta, now = time(0);
     list_t *l;
     data_info_t *dinfo;
     body_t *body;
-//    char ipstr[INET6_ADDRSTRLEN];
-    char *dataid;
+    char ipstr[INET6_ADDRSTRLEN], *data;
     hashmap_t *map;
 
-    dataid = malloc(12);
-    memcpy(dataid, data + 2, 12);
+    data = hashmap_get(data_map, dataid);
+    if (!data) return -1;
+
+    size = data[1] + 2;
 
     map = hashmap_get(innondation_map, dataid);
-    free(dataid);
-
-    if (!map) return -1;
+    if (!map) return -2;
 
     for (i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
-            dinfo = (data_info_t*)l->val;
+            dinfo = (data_info_t*)((map_elem*)l->val)->value;
+            count++;
 
-            // dont work
-            /* if (++dinfo->send_count > 5) { */
-            /*     body = malloc(sizeof(body_t)); */
-            /*     body->size = tlv_goaway(&body->content, GO_AWAY_HELLO, */
-            /*                            "You did not answer to data for too long.", 40); */
-            /*     push_tlv(body, dinfo->neighbour); */
+            if (dinfo->send_count >= 2) {
+                body = malloc(sizeof(body_t));
+                body->size = tlv_goaway(&body->content, GO_AWAY_HELLO,
+                                       "You did not answer to data for too long.", 40);
+                push_tlv(body, dinfo->neighbour);
 
-            /*     hashset_remove(neighbours, */
-            /*                    dinfo->neighbour->addr->sin6_addr.s6_addr, */
-            /*                    dinfo->neighbour->addr->sin6_port); */
-            /*     hashset_add(potential_neighbours, dinfo->neighbour); */
+                hashset_remove(neighbours,
+                               dinfo->neighbour->addr->sin6_addr.s6_addr,
+                               dinfo->neighbour->addr->sin6_port);
+                hashset_add(potential_neighbours, dinfo->neighbour);
+                hashmap_remove(map, dinfo->neighbour, 1);
 
-            /*     if (inet_ntop(AF_INET6, */
-            /*                   &dinfo->neighbour->addr->sin6_addr, */
-            /*                   ipstr, INET6_ADDRSTRLEN) == 0){ */
-            /*         perror("inet_ntop"); */
-            /*     } else { */
-            /*         printf("Remove (%s, %u) from neighbour list and add to potential neighbours. He did not answer to data for too long.\n", ipstr, htons(dinfo->neighbour->addr->sin6_port)); */
-            /*     } */
+                if (inet_ntop(AF_INET6,
+                              &dinfo->neighbour->addr->sin6_addr,
+                              ipstr, INET6_ADDRSTRLEN) == 0){
+                    perror("inet_ntop");
+                } else {
+                    printf("Remove (%s, %u) from neighbour list and add to potential neighbours. He did not answer to data for too long.\n", ipstr, htons(dinfo->neighbour->addr->sin6_port));
+                }
 
-            /*     continue; */
-            /* } */
-
-            body = malloc(sizeof(body_t));
-            if (!body) continue;
-
-            body->content = malloc(size);
-            if (!body->content) {
-                free(body);
                 continue;
             }
 
-            memcpy(body->content, data, size);
-            body->size = size;
-            push_tlv(body, dinfo->neighbour);
+            delta = 1UL << dinfo->send_count;
+
+            if (delta < now - dinfo->last_send) {
+                body = malloc(sizeof(body_t));
+                if (!body) continue;
+
+                body->content = malloc(size);
+                if (!body->content) {
+                    free(body);
+                    continue;
+                }
+
+                memcpy(body->content, data, size);
+                body->size = size;
+                push_tlv(body, dinfo->neighbour);
+            }
+
+            if (delta < tv) {
+                tv = delta;
+            }
+        }
+    }
+
+    if (count == 0) {
+        hashmap_remove(data_map, dup, 0);
+        hashmap_remove(innondation_map, dup, 1);
+    }
+
+    return tv;
+}
+
+int message_innondation(struct timeval *tv) {
+    size_t i;
+    int rc;
+    list_t *l;
+    char *dataid;
+
+    for (i = 0; i < innondation_map->capacity; i++) {
+        for (l = innondation_map->tab[i]; l; l = l->next) {
+            dataid = (char*)((map_elem*)l->val)->key;
+
+            rc = innondation_send_msg(dataid);
+            if (rc < 0) {
+                continue;
+            }
+
+            if (rc < tv->tv_sec) {
+                tv->tv_sec = rc;
+            }
         }
     }
 

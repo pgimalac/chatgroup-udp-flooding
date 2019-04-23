@@ -7,8 +7,8 @@
 
 char pseudo[PSEUDO_LENGTH + 1];
 
-const int pseudo_length = 19;
-const char *pseudos[19] = {
+const int pseudo_length = 24;
+const char *pseudos[24] = {
                 "Raskolnikov",
                 "Mlle Swann",
                 "Joshep  K.",
@@ -27,7 +27,12 @@ const char *pseudos[19] = {
                 "Doctor House",
                 "Ragnar Lodbrok",
                 "Hannibal",
-                "Sherlock"
+                "Sherlock",
+                "Hamlet",
+                "King Lear",
+                "Zarathustra",
+                "Deep Thought",
+                "Alcèste"
 };
 
 char* getPseudo(){

@@ -127,7 +127,7 @@ int tlv_goaway(char **buffer, u_int8_t code,
     (*buffer)[0] = BODY_GO_AWAY;
     (*buffer)[1] = messagelen + sizeof(code);
     (*buffer)[2] = code;
-    memmove(*buffer + HEADER_OFFSET, message, messagelen);
+    memmove(*buffer + 3, message, messagelen);
 
     return size;
 }

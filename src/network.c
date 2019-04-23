@@ -141,7 +141,10 @@ int send_message(int sock, message_t *msg) {
     struct msghdr hdr = { 0 };
     struct in6_pktinfo info;
     body_t *p;
-    char ipstr[INET6_ADDRSTRLEN];
+    char ipstr[INET6_ADDRSTRLEN], *dataid;
+    hashmap_t *map;
+    data_info_t *dinfo;
+
 
     msg->body_length = htons(msg->body_length);
 
@@ -176,6 +179,12 @@ int send_message(int sock, message_t *msg) {
             break;
 
         case BODY_DATA:
+            map = hashmap_get(innondation_map, p->content + 2);
+
+            dinfo = hashmap_get(map, msg->dst);
+            dinfo->send_count++;
+            dinfo->last_send = now;
+
             dprintf(logfd, "* Containing data.\n");
             break;
 

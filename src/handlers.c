@@ -127,7 +127,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
 
     push_tlv(body, n);
     hashmap_remove(map, n, 0);
-    innondation_send_msg(tlv, tlv[1] + 2);
+    innondation_send_msg(tlv + 2);
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
@@ -139,6 +139,10 @@ static void handle_ack(const char *tlv, neighbour_t *n){
     }
 
     hashmap_t *map = hashmap_get(innondation_map, (void*)(tlv + 2));
+    if (!map) {
+        dprintf(logfd, "Not necessary ack\n");
+        return;
+    }
 
     // memory leak here
     hashmap_remove(map, n, 0);

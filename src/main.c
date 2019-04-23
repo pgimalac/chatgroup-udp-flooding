@@ -37,6 +37,7 @@ int init() {
     }
 
     innondation_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
+    data_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
 
     return 0;
 }
@@ -102,8 +103,10 @@ void handle_input() {
         return;
     }
 
-    if (rc == 0)
+    if (rc <= 1)
         return;
+
+    printf("\n");
 
     if (buffer[0] == COMMAND) handle_command(buffer + 1);
     else send_data(buffer, rc);
@@ -150,6 +153,8 @@ int main(int argc, char **argv) {
             dprintf(logfd, "You have %d friends, try to find new ones.\n\n", size);
             hello_potential_neighbours();
         }
+
+        message_innondation(&tv);
 
         while((msg = pull_message())) {
             send_message(sock, msg);

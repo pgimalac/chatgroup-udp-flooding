@@ -43,10 +43,13 @@ int push_tlv(body_t *tlv, neighbour_t *dst);
 
 message_t *pull_message();
 
+hashmap_t *innondation_map, *data_map;
+
 typedef struct data_info {
     neighbour_t *neighbour;
     size_t send_count;
     time_t time;
+    time_t last_send;
 } data_info_t;
 
 #endif
