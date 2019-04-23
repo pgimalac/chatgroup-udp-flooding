@@ -20,14 +20,14 @@ typedef struct neighbour {
     time_t last_hello;
     time_t last_long_hello;
     time_t last_hello_send;
-    int pmtu;
+    size_t pmtu, short_hello_count;
     unsigned char status;
     struct sockaddr_in6 *addr;
 } neighbour_t;
 
 typedef struct body {
     char *content;
-    int size;
+    size_t size;
     struct body *next;
 } body_t;
 

@@ -79,6 +79,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
 
     memset(n, 0, sizeof(neighbour_t));
     n->pmtu = 500;
+    n->short_hello_count = 0;
     n->addr = addr;
     n->status = NEIGHBOUR_POT;
     hashset_add(ns, n);
@@ -162,6 +163,7 @@ int send_message(int sock, message_t *msg) {
         case BODY_HELLO:
             msg->dst->last_hello_send = now;
             if (p->content[1] == 8) {
+                msg->dst->short_hello_count++;
                 dprintf(logfd, "* Containing short hello.\n");
             } else {
                 dprintf(logfd, "* Containing long hello.\n");

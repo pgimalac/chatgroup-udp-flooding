@@ -32,20 +32,47 @@ void send_data(const char *buffer, int size){
     free(data);
 }
 
-void hello_potential_neighbours() {
+void hello_potential_neighbours(struct timeval *tv) {
     int rc, i;
+    time_t max, delta, now = time(0);
     list_t *l;
     neighbour_t *p;
     body_t *hello;
+    char ipstr[INET6_ADDRSTRLEN];
 
     for (i = 0; i < potential_neighbours->capacity; i++) {
         for (l = potential_neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
-            hello = malloc(sizeof(body_t));
-            hello->size = tlv_hello_short(&hello->content, id);
-            rc = push_tlv(hello, p);
-            if (rc < 0) {
-                fprintf(stderr, "Could not insert short hello into message queue\n");
+
+            if (p->short_hello_count >= 2) {
+                if (inet_ntop(AF_INET6,
+                              &p->addr->sin6_addr,
+                              ipstr, INET6_ADDRSTRLEN) == 0){
+                    perror("inet_ntop");
+                } else {
+                    printf("Remove (%s, %u) from potential neighbour list.\n",
+                           ipstr, htons(p->addr->sin6_port));
+                    printf("He did not answer to short hello for too long.\n");
+                }
+
+                hashset_remove(potential_neighbours,
+                               p->addr->sin6_addr.s6_addr,
+                               p->addr->sin6_port);
+                continue;
+            }
+
+            delta = now - p->last_hello_send;
+            max = 1 << (p->short_hello_count + 4);
+
+            if (delta >= max) {
+                hello = malloc(sizeof(body_t));
+                hello->size = tlv_hello_short(&hello->content, id);
+                rc = push_tlv(hello, p);
+                if (rc < 0) {
+                    fprintf(stderr, "Could not insert short hello into message queue\n");
+                }
+            } else if (max - delta < tv->tv_sec) {
+                tv->tv_sec = max - delta;
             }
         }
     }
@@ -77,8 +104,6 @@ int hello_neighbours(struct timeval *tv) {
             }
         }
     }
-
-    dprintf(logfd, "Timeout before next send loop %ld.\n", tv->tv_sec);
 
     return size;
 }
@@ -157,7 +182,8 @@ int innondation_send_msg(const char *dataid) {
                               ipstr, INET6_ADDRSTRLEN) == 0){
                     perror("inet_ntop");
                 } else {
-                    printf("Remove (%s, %u) from neighbour list and add to potential neighbours. He did not answer to data for too long.\n", ipstr, htons(dinfo->neighbour->addr->sin6_port));
+                    printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, htons(dinfo->neighbour->addr->sin6_port));
+                    printf("He did not answer to data for too long.\n");
                 }
 
                 hashset_remove(neighbours,
