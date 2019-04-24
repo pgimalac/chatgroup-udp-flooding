@@ -227,9 +227,7 @@ int innondation_send_msg(const char *dataid) {
 
     while (to_delete != NULL){
         neighbour_t *obj = list_pop(&to_delete);
-        void *addr = obj->addr;
-        free(addr);
-        hashmap_remove(map, obj, 1);
+        hashmap_remove(map, obj, 0);
     }
 
     if (count == 0) {

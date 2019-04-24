@@ -127,7 +127,6 @@ static void handle_data(const char *tlv, neighbour_t *n){
 
     push_tlv(body, n);
     hashmap_remove(map, n, 0);
-    innondation_send_msg(tlv + 2);
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
