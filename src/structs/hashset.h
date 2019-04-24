@@ -28,7 +28,12 @@ short hashset_add(hashset_t*, neighbour_t*);
 /**
  * Remove the given element of the set
  */
-short hashset_remove(hashset_t*, const u_int8_t[sizeof(struct in6_addr)], u_int16_t);
+neighbour_t* hashset_remove(hashset_t*, const u_int8_t[sizeof(struct in6_addr)], u_int16_t);
+
+/**
+ * Remove the given neighbour of the set
+ */
+neighbour_t* hashset_remove_neighbour(hashset_t*, neighbour_t*);
 
 /**
  * return 1 if the given element is in the set, 0 otherwise

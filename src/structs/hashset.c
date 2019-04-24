@@ -72,10 +72,10 @@ neighbour_t *hashset_get(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)
 short hashset_add(hashset_t *h, neighbour_t* n){
     if (h == NULL || n == NULL) return 0;
 
-    u_int8_t *ip = n->addr->sin6_addr.s6_addr;
-    u_int16_t port = n->addr->sin6_port;
+    u_int8_t *ip = GET_IP(n);
+    u_int16_t port = GET_PORT(n);
     if(hashset_contains(h, ip, port)){
-        free(n);
+        return 2;
     } else {
         if (h->size + 1 > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
             resize(h, h->capacity * 2);
@@ -87,11 +87,10 @@ short hashset_add(hashset_t *h, neighbour_t* n){
     return 0;
 }
 
-static short hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
+static void* hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
     if (l != NULL){
         if (memcmp(GET_IP((*l)->val), ip, sizeof(struct in6_addr)) == 0 && GET_PORT((*l)->val) == port){
-            list_remove(l, 0);
-            return 1;
+            return list_remove(l, 0);
         }
 
         list_t* tmp;
@@ -101,20 +100,24 @@ static short hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6
                     || GET_PORT(tmp->next->val) != port);
             tmp = tmp->next) ;
 
-        list_remove(&tmp->next, 0);
+        return list_remove(&tmp->next, 0);
     }
-    return 1;
+    return NULL;
 }
 
-short hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
+neighbour_t* hashset_remove_neighbour(hashset_t* h, neighbour_t *n){
+    return hashset_remove(h, GET_IP(n), GET_PORT(n));
+}
+
+neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
     if (h != NULL && hashset_contains(h, ip, port)){
         int i = hash_neighbour_data(ip, port) % h->capacity;
-        hashset_list_remove(&h->tab[i], ip, port);
+        neighbour_t *n = hashset_list_remove(&h->tab[i], ip, port);
         h->size--;
         if (h->size < HASHSET_RATIO_LOWER_LIMIT * h->capacity &&
             h->size > HASHSET_INITIAL_CAPACITY)
             resize(h, h->capacity / 2);
-        return 1;
+        return n;
     }
     return 0;
 }

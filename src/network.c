@@ -125,7 +125,7 @@ int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
     if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, htons(addr->sin6_port));
+        dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, ntohs(addr->sin6_port));
     }
 
     freeaddrinfo(r);
@@ -146,7 +146,7 @@ int send_message(int sock, message_t *msg) {
     if (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "> Send message to (%s, %u).\n", ipstr, htons(msg->dst->addr->sin6_port));
+        dprintf(logfd, "> Send message to (%s, %u).\n", ipstr, ntohs(msg->dst->addr->sin6_port));
     }
 
     for (p = msg->body; p; p = p->next) {
@@ -263,7 +263,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
     if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "Receive message from (%s, %u).\n", ipstr, htons(addr->sin6_port));
+        dprintf(logfd, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
     }
 
     if (!out || !buflen) return 0;

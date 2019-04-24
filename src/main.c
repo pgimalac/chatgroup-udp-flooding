@@ -66,14 +66,14 @@ void handle_reception () {
         dprintf(logfd, "body length: %d\n\n", msg->body_length);
 
         n = hashset_get(neighbours,
-                        (const unsigned char*)(&addr.sin6_addr),
+                        addr.sin6_addr.s6_addr,
                         addr.sin6_port);
         if (!n) {
             n = hashset_get(potential_neighbours,
                             addr.sin6_addr.s6_addr,
                             addr.sin6_port);
             if (!n) {
-                n = new_neighbour((const unsigned char*)&addr.sin6_addr,
+                n = new_neighbour(addr.sin6_addr.s6_addr,
                                   addr.sin6_port, potential_neighbours);
                 dprintf(logfd, "Add to potential neighbours.\n");
             }

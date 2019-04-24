@@ -28,7 +28,7 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         perror("inet_ntop");
     } else {
         dprintf(logfd, "Receive hello %s from (%s, %u).\n",
-               is_long ? "long" : "short" , ipstr, htons(n->addr->sin6_port));
+               is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
     }
 
     if (is_long) {
@@ -60,29 +60,29 @@ static void handle_neighbour(const char *tlv, neighbour_t *n) {
     u_int16_t port;
     char ipstr[INET6_ADDRSTRLEN];
 
-    memcpy(&port, tlv + sizeof(struct in6_addr) + 2, 2);
+    memcpy(&port, tlv + sizeof(struct in6_addr) + 2, sizeof(port));
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "Receive potential neighbour from (%s, %u).\n", ipstr, htons(n->addr->sin6_port));
+        dprintf(logfd, "Receive potential neighbour from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
     }
 
     if (inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "New potential neighbour (%s, %u).\n", ipstr, htons(port));
+        dprintf(logfd, "New potential neighbour (%s, %u).\n", ipstr, ntohs(port));
     }
 
     p = hashset_get(neighbours, ip, port);
     if (p) {
-        dprintf(logfd, "Neighbour (%s, %u) already known.\n", ipstr, htons(port));
+        dprintf(logfd, "Neighbour (%s, %u) already known.\n", ipstr, ntohs(port));
         return;
     }
 
     p = hashset_get(potential_neighbours, ip, port);
     if (p) {
-        dprintf(logfd, "Neighbour (%s, %u) already known.\n", ipstr, htons(port));
+        dprintf(logfd, "Neighbour (%s, %u) already known.\n", ipstr, ntohs(port));
         return;
     }
 
@@ -126,7 +126,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     body->size = 14;
 
     push_tlv(body, n);
-    hashmap_remove(map, n, 1);
+    hashmap_remove(map, n, 0);
     innondation_send_msg(tlv + 2);
 }
 
@@ -135,7 +135,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "Ack from (%s, %u).\n", ipstr, htons(n->addr->sin6_port));
+        dprintf(logfd, "Ack from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
     }
 
     hashmap_t *map = hashmap_get(innondation_map, (void*)(tlv + 2));
@@ -153,7 +153,7 @@ static void handle_goaway(const char *tlv, neighbour_t *n){
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "Go away from (%s, %u).\n", ipstr, htons(n->addr->sin6_port));
+        dprintf(logfd, "Go away from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
     }
 
     switch(tlv[2]) {
@@ -183,7 +183,7 @@ static void handle_goaway(const char *tlv, neighbour_t *n){
         dprintf(logfd, "Remove %lu from friends.\n", n->id);
     }
 
-    dprintf(logfd, "Add (%s, %u) to potential friends", ipstr, htons(n->addr->sin6_port));
+    dprintf(logfd, "Add (%s, %u) to potential friends", ipstr, ntohs(n->addr->sin6_port));
     hashset_add(potential_neighbours, n);
 }
 

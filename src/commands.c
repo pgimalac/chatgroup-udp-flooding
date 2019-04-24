@@ -46,7 +46,7 @@ static void __print(const neighbour_t *n){
     if (n != NULL && n->addr != NULL){
         char ipstr[INET6_ADDRSTRLEN];
         if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL){
-            printf("    @ %s / %d\n", ipstr, htons(n->addr->sin6_port));
+            printf("    @ %s / %d\n", ipstr, ntohs(n->addr->sin6_port));
             return;
         }
     }

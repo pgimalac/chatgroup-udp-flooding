@@ -40,8 +40,10 @@ void hello_potential_neighbours(struct timeval *tv) {
     body_t *hello;
     char ipstr[INET6_ADDRSTRLEN];
 
+    list_t *to_delete = NULL;
+
     for (i = 0; i < potential_neighbours->capacity; i++) {
-        for (l = potential_neighbours->tab[i]; l; l = l->next) {
+        for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
 
             if (p->short_hello_count >= 2) {
@@ -51,13 +53,11 @@ void hello_potential_neighbours(struct timeval *tv) {
                     perror("inet_ntop");
                 } else {
                     printf("Remove (%s, %u) from potential neighbour list.\n",
-                           ipstr, htons(p->addr->sin6_port));
+                           ipstr, ntohs(p->addr->sin6_port));
                     printf("He did not answer to short hello for too long.\n");
                 }
 
-                hashset_remove(potential_neighbours,
-                               p->addr->sin6_addr.s6_addr,
-                               p->addr->sin6_port);
+                list_add(&to_delete, p);
                 continue;
             }
 
@@ -75,6 +75,13 @@ void hello_potential_neighbours(struct timeval *tv) {
                 tv->tv_sec = max - delta;
             }
         }
+    }
+
+    while (to_delete != NULL){
+        neighbour_t *n = list_pop(&to_delete);
+        hashset_remove_neighbour(potential_neighbours, n);
+        free(n->addr);
+        free(n);
     }
 }
 
@@ -166,6 +173,7 @@ int innondation_send_msg(const char *dataid) {
     map = hashmap_get(innondation_map, dataid);
     if (!map) return -2;
 
+    list_t *to_delete = NULL;
     for (i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
@@ -182,15 +190,16 @@ int innondation_send_msg(const char *dataid) {
                               ipstr, INET6_ADDRSTRLEN) == 0){
                     perror("inet_ntop");
                 } else {
-                    printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, htons(dinfo->neighbour->addr->sin6_port));
+                    printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
                     printf("He did not answer to data for too long.\n");
                 }
 
                 hashset_remove(neighbours,
                                dinfo->neighbour->addr->sin6_addr.s6_addr,
                                dinfo->neighbour->addr->sin6_port);
-                hashset_add(potential_neighbours, dinfo->neighbour);
-                hashmap_remove(map, dinfo->neighbour, 1);
+                hashset_add(potential_neighbours, voidndup(dinfo->neighbour, sizeof(neighbour_t)));
+
+                list_add(&to_delete, dinfo->neighbour);
                 continue;
             }
 
@@ -214,6 +223,13 @@ int innondation_send_msg(const char *dataid) {
                 tv = delta;
             }
         }
+    }
+
+    while (to_delete != NULL){
+        neighbour_t *obj = list_pop(&to_delete);
+        void *addr = obj->addr;
+        free(addr);
+        hashmap_remove(map, obj, 1);
     }
 
     if (count == 0) {
