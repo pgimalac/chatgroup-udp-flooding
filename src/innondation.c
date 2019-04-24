@@ -197,7 +197,7 @@ int innondation_send_msg(const char *dataid) {
                 hashset_remove(neighbours,
                                dinfo->neighbour->addr->sin6_addr.s6_addr,
                                dinfo->neighbour->addr->sin6_port);
-                hashset_add(potential_neighbours, voidndup(dinfo->neighbour, sizeof(neighbour_t)));
+                hashset_add(potential_neighbours, dinfo->neighbour);
 
                 list_add(&to_delete, dinfo->neighbour);
                 continue;
