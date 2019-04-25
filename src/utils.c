@@ -119,18 +119,11 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
         p = malloc(sizeof(msg_queue_t));
         if (!p) return -1;
 
-        p->msg = malloc(sizeof(message_t));
+        p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
         if (!p){
             free(p);
             return -2;
         }
-
-        p->msg->magic = 93;
-        p->msg->version = 2;
-        p->msg->body_length = 0;
-        p->msg->body = 0;
-        p->msg->dst = dst;
-
 
         if (!queue) {
             queue = p;
@@ -173,4 +166,18 @@ message_t *pull_message() {
 
     free(q);
     return msg;
+}
+
+message_t *create_message(u_int8_t m, u_int8_t v, u_int16_t s, body_t* b, neighbour_t* n){
+    message_t *message = malloc(sizeof(message_t));
+
+    if (message){
+        message->magic = m;
+        message->version = v;
+        message->body_length = s;
+        message->body = b;
+        message->dst = n;
+    }
+
+    return message;
 }

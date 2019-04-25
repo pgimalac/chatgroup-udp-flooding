@@ -3,8 +3,6 @@
 
 #include "pseudo.h"
 
-#define PSEUDO_LENGTH 50
-
 char pseudo[PSEUDO_LENGTH + 1];
 
 const int pseudo_length = 24;

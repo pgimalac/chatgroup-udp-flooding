@@ -6,18 +6,22 @@
 
 #include "types.h"
 #include "commands.h"
+#include "innondation.h"
+#include "pseudo.h"
 
 static const char *usages[] = {
     "add <addr> <port>",
     "name <name>",
     "print",
-    "quit"
+    "juliusz",
+    "neighbour"
+    "quit",
 };
 
 static void add(char *buffer){
     int rc;
     char *name = 0, *service = 0;
-    name = strtok(0, " ");
+    name = strtok(buffer, " ");
     service = strtok(0, " \n");
     if (!name || !service) {
         fprintf(stderr, "Usage: %s\n", usages[0]);
@@ -32,13 +36,19 @@ static void add(char *buffer){
 }
 
 static void name(char *buffer){
+    buffer += strspn(buffer, forbiden);
     int len = strlen(buffer);
-    if (len >= 30){
+    while (len > 0 && strchr(forbiden, buffer[len - 1]) != NULL)
+        len--;
+
+    if (len > PSEUDO_LENGTH){
         printf("Nickname too long.\n");
     } else if (len < 3){
         printf("Nickname too short\n");
     } else {
+        buffer[len] = '\0';
         setnickname(buffer, len);
+        printf("Nickname set to \"%s\"\n", buffer);
     }
 }
 
@@ -70,6 +80,18 @@ static void print(char *buffer){
     printf("\n");
 }
 
+static void juliusz(char *buffer){
+    char j[] = "jch.irif.fr 1212";
+    // on appelle strtok sur la chaine dans add
+    // donc on doit pouvoir modifier la chaine,
+    // d'où le tableau et pas un pointeur
+    add(j);
+}
+
+static void neighbour(char *buffer){
+    neighbour_innondation();
+}
+
 static void quit(char *buffer){
     printf("Bye.\n");
     exit(0);
@@ -82,21 +104,21 @@ static void unknown(char *buffer){
 }
 
 static const char *names[] = {
-    "add", "name", "print", "quit", NULL
+    "add", "name", "print", "juliusz", "neighbour", "quit", NULL
 };
 
 static void (*commands[])(char*) = {
-    add, name, print, quit, NULL
+    add, name, print, juliusz, neighbour, quit, NULL
 };
 
 
 void handle_command(char *buffer) {
-    char *ins = strtok(buffer, " \n");
+    char *ins = strpbrk(buffer, " \n");
     int ind;
     if (ins != NULL)
         for (ind = 0; names[ind] != NULL; ind ++)
-            if (strcasecmp(ins, names[ind]) == 0){
-                commands[ind](buffer);
+            if (strncasecmp(buffer, names[ind], strlen(names[ind])) == 0){
+                commands[ind](ins);
                 break;
             }
 

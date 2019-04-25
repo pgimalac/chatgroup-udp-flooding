@@ -58,39 +58,42 @@ void handle_reception () {
         return;
     }
 
-    msg = bytes_to_message(c, len);
-    if (msg){
-        dprintf(logfd, "Message description:\n");
-        dprintf(logfd, "magic: %d\n", msg->magic);
-        dprintf(logfd, "version: %d\n", msg->version);
-        dprintf(logfd, "body length: %d\n\n", msg->body_length);
+    n = hashset_get(neighbours,
+                    addr.sin6_addr.s6_addr,
+                    addr.sin6_port);
 
-        n = hashset_get(neighbours,
+    if (!n) {
+        n = hashset_get(potential_neighbours,
                         addr.sin6_addr.s6_addr,
                         addr.sin6_port);
-        if (!n) {
-            n = hashset_get(potential_neighbours,
-                            addr.sin6_addr.s6_addr,
-                            addr.sin6_port);
-            if (!n) {
-                n = new_neighbour(addr.sin6_addr.s6_addr,
-                                  addr.sin6_port, potential_neighbours);
-                dprintf(logfd, "Add to potential neighbours.\n");
-            }
-        }
-
-        if (msg->magic != 93) {
-            fprintf(stderr, "Invalid magic value\n");
-        } else if (msg->version != 2) {
-            fprintf(stderr, "Invalid version\n");
-        } else {
-            handle_tlv(msg->body, n);
-        }
-
-        free_message(msg, FREE_BODY);
-    } else {
-        fprintf(stderr, "Error decripting the message : %d\n", rc);
     }
+
+    if (!n) {
+        n = new_neighbour(addr.sin6_addr.s6_addr,
+                          addr.sin6_port, potential_neighbours);
+        dprintf(logfd, "Add to potential neighbours.\n");
+    }
+
+    msg = bytes_to_message(c, len, n);
+    if (!msg){
+        fprintf(stderr, "Error decripting the message : %d\n", rc);
+        return;
+    }
+
+    dprintf(logfd, "Message description:\n");
+    dprintf(logfd, "magic: %d\n", msg->magic);
+    dprintf(logfd, "version: %d\n", msg->version);
+    dprintf(logfd, "body length: %d\n\n", msg->body_length);
+
+    if (msg->magic != MAGIC) {
+        fprintf(stderr, "Invalid magic value\n"); // renvoyer un go_away et/ou warning
+    } else if (msg->version != VERSION) {
+        fprintf(stderr, "Invalid version\n"); // renvoyer un go_away et/ou warning
+    } else {
+        handle_tlv(msg->body, n);
+    }
+
+    free_message(msg, FREE_BODY);
 }
 
 void handle_input() {
@@ -105,8 +108,6 @@ void handle_input() {
 
     if (rc <= 1)
         return;
-
-    printf("\n");
 
     if (buffer[0] == COMMAND) handle_command(buffer + 1);
     else send_data(buffer, rc);

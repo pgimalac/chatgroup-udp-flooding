@@ -87,49 +87,40 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
     return hashset_get(ns, ip, port);
 }
 
-int add_neighbour(char *hostname, char *service, hashset_t *neighbours) {
+int add_neighbour(const char *hostname, const char *service, hashset_t *neighbours) {
     int rc, s;
     char ipstr[INET6_ADDRSTRLEN] = { 0 };
-    struct addrinfo hints, *r, *p;
+    struct addrinfo hints = { 0 }, *r = NULL;
     struct sockaddr_in6 *addr;
 
-    memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = AF_INET6;
+    hints.ai_family = PF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_V4MAPPED | AI_ALL;
 
     rc = getaddrinfo (hostname, service, &hints, &r);
-    if (rc < 0 || r == 0){
+    if (rc != 0 || r == NULL){
         return -1;
     }
 
-    for (p = r; p != NULL; p = p->ai_next) {
+    for (struct addrinfo *p = r; p != NULL; p = p->ai_next) {
         s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (s < 0)
+            continue;
+        close(s);
 
-        if (s >= 0){
-            close(s);
-            break;
-        }
-    }
 
-    if (p == 0){
-        freeaddrinfo(r);
-        return -2;
-    }
+        addr = (struct sockaddr_in6*)p->ai_addr;
+        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, neighbours))
+            continue;
 
-    addr = (struct sockaddr_in6*)p->ai_addr;
-    if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, neighbours)) {
-        freeaddrinfo(r);
-        return -3;
-    }
-
-    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
-        perror("inet_ntop");
-    } else {
-        dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, ntohs(addr->sin6_port));
+        if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0)
+            perror("inet_ntop");
+        else
+            dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, ntohs(addr->sin6_port));
     }
 
     freeaddrinfo(r);
+
     return 0;
 }
 
@@ -180,12 +171,10 @@ int send_message(int sock, message_t *msg) {
             map = hashmap_get(innondation_map, p->content + 2);
 
             dinfo = hashmap_get(map, msg->dst);
-            if (dinfo) {
-                dinfo->send_count++;
-                dinfo->last_send = now;
+            dinfo->send_count++;
+            dinfo->last_send = now;
 
-                dprintf(logfd, "* Containing data.\n");
-            }
+            dprintf(logfd, "* Containing data.\n");
 
             break;
 
@@ -312,27 +301,23 @@ static int check_message_size(const char* buffer, int buflen){
     return body_num;
 }
 
-message_t *bytes_to_message(const char *src, size_t buflen) {
+message_t *bytes_to_message(const char *src, size_t buflen, neighbour_t *n) {
     int rc = check_message_size(src, buflen);
     if (rc < 0) return 0;
 
-    message_t *msg = malloc(sizeof(message_t));
-    if (!msg) {
+    u_int16_t size;
+    memcpy(&size, src + 2, sizeof(size));
+    size = ntohs(size);
+
+    if (size == 0)
         return 0;
-    }
+
+    message_t *msg = create_message(src[0], src[1], size, 0, n);
+    if (!msg)
+        return 0;
 
     size_t i = 4;
     body_t *body, *bptr;
-
-    msg->magic = src[0];
-    msg->version = src[1];
-    msg->body_length = ntohs(*(u_int16_t*)(src + 2));
-    msg->body = 0;
-
-    if (msg->body_length == 0) {
-        free(msg);
-        return 0;
-    }
 
     while (i < buflen) {
         body = malloc(sizeof(body_t));
