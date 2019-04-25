@@ -89,7 +89,8 @@ int hello_neighbours(struct timeval *tv) {
     neighbour_t *p;
     int i, rc, size = 0;
     time_t now = time(0), delta;
-    list_t *l;
+    list_t *l, *to_delete = 0;
+    char ipstr[INET6_ADDRSTRLEN];
     tv->tv_sec = MAX_TIMEOUT;
     tv->tv_usec = 0;
 
@@ -108,8 +109,26 @@ int hello_neighbours(struct timeval *tv) {
                 } else if (MAX_TIMEOUT - delta < tv->tv_sec) {
                     tv->tv_sec = MAX_TIMEOUT - delta;
                 }
+            } else {
+                list_add(&to_delete, p);
             }
         }
+    }
+
+    while (to_delete) {
+        p = (neighbour_t*)list_pop(&to_delete);
+        hashset_remove(neighbours, p->addr->sin6_addr.s6_addr, p->addr->sin6_port);
+        hashset_add(potential_neighbours, p);
+
+        if (inet_ntop(AF_INET6,
+                      &p->addr->sin6_addr,
+                      ipstr, INET6_ADDRSTRLEN) == 0){
+            perror("inet_ntop");
+        } else {
+            printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(p->addr->sin6_port));
+            printf("He did not send long hello for too long.\n");
+        }
+
     }
 
     return size;
