@@ -20,6 +20,7 @@ typedef struct neighbour {
     time_t last_hello;
     time_t last_long_hello;
     time_t last_hello_send;
+    time_t last_neighbour_send;
     size_t pmtu, short_hello_count;
     unsigned char status;
     struct sockaddr_in6 *addr;

@@ -59,8 +59,7 @@ int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
 }
 
 int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
-    u_int16_t n_port = htons(port);
-    int size = HEADER_OFFSET + sizeof(struct in6_addr) + sizeof(n_port);
+    int size = HEADER_OFFSET + sizeof(struct in6_addr) + sizeof(port);
 
     *buffer = malloc(size);
     if (*buffer == NULL)
@@ -68,9 +67,9 @@ int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
 
     char *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_NEIGHBOUR;
-    (*buffer)[1] = sizeof(struct in6_addr) + sizeof(n_port);
+    (*buffer)[1] = sizeof(struct in6_addr) + sizeof(port);
     memmove(offset, addr, sizeof(struct in6_addr));
-    memmove(offset + sizeof(struct in6_addr), &n_port, sizeof(n_port));
+    memmove(offset + sizeof(struct in6_addr), &port, sizeof(port));
 
     return size;
 }

@@ -6,7 +6,7 @@
 #include <netinet/in.h>
 
 typedef struct hashset_t {
-    int size, capacity;
+    size_t size, capacity;
     list_t** tab;
 } hashset_t;
 

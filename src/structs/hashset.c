@@ -38,7 +38,7 @@ static short resize(hashset_t *h, int capacity){
     list_t** t = calloc(capacity, sizeof(list_t*));
     if (!t) return 0;
 
-    for (int i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
+    for (size_t i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
         for (list_t* l = h->tab[i]; l != NULL; l = l->next)
             list_add(&t[hash_neighbour_data(GET_IP(l->val), GET_PORT(l->val)) % capacity], l->val);
 
@@ -124,7 +124,7 @@ neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_ad
 
 
 void hashset_iter(hashset_t *h, void(*f)(const neighbour_t*)) {
-    for (int i = 0; i < h->capacity; i++) {
+    for (size_t i = 0; i < h->capacity; i++) {
         if (h->tab[i]) list_iter(h->tab[i], (void(*)(void*))f);
     }
 }
@@ -132,7 +132,7 @@ void hashset_iter(hashset_t *h, void(*f)(const neighbour_t*)) {
 void hashset_destroy(hashset_t *h){
     if (h == 0) return;
 
-    for (int i = 0; i < h->capacity; i++)
+    for (size_t i = 0; i < h->capacity; i++)
         list_destroy(h->tab[i], 1);
     free(h->tab);
     free(h);

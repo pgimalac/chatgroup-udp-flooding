@@ -155,6 +155,7 @@ int main(int argc, char **argv) {
         }
 
         message_innondation(&tv);
+        neighbour_innondation();
 
         while((msg = pull_message())) {
             send_message(sock, msg);

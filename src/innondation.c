@@ -33,7 +33,8 @@ void send_data(const char *buffer, int size){
 }
 
 void hello_potential_neighbours(struct timeval *tv) {
-    int rc, i;
+    int rc;
+    size_t i;
     time_t max, delta, now = time(0);
     list_t *l;
     neighbour_t *p;
@@ -87,7 +88,8 @@ void hello_potential_neighbours(struct timeval *tv) {
 
 int hello_neighbours(struct timeval *tv) {
     neighbour_t *p;
-    int i, rc, size = 0;
+    int rc;
+    size_t i, size = 0;
     time_t now = time(0), delta;
     list_t *l, *to_delete = 0;
     char ipstr[INET6_ADDRSTRLEN];
@@ -128,7 +130,6 @@ int hello_neighbours(struct timeval *tv) {
             printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(p->addr->sin6_port));
             printf("He did not send long hello for too long.\n");
         }
-
     }
 
     return size;
@@ -138,7 +139,7 @@ int innondation_add_message(const char *data, int size) {
     neighbour_t *p;
     data_info_t *dinfo;
     int now = time(0);
-    int i;
+    size_t i;
     list_t *l;
     char *dataid, *datacopy;
 
@@ -279,4 +280,51 @@ int message_innondation(struct timeval *tv) {
     }
 
     return 0;
+}
+
+int send_neighbour_to(neighbour_t *p) {
+    size_t i;
+    list_t *l;
+    neighbour_t *a;
+    body_t *body;
+    char ipstr[INET6_ADDRSTRLEN];
+
+    for (i = 0; i < neighbours->capacity; i++) {
+        for (l = neighbours->tab[i]; l; l = l->next) {
+            a = (neighbour_t*)l->val;
+            body = malloc(sizeof(body_t));
+            if (!body) continue;
+
+            body->size = tlv_neighbour(&body->content,
+                                      &a->addr->sin6_addr,
+                                      a->addr->sin6_port);
+
+            push_tlv(body, p);
+        }
+    }
+
+    if (inet_ntop(AF_INET6, p, ipstr, INET6_ADDRSTRLEN) == 0){
+        perror("inet_ntop");
+    } else {
+        dprintf(logfd, "Send neighbours to (%s, %u).\n",
+                ipstr, ntohs(p->addr->sin6_port));
+    }
+
+    return 0;
+}
+
+void neighbour_innondation() {
+    size_t i;
+    time_t now = time(0);
+    list_t *l;
+    neighbour_t *p;
+
+    for (i = 0; i < neighbours->capacity; i++) {
+        for (l = neighbours->tab[i]; l; l = l->next) {
+            p = (neighbour_t*)l->val;
+            if (now - p->last_neighbour_send > 120) {
+                send_neighbour_to(p);
+            }
+        }
+    }
 }

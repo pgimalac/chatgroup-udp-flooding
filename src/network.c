@@ -81,6 +81,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
     n->pmtu = 500;
     n->short_hello_count = 0;
     n->addr = addr;
+    n->last_neighbour_send = time(0);
     n->status = NEIGHBOUR_POT;
     hashset_add(ns, n);
     return hashset_get(ns, ip, port);
@@ -172,6 +173,7 @@ int send_message(int sock, message_t *msg) {
 
         case BODY_NEIGHBOUR:
             dprintf(logfd, "* Containing neighbour.\n");
+            msg->dst->last_neighbour_send = now;
             break;
 
         case BODY_DATA:

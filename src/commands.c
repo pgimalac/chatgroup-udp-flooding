@@ -57,13 +57,13 @@ static void print(char *buffer){
     if (hashset_isempty(neighbours)){
         printf("You have no neighbour\n");
     } else {
-        printf("You have %d neighbour%s:\n", neighbours->size, neighbours->size == 1 ? "" : "s");
+        printf("You have %lu neighbour%s:\n", neighbours->size, neighbours->size == 1 ? "" : "s");
         hashset_iter(neighbours, __print);
     }
     if (hashset_isempty(potential_neighbours)){
         printf("You have no potential_neighbour.\n");
     } else {
-        printf("You have %d potential neighbour%s:\n", potential_neighbours->size,
+        printf("You have %lu potential neighbour%s:\n", potential_neighbours->size,
                     potential_neighbours->size == 1 ? "" : "s");
         hashset_iter(potential_neighbours, __print);
     }
