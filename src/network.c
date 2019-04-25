@@ -178,10 +178,13 @@ int send_message(int sock, message_t *msg) {
             map = hashmap_get(innondation_map, p->content + 2);
 
             dinfo = hashmap_get(map, msg->dst);
-            dinfo->send_count++;
-            dinfo->last_send = now;
+            if (dinfo) {
+                dinfo->send_count++;
+                dinfo->last_send = now;
 
-            dprintf(logfd, "* Containing data.\n");
+                dprintf(logfd, "* Containing data.\n");
+            }
+
             break;
 
         case BODY_ACK:
