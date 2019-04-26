@@ -174,6 +174,7 @@ int send_message(int sock, message_t *msg) {
                 return 0;
             }
 */
+            printf("map addr %p\n", map);
             dinfo = hashmap_get(map, msg->dst);
             if (!dinfo){
                 printf("DINFO is NULL, content :\n");

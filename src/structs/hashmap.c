@@ -84,6 +84,9 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
             free(newkey);
             return 0;
         }
+
+        printf("hashmap add %p %p %lu\n", map, value, map->hash(key) % map->capacity);
+
         if (!list_add(&map->tab[map->hash(key) % map->capacity], e)){
             free(newkey);
             return 0;
@@ -131,7 +134,12 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
 
 short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if (!map) return 0;
-    return map_list_remove(&map->tab[map->hash(key) % map->capacity], key, map->keylen, k, v);
+    if(map_list_remove(&map->tab[map->hash(key) % map->capacity], key, map->keylen, k, v)) {
+        map->size--;
+        return 1;
+    }
+
+    return 0;
 }
 
 short hashmap_contains (hashmap_t *map, const char *key) {

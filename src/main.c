@@ -74,6 +74,7 @@ void handle_reception () {
         dprintf(logfd, "Add to potential neighbours.\n");
     }
 
+    printf("handle reception %p\n", n);
     msg = bytes_to_message(c, len, n);
     if (!msg){
         fprintf(stderr, "Error decripting the message : %d\n", rc);

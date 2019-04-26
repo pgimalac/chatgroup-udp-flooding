@@ -22,8 +22,10 @@ static void handle_hello(const char *tlv, neighbour_t *n){
     chat_id_t src_id, dest_id;
     char ipstr[INET6_ADDRSTRLEN];
 
+    printf("hello addr %p\n", n);
     memcpy(&src_id, tlv + 2, 8);
 
+    printf("hello addr %p\n", n);
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
@@ -31,6 +33,7 @@ static void handle_hello(const char *tlv, neighbour_t *n){
                is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
     }
 
+    printf("hello addr %p\n", n);
     if (is_long) {
         memcpy(&dest_id, tlv + 2 + 8, 8);
         if (dest_id != id) {
@@ -39,6 +42,7 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         }
     }
 
+    printf("hello addr %p\n", n);
     if (n->status == NEIGHBOUR_POT) {
         dprintf(logfd, "Remove from potential id: %lx.\n", src_id);
         n->last_hello_send = 0;
@@ -48,6 +52,7 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         n->status = NEIGHBOUR_SYM;
     }
 
+    printf("hello addr %p\n", n);
     n->last_hello = now;
     if (is_long) {
         n->last_long_hello = now;
@@ -142,6 +147,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
         return;
     }
 
+    printf("Remove from %p\n", map);
     hashmap_remove(map, n, 1, 1);
 }
 
