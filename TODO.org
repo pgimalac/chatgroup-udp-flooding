@@ -1,0 +1,29 @@
+* Minimum project [0%]
+** TODO Go away on quit
+   handlers on sigterm/kill...
+* Bonus [0/11]
+** TODO Error managment
+   local error or ICMP message
+** TODO Concurrency
+   fork ? threads ?
+** TODO Agregation [1/2]
+*** DONE multiple tlv in messages
+*** TODO pmtu calculus
+** TODO Optimisation [0/3]
+*** TODO neighbours innondation
+*** TODO randomize data send
+*** TODO dynamic timeouts
+** TODO Multiple interfaces
+** TODO Implemtation security [1/2]
+*** TODO reject peer dont know our id
+*** DONE messages length inconsistency
+** TODO Crypto messages
+** TODO Multicast
+   ff12:b456:dad4:cee1:4589:71de:a2ec:e66
+   port 1212
+** TODO Fragmentation [0/3]
+*** TODO Alexandre/Tristan-protocol
+*** TODO image, videos, etc... send & reception
+*** TODO file transfet
+** TODO TCP-Friendly
+** TODO Firewalls & NAT
