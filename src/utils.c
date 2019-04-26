@@ -1,9 +1,10 @@
-#include "utils.h"
-
 #include <time.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <sys/socket.h>
+
+#include "utils.h"
 
 void* voidndup(const void *o, int n){
     void *cpy = malloc(n);
@@ -101,43 +102,56 @@ typedef struct msg_queue {
 
 msg_queue_t *queue = 0;
 
+int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
+    return n1 && n2
+        && memcmp(&n1->addr->sin6_addr, &n2->addr->sin6_addr, sizeof(struct in6_addr)) == 0
+        && n1->addr->sin6_port == n2->addr->sin6_port;
+}
+
 int push_tlv(body_t *tlv, neighbour_t *dst) {
     msg_queue_t *p;
     int add = 0;
 
     p = queue;
-    if (queue && dst != p->msg->dst && p->msg->body_length + tlv->size < p->msg->dst->pmtu) {
-        for (; p && p->next != queue; p = p->next) {
-            if (p->msg->dst == dst && p->msg->body_length + tlv->size < p->msg->dst->pmtu) {
-                add = 1;
-                break;
-            }
-        }
-    } else add = (queue != 0);
+    if (!p) {
+        goto add;
+    }
 
-    if (!add) {
-        p = malloc(sizeof(msg_queue_t));
-        if (!p) return -1;
+    if (neighbour_eq(p->msg->dst, dst)
+        && p->msg->body_length + tlv->size < p->msg->dst->pmtu) {
+        goto insert;
+    }
 
-        p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
-        if (!p->msg){
-            free(p);
-            return -2;
-        }
-
-        if (!queue) {
-            queue = p;
-            queue->next = queue;
-            queue->prev = queue;
-        } else {
-            p->next = queue;
-            p->prev = queue->prev;
-            queue->prev->next = p;
-            queue->prev = p;
-            queue = p;
+    for (p = p->next; p != queue; p = p->next) {
+        if (neighbour_eq(p->msg->dst, dst) &&
+            p->msg->body_length + tlv->size < p->msg->dst->pmtu) {
+            goto insert;
         }
     }
 
+ add:
+    p = malloc(sizeof(msg_queue_t));
+    if (!p) return -1;
+
+    p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
+    if (!p->msg){
+        free(p);
+        return -2;
+    }
+
+    if (!queue) {
+        queue = p;
+        queue->next = queue;
+        queue->prev = queue;
+    } else {
+        p->next = queue;
+        p->prev = queue->prev;
+        queue->prev->next = p;
+        queue->prev = p;
+        queue = p;
+    }
+
+ insert:
     tlv->next = p->msg->body;
     p->msg->body = tlv;
     p->msg->body_length += tlv->size;
