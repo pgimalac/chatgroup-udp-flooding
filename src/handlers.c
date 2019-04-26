@@ -101,6 +101,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
     body_t *body;
+    char *buffer;
 
     dprintf(logfd, "Data received.\nData type %u.\n", tlv[14]);
 
@@ -109,9 +110,10 @@ static void handle_data(const char *tlv, neighbour_t *n){
     if (!map) {
         dprintf(logfd, "New message received.\n");
         if (tlv[14] == 0) {
-            char buffer[256] = { 0 };
+            buffer = calloc(256, 1);
             memcpy(buffer, tlv + 15, size);
             printf("%s\n", buffer);
+            free(buffer);
         }
 
         rc = innondation_add_message(tlv, tlv[1] + 2);
@@ -130,14 +132,15 @@ static void handle_data(const char *tlv, neighbour_t *n){
     body->next = NULL;
 
     push_tlv(body, n);
-    u_int8_t buffer[18];
-    memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
-    memcpy(buffer + 16, &n->addr->sin6_port, 2);
+
+    buffer = bytes_from_neighbour(n);
     printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
+    free(buffer);
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
-    char ipstr[INET6_ADDRSTRLEN];
+    char ipstr[INET6_ADDRSTRLEN], *buffer;
+
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
@@ -150,11 +153,10 @@ static void handle_ack(const char *tlv, neighbour_t *n){
         return;
     }
 
-    u_int8_t buffer[18];
-    memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
-    memcpy(buffer + 16, &n->addr->sin6_port, 2);
+    buffer = bytes_from_neighbour(n);
     printf("Remove from %p\n", map);
     printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
+    free(buffer);
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){

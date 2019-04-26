@@ -189,7 +189,7 @@ message_t *create_message(u_int8_t m, u_int8_t v, u_int16_t s, body_t* b, neighb
     return message;
 }
 
-char* strappl(char* str1, ...){
+char *strappl(char* str1, ...){
     if (!str1) return NULL;
 
     va_list ap;
@@ -225,7 +225,7 @@ char* strappl(char* str1, ...){
     return buff;
 }
 
-char* strappv(char** str){
+char *strappv(char** str){
     if (!str || !str[0]) return NULL;
     int *tmp = alloca(sizeof(int));
     *tmp = strlen(str[0]);
@@ -250,4 +250,21 @@ char* strappv(char** str){
         free(tail);
     }
     return buff;
+}
+
+void print_bytes(const char *buffer, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        printf("%02hhx ", buffer[i]);
+        if ((i + 1) % 4 == 0) printf("\n");
+    }
+    printf("\n");
+}
+
+char *bytes_from_neighbour(const neighbour_t *n) {
+    char *buffer = malloc(18);
+    if (!buffer) return 0;
+
+    memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
+    memcpy(buffer + 16, &n->addr->sin6_port, 2);
+    return buffer;
 }
