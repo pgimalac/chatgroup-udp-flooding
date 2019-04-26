@@ -148,6 +148,7 @@ int innondation_add_message(const char *data, int size) {
     int now = time(0);
     size_t i;
     list_t *l;
+    char buffer[18];
 
     hashmap_t *ns = hashmap_init(18, (unsigned int(*)(const void*))hash_neighbour);
     if (!ns) {
@@ -168,9 +169,7 @@ int innondation_add_message(const char *data, int size) {
             dinfo->neighbour = p;
             dinfo->time = now;
 
-            char buffer[18];
-            memcpy(buffer, p->addr->sin6_addr.s6_addr, 16);
-            memcpy(buffer + 16, &p->addr->sin6_port, 2);
+            bytes_from_neighbour(p, buffer);
             hashmap_add(ns, buffer, dinfo);
         }
     }

@@ -28,8 +28,12 @@ unsigned int hash_neighbour(const char*);
 
 unsigned int hash_msg_id(const char idnonce[12]);
 
-char* strappl(char* str1, ...);
+char *strappl(char* str1, ...);
 
-char* strappv(char** str);
+char *strappv(char** str);
+
+void bytes_from_neighbour(const neighbour_t *n, char buffer[18]);
+
+void print_bytes(const char *buf, size_t len);
 
 #endif
