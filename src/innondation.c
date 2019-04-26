@@ -148,7 +148,7 @@ int innondation_add_message(const char *data, int size) {
     int now = time(0);
     size_t i;
     list_t *l;
-    char *buffer;
+    char buffer[18];
 
     hashmap_t *ns = hashmap_init(18, (unsigned int(*)(const void*))hash_neighbour);
     if (!ns) {
@@ -169,9 +169,8 @@ int innondation_add_message(const char *data, int size) {
             dinfo->neighbour = p;
             dinfo->time = now;
 
-            buffer = bytes_from_neighbour(p);
+            bytes_from_neighbour(p, buffer);
             hashmap_add(ns, buffer, dinfo);
-            free(buffer);
         }
     }
 
@@ -241,12 +240,6 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
                 }
 
                 body->size = size;
-
-                for (size_t k = 0; k < body->size; k++) {
-                    printf("%02hhx ", body->content[k]);
-                    if ((k + 1) % 4 == 0) printf("\n");
-                }
-                printf("\n");
 
                 if (inet_ntop(AF_INET6,
                               &dinfo->neighbour->addr->sin6_addr,

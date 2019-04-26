@@ -128,7 +128,7 @@ int send_message(int sock, message_t *msg) {
     int rc, now = time(0);
     struct msghdr hdr = { 0 };
     body_t *p;
-    char ipstr[INET6_ADDRSTRLEN], *buffer;
+    char ipstr[INET6_ADDRSTRLEN], buffer[18];
     hashmap_t *map;
     data_info_t *dinfo;
 
@@ -171,9 +171,8 @@ int send_message(int sock, message_t *msg) {
             map = hashmap_get(innondation_map, p->content + 2);
 
             print_bytes(p->content, p->size);
-            buffer = bytes_from_neighbour(msg->dst);
+            bytes_from_neighbour(msg->dst, buffer);
             dinfo = hashmap_get(map, buffer);
-            free(buffer);
 
             dinfo->send_count++;
             dinfo->last_send = now;

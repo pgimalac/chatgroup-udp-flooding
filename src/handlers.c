@@ -21,11 +21,8 @@ static void handle_hello(const char *tlv, neighbour_t *n){
     int now = time(0), is_long = tlv[1] == 16;
     chat_id_t src_id, dest_id;
     char ipstr[INET6_ADDRSTRLEN];
-
-    printf("hello addr %p\n", n);
     memcpy(&src_id, tlv + 2, 8);
 
-    printf("hello addr %p\n", n);
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
@@ -33,7 +30,6 @@ static void handle_hello(const char *tlv, neighbour_t *n){
                is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
     }
 
-    printf("hello addr %p\n", n);
     if (is_long) {
         memcpy(&dest_id, tlv + 2 + 8, 8);
         if (dest_id != id) {
@@ -42,7 +38,6 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         }
     }
 
-    printf("hello addr %p\n", n);
     if (n->status == NEIGHBOUR_POT) {
         dprintf(logfd, "Remove from potential id: %lx.\n", src_id);
         n->last_hello_send = 0;
@@ -52,7 +47,6 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         n->status = NEIGHBOUR_SYM;
     }
 
-    printf("hello addr %p\n", n);
     n->last_hello = now;
     if (is_long) {
         n->last_long_hello = now;
@@ -101,7 +95,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
     body_t *body;
-    char *buffer;
+    char buffer[18], *buff;
 
     dprintf(logfd, "Data received.\nData type %u.\n", tlv[14]);
 
@@ -110,10 +104,10 @@ static void handle_data(const char *tlv, neighbour_t *n){
     if (!map) {
         dprintf(logfd, "New message received.\n");
         if (tlv[14] == 0) {
-            buffer = calloc(256, 1);
-            memcpy(buffer, tlv + 15, size);
-            printf("%s\n", buffer);
-            free(buffer);
+            buff = calloc(256, 1);
+            memcpy(buff, tlv + 15, size);
+            printf("%s\n", buff);
+            free(buff);
         }
 
         rc = innondation_add_message(tlv, tlv[1] + 2);
@@ -133,13 +127,13 @@ static void handle_data(const char *tlv, neighbour_t *n){
 
     push_tlv(body, n);
 
-    buffer = bytes_from_neighbour(n);
+    bytes_from_neighbour(n, buffer);
     printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
-    free(buffer);
+
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
-    char ipstr[INET6_ADDRSTRLEN], *buffer;
+    char ipstr[INET6_ADDRSTRLEN], buffer[18];
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
@@ -153,10 +147,9 @@ static void handle_ack(const char *tlv, neighbour_t *n){
         return;
     }
 
-    buffer = bytes_from_neighbour(n);
+    bytes_from_neighbour(n, buffer);
     printf("Remove from %p\n", map);
     printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
-    free(buffer);
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){

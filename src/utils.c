@@ -260,11 +260,7 @@ void print_bytes(const char *buffer, size_t len) {
     printf("\n");
 }
 
-char *bytes_from_neighbour(const neighbour_t *n) {
-    char *buffer = malloc(18);
-    if (!buffer) return 0;
-
+void bytes_from_neighbour(const neighbour_t *n, char buffer[18]) {
     memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
     memcpy(buffer + 16, &n->addr->sin6_port, 2);
-    return buffer;
 }
