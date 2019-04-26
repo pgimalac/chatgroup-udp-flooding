@@ -322,6 +322,7 @@ int message_innondation(struct timeval *tv) {
         hashmap_destroy(map, 1);
         hashmap_remove(data_map, dataid, 1, 1);
         hashmap_remove(innondation_map, dataid, 1, 0);
+        free(dataid);
     }
 
     return 0;

@@ -56,7 +56,7 @@ unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port) {
 }
 
 unsigned int hash_neighbour(const neighbour_t *n) {
-    return hash_neighbour_data((const u_int8_t*)&n->addr->sin6_addr, n->addr->sin6_port);
+    return hash_neighbour_data(n->addr->sin6_addr.s6_addr, n->addr->sin6_port);
 }
 
 unsigned int hash(const char *s) {
