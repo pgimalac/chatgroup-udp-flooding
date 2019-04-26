@@ -242,12 +242,6 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
 
                 body->size = size;
 
-                for (size_t k = 0; k < body->size; k++) {
-                    printf("%02hhx ", body->content[k]);
-                    if ((k + 1) % 4 == 0) printf("\n");
-                }
-                printf("\n");
-
                 if (inet_ntop(AF_INET6,
                               &dinfo->neighbour->addr->sin6_addr,
                               ipstr, INET6_ADDRSTRLEN) == 0){

@@ -21,11 +21,8 @@ static void handle_hello(const char *tlv, neighbour_t *n){
     int now = time(0), is_long = tlv[1] == 16;
     chat_id_t src_id, dest_id;
     char ipstr[INET6_ADDRSTRLEN];
-
-    printf("hello addr %p\n", n);
     memcpy(&src_id, tlv + 2, 8);
 
-    printf("hello addr %p\n", n);
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
@@ -33,7 +30,6 @@ static void handle_hello(const char *tlv, neighbour_t *n){
                is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
     }
 
-    printf("hello addr %p\n", n);
     if (is_long) {
         memcpy(&dest_id, tlv + 2 + 8, 8);
         if (dest_id != id) {
@@ -42,7 +38,6 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         }
     }
 
-    printf("hello addr %p\n", n);
     if (n->status == NEIGHBOUR_POT) {
         dprintf(logfd, "Remove from potential id: %lx.\n", src_id);
         n->last_hello_send = 0;
@@ -52,7 +47,6 @@ static void handle_hello(const char *tlv, neighbour_t *n){
         n->status = NEIGHBOUR_SYM;
     }
 
-    printf("hello addr %p\n", n);
     n->last_hello = now;
     if (is_long) {
         n->last_long_hello = now;
@@ -133,7 +127,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     u_int8_t buffer[18];
     memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
     memcpy(buffer + 16, &n->addr->sin6_port, 2);
-    printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
+    hashmap_remove(map, buffer, 1, 1);
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
@@ -153,8 +147,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
     u_int8_t buffer[18];
     memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
     memcpy(buffer + 16, &n->addr->sin6_port, 2);
-    printf("Remove from %p\n", map);
-    printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
+    hashmap_remove(map, buffer, 1, 1);
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){
