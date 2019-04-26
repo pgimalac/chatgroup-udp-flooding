@@ -86,9 +86,9 @@ void handle_reception () {
     dprintf(logfd, "body length: %d\n\n", msg->body_length);
 
     if (msg->magic != MAGIC) {
-        fprintf(stderr, "Invalid magic value\n"); // renvoyer un go_away et/ou warning
+        fprintf(stderr, "Invalid magic value\n");
     } else if (msg->version != VERSION) {
-        fprintf(stderr, "Invalid version\n"); // renvoyer un go_away et/ou warning
+        fprintf(stderr, "Invalid version\n");
     } else {
         handle_tlv(msg->body, n);
     }
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
         }
 
         message_innondation(&tv);
-        neighbour_innondation();
+        neighbour_innondation(0);
 
         while((msg = pull_message())) {
             send_message(sock, msg);

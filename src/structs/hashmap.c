@@ -88,6 +88,7 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
             free(newkey);
             return 0;
         }
+        map->size++;
     }
 
     return 1;

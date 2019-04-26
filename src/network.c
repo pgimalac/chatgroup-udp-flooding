@@ -169,15 +169,26 @@ int send_message(int sock, message_t *msg) {
 
         case BODY_DATA:
             map = hashmap_get(innondation_map, p->content + 2);
-            if (!map){
-                dprintf(logfd, "Data already acked");
+/*            if (!map){
+                dprintf(logfd, "Data already fully acked\n");
                 return 0;
             }
+*/
             dinfo = hashmap_get(map, msg->dst);
             if (!dinfo){
-                dprintf(logfd, "Data already acked");
+                printf("DINFO is NULL, content :\n");
+                for (size_t i = 0; i < p->size; i++) {
+                    printf("%02hhx ", p->content[i]);
+                    if ((i + 1) % 4 == 0) printf("\n");
+                }
+                printf("\n");
+
+            }
+/*            if (!dinfo){
+                dprintf(logfd, "Data already acked by this neighbour\n");
                 return 0;
             }
+*/
 
             dinfo->send_count++;
             dinfo->last_send = now;

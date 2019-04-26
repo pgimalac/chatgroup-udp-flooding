@@ -13,6 +13,6 @@ int innondation_add_message(const char *data, int size);
 
 int message_innondation(struct timeval *tv);
 
-void neighbour_innondation();
+void neighbour_innondation(short);
 
 #endif

@@ -13,6 +13,8 @@
 
 #define MAX_TIMEOUT 30
 
+static u_int32_t data_num = 1;
+
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
 
@@ -25,7 +27,7 @@ void send_data(char *buffer, int size){
     snprintf(tmp, 243, "%s: %s", pseudo, buffer);
 
     body_t data = { 0 };
-    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, strlen(tmp));
+    int rc = tlv_data(&data.content, id, data_num++, DATA_KNOWN, tmp, strlen(tmp));
 
     if (rc < 0){
         dprintf(logfd, "Message too long but supposed to be cut...\n");
@@ -178,7 +180,7 @@ int innondation_add_message(const char *data, int size) {
 }
 
 int innondation_send_msg(char *dataid, list_t **msg_done) {
-    size_t i, size, count = 0;
+    size_t i, size;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     list_t *l;
     data_info_t *dinfo;
@@ -198,9 +200,8 @@ int innondation_send_msg(char *dataid, list_t **msg_done) {
     for (i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
-            count++;
 
-            if (dinfo->send_count >= 2) {
+            if (dinfo->send_count >= 5) {
                 body = malloc(sizeof(body_t));
                 body->size = tlv_goaway(&body->content, GO_AWAY_HELLO,
                                        "You did not answer to data for too long.", 40);
@@ -284,7 +285,7 @@ int innondation_send_msg(char *dataid, list_t **msg_done) {
         hashmap_remove(map, obj, 1, 1);
     }
 
-    if (count == 0) {
+    if (map->size == 0) {
         list_add(msg_done, dataid);
     }
 
@@ -355,7 +356,7 @@ int send_neighbour_to(neighbour_t *p) {
     return 0;
 }
 
-void neighbour_innondation() {
+void neighbour_innondation(short force) {
     size_t i;
     time_t now = time(0);
     list_t *l;
@@ -364,7 +365,7 @@ void neighbour_innondation() {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
-            if (now - p->last_neighbour_send > 120) {
+            if (force || now - p->last_neighbour_send > 120) {
                 send_neighbour_to(p);
             }
         }
