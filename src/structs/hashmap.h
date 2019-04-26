@@ -34,7 +34,7 @@ void *hashmap_get(hashmap_t *map, const void *key);
 /**
  * Remove the given element of the set
  */
-short hashmap_remove(hashmap_t *map, const void *key, short);
+short hashmap_remove(hashmap_t *map, const void *key, short, short);
 
 /**
  * return 1 if the given element is in the set, 0 otherwise

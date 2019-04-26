@@ -13,23 +13,26 @@
 
 #define MAX_TIMEOUT 30
 
-void send_data(const char *buffer, int size){
-    char tmp[521] = { 0 }, dataid[12];
-    body_t *data;
-
+void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
 
-    snprintf(tmp, 511, "%s: %s", getPseudo(), buffer);
+    char *pseudo = getPseudo();
+    int pseudolen = strlen(pseudo);
+    if (size + pseudolen > 240)
+        buffer[240 - size] = '\0';
 
-    data = malloc(sizeof(body_t));
-    data->size = tlv_data(&data->content, id, random_uint32(), 0, tmp, strlen(tmp));
+    char tmp[243] = { 0 };
+    snprintf(tmp, 243, "%s: %s", pseudo, buffer);
 
-    memcpy(dataid, data->content + 2, 12);
+    body_t data = { 0 };
+    data.size = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, strlen(tmp));
+    if (data.size <= 0){
+        dprintf(logfd, "Message too long but supposed to be cut...\n");
+        return;
+    }
 
-    //TODO handle errors
-    innondation_add_message(data->content, data->size);
-    free(data->content);
-    free(data);
+    innondation_add_message(data.content, data.size);
+    free(data.content);
 }
 
 void hello_potential_neighbours(struct timeval *tv) {
@@ -141,7 +144,6 @@ int innondation_add_message(const char *data, int size) {
     int now = time(0);
     size_t i;
     list_t *l;
-    char *dataid, *datacopy;
 
     hashmap_t *ns = hashmap_init(sizeof(neighbour_t),
                                  (unsigned int(*)(const void*))hash_neighbour);
@@ -166,12 +168,8 @@ int innondation_add_message(const char *data, int size) {
         }
     }
 
-    dataid = voidndup(data + 2, 12);
-    datacopy = voidndup(data, size);
-
-    hashmap_add(innondation_map, dataid, ns);
-    hashmap_add(data_map, dataid, datacopy);
-    free(dataid);
+    hashmap_add(innondation_map, data + 2, ns);
+    hashmap_add(data_map, data + 2, voidndup(data, size));
 
     return 0;
 }
@@ -247,12 +245,12 @@ int innondation_send_msg(const char *dataid) {
 
     while (to_delete != NULL){
         neighbour_t *obj = list_pop(&to_delete);
-        hashmap_remove(map, obj, 1);
+        hashmap_remove(map, obj, 1, 1);
     }
 
     if (count == 0) {
-        hashmap_remove(data_map, dup, 1);
-        hashmap_remove(innondation_map, dup, 1);
+        hashmap_remove(data_map, dup, 1, 1);
+        hashmap_remove(innondation_map, dup, 1, 1);
     }
 
     return tv;

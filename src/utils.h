@@ -2,6 +2,7 @@
 #define __H_UTILS
 
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "types.h"
 
@@ -29,5 +30,9 @@ unsigned int hash_neighbour(const neighbour_t *n);
 unsigned int hash(const char*);
 
 unsigned int hash_msg_id(const char idnonce[12]);
+
+char* strappl(char* str1, ...);
+
+char* strappv(char** str);
 
 #endif

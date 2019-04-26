@@ -120,7 +120,7 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
         if (!p) return -1;
 
         p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
-        if (!p){
+        if (!p->msg){
             free(p);
             return -2;
         }
@@ -180,4 +180,67 @@ message_t *create_message(u_int8_t m, u_int8_t v, u_int16_t s, body_t* b, neighb
     }
 
     return message;
+}
+
+char* strappl(char* str1, ...){
+    if (!str1) return NULL;
+
+    va_list ap;
+    va_start(ap, str1);
+
+    int* tmp = alloca(sizeof(int));
+    *tmp = strlen(str1);
+    list_t *head = list_init(tmp, NULL), *tail = head;
+    int l = *tmp + 1;
+    char* st;
+    while ((st = va_arg(ap, char*))){
+        tmp = alloca(sizeof(int));
+        *tmp = strlen(st);
+        l += *tmp;
+        tail->next = list_init(tmp, NULL);
+        tail = tail->next;
+    }
+    va_end(ap);
+
+    char* buff = malloc(sizeof(char) * l);
+    va_start(ap, str1);
+    l = 0;
+    st = str1;
+    do {
+        strcpy(buff + l, st);
+        l += *(int*)head->val;
+        tail = head;
+        head = head->next;
+        free(tail);
+    } while ((st = va_arg(ap, char*)));
+
+    va_end(ap);
+    return buff;
+}
+
+char* strappv(char** str){
+    if (!str || !str[0]) return NULL;
+    int *tmp = alloca(sizeof(int));
+    *tmp = strlen(str[0]);
+    int l = *tmp + 1;
+    list_t* head = list_init(tmp, NULL), *tail = head;
+
+    for(char** st = str + 1; *st; st++){
+        tmp = alloca(sizeof(int));
+        *tmp = strlen(*st);
+        tail->next = list_init(tmp, NULL);
+        tail = tail->next;
+        l += *tmp;
+    }
+
+    char* buff = malloc(sizeof(char) * l);
+    l = 0;
+    for (char** st = str; *st; st++){
+        strcpy(buff + l, *st);
+        l += *(int*)head->val;
+        tail = head;
+        head = head->next;
+        free(tail);
+    }
+    return buff;
 }

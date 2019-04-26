@@ -99,18 +99,15 @@ int tlv_data(char **buffer,
     return size;
 }
 
-int tlv_ack(char **buffer, u_int64_t sender, u_int32_t nonce){
-    u_int64_t n_sender = htobe64(sender);
-    u_int64_t n_nonce = htobe64(nonce);
-
-    int size = HEADER_OFFSET + sizeof(n_sender) + sizeof(n_nonce);
-    *buffer = malloc(size);
+int tlv_ack(char **buffer, u_int64_t sender, nonce_t nonce){
+    int size = HEADER_OFFSET + sizeof(sender) + sizeof(nonce);
+    (*buffer) = malloc(size);
 
     char *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_ACK;
-    (*buffer)[1] = sizeof(n_sender) + sizeof(n_nonce);
-    memmove(offset, &n_sender, sizeof(n_sender));
-    memmove(offset + sizeof(n_sender), &n_nonce, sizeof(n_nonce));
+    (*buffer)[1] = sizeof(sender) + sizeof(nonce);
+    memmove(offset, &sender, sizeof(sender));
+    memmove(offset + sizeof(sender), &nonce, sizeof(nonce));
 
     return size;
 }

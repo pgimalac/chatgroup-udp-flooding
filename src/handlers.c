@@ -99,7 +99,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
 
     dprintf(logfd, "Data received.\nData type %u.\n", tlv[14]);
 
-    map = hashmap_get(innondation_map, (void*)(tlv + 2));
+    map = hashmap_get(innondation_map, tlv + 2);
 
     if (!map) {
         dprintf(logfd, "New message received.\n");
@@ -115,18 +115,17 @@ static void handle_data(const char *tlv, neighbour_t *n){
             return;
         }
 
-        map = hashmap_get(innondation_map, (void*)(tlv + 2));
+        map = hashmap_get(innondation_map, tlv + 2);
     }
 
+    chat_id_t sender = *(chat_id_t*)(tlv + 2);
+    nonce_t nonce = *(chat_id_t*)(tlv + 10);
     body = malloc(sizeof(body_t));
-    body->content = malloc(14);
-    body->content[0] = BODY_ACK;
-    body->content[1] = 12;
-    memcpy(body->content + 2, tlv + 2, 12);
-    body->size = 14;
+    body->size = tlv_ack(&body->content, sender, nonce);
+    body->next = NULL;
 
     push_tlv(body, n);
-    hashmap_remove(map, n, 1);
+    hashmap_remove(map, n, 1, 1);
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
@@ -143,8 +142,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
         return;
     }
 
-    // memory leak here
-    hashmap_remove(map, n, 1);
+    hashmap_remove(map, n, 1, 1);
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){

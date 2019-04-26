@@ -98,7 +98,7 @@ void *hashmap_get(hashmap_t *map, const void *key) {
     return e ? e->value : NULL;
 }
 
-static short map_list_remove (list_t **lst, const void *key, size_t keylen, short f) {
+static short map_list_remove (list_t **lst, const void *key, size_t keylen, short k, short v) {
     if (!lst || !*lst)
         return 0;
 
@@ -117,19 +117,20 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
         (*lst)->next = tmp->next;
     }
 
-    if (f){
+    if (k)
         free(((map_elem*)tmp->val)->key);
+    if (v)
         free(((map_elem*)tmp->val)->value);
-    }
+
 
     free(tmp->val);
     free(tmp);
     return 1;
 }
 
-short hashmap_remove(hashmap_t *map, const void *key, short f) {
+short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if (!map) return 0;
-    return map_list_remove(&map->tab[map->hash(key) % map->capacity], key, map->keylen, f);
+    return map_list_remove(&map->tab[map->hash(key) % map->capacity], key, map->keylen, k, v);
 }
 
 short hashmap_contains (hashmap_t *map, const char *key) {
