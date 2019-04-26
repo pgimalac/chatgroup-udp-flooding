@@ -7,7 +7,6 @@
 #include "types.h"
 
 #define logfd 2
-#define FREE_BODY 1
 
 /**
  * Generic usefull functions
@@ -21,7 +20,7 @@ u_int64_t random_uint64();
 
 u_int32_t random_uint32();
 
-void free_message(message_t *msg, short free_body);
+void free_message(message_t *msg);
 
 unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port);
 

@@ -1,7 +1,15 @@
 * Minimum project [0%]
 ** TODO Go away on quit
-   handlers on sigterm/kill...
+   handlers on sigterm/kill... + quit command
+** TODO find the data bug
+** TODO better error handling
+   for every function call check what is returned,...
+   maybe do a function to free some memory that could be called when needed
+** TODO send a warning for MARTIAN neighbours
+   like juliusz does
 * Bonus [0/11]
+** TODO commands to print own id, ip, port
+** TODO command to change id
 ** TODO Error managment
    local error or ICMP message
 ** TODO Concurrency
@@ -24,6 +32,6 @@
 ** TODO Fragmentation [0/3]
 *** TODO Alexandre/Tristan-protocol
 *** TODO image, videos, etc... send & reception
-*** TODO file transfet
+*** TODO file transfert
 ** TODO TCP-Friendly
 ** TODO Firewalls & NAT

@@ -29,7 +29,7 @@ static void add(char *buffer){
     }
 
     printf("Add %s, %s to potential neighbours\n", name, service);
-    rc = add_neighbour(name, service, potential_neighbours);
+    rc = add_neighbour(name, service);
     if (rc < 0) {
         perror("add neighbour");
     }

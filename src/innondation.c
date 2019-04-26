@@ -25,11 +25,14 @@ void send_data(char *buffer, int size){
     snprintf(tmp, 243, "%s: %s", pseudo, buffer);
 
     body_t data = { 0 };
-    data.size = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, strlen(tmp));
-    if (data.size <= 0){
+    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, strlen(tmp));
+
+    if (rc < 0){
         dprintf(logfd, "Message too long but supposed to be cut...\n");
         return;
     }
+
+    data.size = rc;
 
     innondation_add_message(data.content, data.size);
     free(data.content);
@@ -50,7 +53,7 @@ void hello_potential_neighbours(struct timeval *tv) {
         for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
 
-            if (p->short_hello_count >= 2) {
+            if (p->short_hello_count >= 4) {
                 if (inet_ntop(AF_INET6,
                               &p->addr->sin6_addr,
                               ipstr, INET6_ADDRSTRLEN) == 0){
@@ -174,7 +177,7 @@ int innondation_add_message(const char *data, int size) {
     return 0;
 }
 
-int innondation_send_msg(const char *dataid, list_t **msg_done) {
+int innondation_send_msg(char *dataid, list_t **msg_done) {
     size_t i, size, count = 0;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     list_t *l;
@@ -282,7 +285,7 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     if (count == 0) {
-        list_add(msg_done, voidndup(dataid, 12));
+        list_add(msg_done, dataid);
     }
 
     return tv;
@@ -316,7 +319,6 @@ int message_innondation(struct timeval *tv) {
         map = hashmap_get(innondation_map, dataid);
         hashmap_destroy(map, 1);
         hashmap_remove(innondation_map, dataid, 1, 0);
-        free(dataid);
     }
 
     return 0;

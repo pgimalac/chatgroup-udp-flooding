@@ -86,7 +86,7 @@ static void handle_neighbour(const char *tlv, neighbour_t *n) {
         return;
     }
 
-    if (!new_neighbour(ip, port, potential_neighbours)) {
+    if (!new_neighbour(ip, port)) {
         fprintf(stderr, "An error occured while adding peer to potential neighbours.\n");
     }
 }

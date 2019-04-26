@@ -63,7 +63,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
 }
 
 neighbour_t *
-new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port, hashset_t *ns) {
+new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (addr == NULL) return 0;
     memset(addr, 0, sizeof(struct sockaddr_in6));
@@ -83,11 +83,11 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
     n->addr = addr;
     n->last_neighbour_send = time(0);
     n->status = NEIGHBOUR_POT;
-    hashset_add(ns, n);
-    return hashset_get(ns, ip, port);
+    hashset_add(potential_neighbours, n);
+    return hashset_get(potential_neighbours, ip, port);
 }
 
-int add_neighbour(const char *hostname, const char *service, hashset_t *neighbours) {
+int add_neighbour(const char *hostname, const char *service) {
     int rc, s;
     char ipstr[INET6_ADDRSTRLEN] = { 0 };
     struct addrinfo hints = { 0 }, *r = NULL;
@@ -110,7 +110,7 @@ int add_neighbour(const char *hostname, const char *service, hashset_t *neighbou
 
 
         addr = (struct sockaddr_in6*)p->ai_addr;
-        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, neighbours))
+        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port))
             continue;
 
         if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0)
@@ -169,19 +169,14 @@ int send_message(int sock, message_t *msg) {
 
         case BODY_DATA:
             map = hashmap_get(innondation_map, p->content + 2);
-            if (!map) {
-                printf("Map null\n");
+            if (!map){
+                dprintf(logfd, "Data already acked");
+                return 0;
             }
-
-            for (size_t i = 0; i < p->size; i++) {
-                printf("%02hhx ", p->content[i]);
-                if ((i + 1) % 4 == 0) printf("\n");
-            }
-            printf("\n");
-
             dinfo = hashmap_get(map, msg->dst);
-            if (!dinfo) {
-                printf("Dinfo null !\n");
+            if (!dinfo){
+                dprintf(logfd, "Data already acked");
+                return 0;
             }
 
             dinfo->send_count++;
@@ -221,12 +216,12 @@ int send_message(int sock, message_t *msg) {
     // find a way to avoid using free here ?
     if (rc < 0) return -2;
 
-    return 0;
-}
+    return 0;}
 
 int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen) {
+    if (!out || !buflen) return 0;
+
     int rc;
-    unsigned char buf[4096];
     struct in6_pktinfo *info = 0;
     struct iovec iov[1];
     struct msghdr hdr = { 0 };
@@ -236,8 +231,8 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
         struct cmsghdr align;
     } u;
 
-    iov[0].iov_base = buf;
-    iov[0].iov_len = 4096;
+    iov[0].iov_base = out;
+    iov[0].iov_len = *buflen;
 
     hdr.msg_name = addr;
     hdr.msg_namelen = sizeof(*addr);
@@ -248,6 +243,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
 
     rc = recvmsg(sock, &hdr, 0);
     if (rc < 0) return -1;
+    *buflen = rc;
 
     cmsg = CMSG_FIRSTHDR(&hdr);
     while(cmsg) {
@@ -272,9 +268,6 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
         dprintf(logfd, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
     }
 
-    if (!out || !buflen) return 0;
-    *buflen = rc;
-    memcpy(out, buf, *buflen);
     return 0;
 }
 
@@ -285,8 +278,10 @@ static int check_message_size(const char* buffer, int buflen){
         return BUFSH;
 
     u_int16_t body_length = be16toh(*(u_int16_t*)(buffer + 2));
-    if (body_length + 4 != buflen)
+    if (body_length + 4 > buflen)
         return BUFINC;
+    buflen = body_length + 4;
+
     int i = 4, body_num = 0, rc;
     while (i < buflen){
         i++;
@@ -304,7 +299,6 @@ static int check_message_size(const char* buffer, int buflen){
     i = 4;
     while (i < buflen){
         rc = check_tlv_size(buffer + i);
-        assert(rc != 0);
         if (rc < 0)
             return rc;
         i += rc;
@@ -361,7 +355,7 @@ message_t *bytes_to_message(const char *src, size_t buflen, neighbour_t *n) {
     }
 
     if (i < buflen){ // loop exit with break
-        free_message(msg, FREE_BODY);
+        free_message(msg);
         return 0;
     }
 

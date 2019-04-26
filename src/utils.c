@@ -77,7 +77,7 @@ unsigned int hash_msg_id(const char idnonce[12]) {
     return hash;
 }
 
-void free_message(message_t *msg, short free_body) {
+void free_message(message_t *msg) {
     body_t *p, *b;
 
     if (!msg) return;
@@ -89,8 +89,7 @@ void free_message(message_t *msg, short free_body) {
         p = p->next;
 
         free(b->content);
-        if (free_body & FREE_BODY)
-            free(b);
+        free(b);
     }
     free(msg);
 }

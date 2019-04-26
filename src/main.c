@@ -70,7 +70,7 @@ void handle_reception () {
 
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
-                          addr.sin6_port, potential_neighbours);
+                          addr.sin6_port);
         dprintf(logfd, "Add to potential neighbours.\n");
     }
 
@@ -93,7 +93,7 @@ void handle_reception () {
         handle_tlv(msg->body, n);
     }
 
-    free_message(msg, FREE_BODY);
+    free_message(msg);
 }
 
 void handle_input() {
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
 
         while((msg = pull_message())) {
             send_message(sock, msg);
-            free_message(msg, FREE_BODY);
+            free_message(msg);
         }
 
         dprintf(logfd, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
