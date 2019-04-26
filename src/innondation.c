@@ -174,7 +174,7 @@ int innondation_add_message(const char *data, int size) {
     return 0;
 }
 
-int innondation_send_msg(const char *dataid) {
+int innondation_send_msg(const char *dataid, list_t **msg_done) {
     size_t i, size, count = 0;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     list_t *l;
@@ -234,7 +234,32 @@ int innondation_send_msg(const char *dataid) {
                 }
 
                 body->size = size;
+
+                for (size_t k = 0; k < body->size; k++) {
+                    printf("%02hhx ", body->content[k]);
+                    if ((k + 1) % 4 == 0) printf("\n");
+                }
+                printf("\n");
+
+                if (inet_ntop(AF_INET6,
+                              &dinfo->neighbour->addr->sin6_addr,
+                              ipstr, INET6_ADDRSTRLEN) == 0){
+                    perror("inet_ntop");
+                } else {
+                    printf("Push tlv data to (%s, %u).\n",
+                           ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
+                }
+
                 push_tlv(body, dinfo->neighbour);
+
+                if (inet_ntop(AF_INET6,
+                              &dinfo->neighbour->addr->sin6_addr,
+                              ipstr, INET6_ADDRSTRLEN) == 0){
+                    perror("inet_ntop");
+                } else {
+                    printf("Tlv data to (%s, %u) pushed.\n",
+                           ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
+                }
             }
 
             if (delta < tv) {
@@ -244,13 +269,20 @@ int innondation_send_msg(const char *dataid) {
     }
 
     while (to_delete != NULL){
+        if (inet_ntop(AF_INET6,
+                      &dinfo->neighbour->addr->sin6_addr,
+                      ipstr, INET6_ADDRSTRLEN) == 0){
+            perror("inet_ntop");
+        } else {
+            printf("Remove (%s, %u) from map.\n",
+                   ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
+        }
         neighbour_t *obj = list_pop(&to_delete);
         hashmap_remove(map, obj, 1, 1);
     }
 
     if (count == 0) {
-        hashmap_remove(data_map, dup, 1, 1);
-        hashmap_remove(innondation_map, dup, 1, 1);
+        list_add(msg_done, voidndup(dataid, 12));
     }
 
     return tv;
@@ -259,14 +291,15 @@ int innondation_send_msg(const char *dataid) {
 int message_innondation(struct timeval *tv) {
     size_t i;
     int rc;
-    list_t *l;
+    list_t *l, *msg_done = 0;
     char *dataid;
+    hashmap_t *map;
 
     for (i = 0; i < innondation_map->capacity; i++) {
         for (l = innondation_map->tab[i]; l; l = l->next) {
             dataid = (char*)((map_elem*)l->val)->key;
 
-            rc = innondation_send_msg(dataid);
+            rc = innondation_send_msg(dataid, &msg_done);
             if (rc < 0) {
                 continue;
             }
@@ -275,6 +308,15 @@ int message_innondation(struct timeval *tv) {
                 tv->tv_sec = rc;
             }
         }
+    }
+
+    while(msg_done) {
+        printf("Remove data to innondation map.\n");
+        dataid = list_pop(&msg_done);
+        map = hashmap_get(innondation_map, dataid);
+        hashmap_destroy(map, 1);
+        hashmap_remove(innondation_map, dataid, 1, 0);
+        free(dataid);
     }
 
     return 0;
@@ -301,7 +343,7 @@ int send_neighbour_to(neighbour_t *p) {
         }
     }
 
-    if (inet_ntop(AF_INET6, p, ipstr, INET6_ADDRSTRLEN) == 0){
+    if (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
         dprintf(logfd, "Send neighbours to (%s, %u).\n",

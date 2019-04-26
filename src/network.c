@@ -169,13 +169,25 @@ int send_message(int sock, message_t *msg) {
 
         case BODY_DATA:
             map = hashmap_get(innondation_map, p->content + 2);
+            if (!map) {
+                printf("Map null\n");
+            }
+
+            for (size_t i = 0; i < p->size; i++) {
+                printf("%02hhx ", p->content[i]);
+                if ((i + 1) % 4 == 0) printf("\n");
+            }
+            printf("\n");
 
             dinfo = hashmap_get(map, msg->dst);
+            if (!dinfo) {
+                printf("Dinfo null !\n");
+            }
+
             dinfo->send_count++;
             dinfo->last_send = now;
 
             dprintf(logfd, "* Containing data.\n");
-
             break;
 
         case BODY_ACK:

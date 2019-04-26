@@ -11,8 +11,6 @@ int hello_neighbours(struct timeval *tv);
 
 int innondation_add_message(const char *data, int size);
 
-int innondation_send_msg(const char *dataid);
-
 int message_innondation(struct timeval *tv);
 
 void neighbour_innondation();

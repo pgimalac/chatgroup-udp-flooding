@@ -110,7 +110,6 @@ int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
 
 int push_tlv(body_t *tlv, neighbour_t *dst) {
     msg_queue_t *p;
-    int add = 0;
 
     p = queue;
     if (!p) {
