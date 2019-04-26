@@ -279,9 +279,9 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
         }
 
         neighbour_t *obj = list_pop(&to_delete);
-        data = bytes_from_neighbour(obj);
-        hashmap_remove(map, data, 1, 1);
-        free(data);
+        char buf[18];
+        bytes_from_neighbour(obj, buf);
+        hashmap_remove(map, buf, 1, 1);
     }
 
     if (map->size == 0) {
