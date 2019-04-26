@@ -284,8 +284,11 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
             printf("Remove (%s, %u) from map.\n",
                    ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
         }
+
         neighbour_t *obj = list_pop(&to_delete);
-        hashmap_remove(map, obj, 1, 1);
+        data = bytes_from_neighbour(obj);
+        hashmap_remove(map, data, 1, 1);
+        free(data);
     }
 
     if (map->size == 0) {
