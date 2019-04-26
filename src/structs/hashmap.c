@@ -105,6 +105,13 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
 
 void *hashmap_get(hashmap_t *map, const void *key) {
     struct map_elem *e = get(map, key);
+
+    printf("Trying to remove %p :\n", map);
+    for (size_t i = 0; i < map->keylen; i++)
+        printf("%02hhx ", ((u_int8_t*)key)[i]);
+    printf("\n");
+
+
     return e ? e->value : NULL;
 }
 
