@@ -175,7 +175,10 @@ int send_message(int sock, message_t *msg) {
             }
 */
             printf("map addr %p\n", map);
-            dinfo = hashmap_get(map, msg->dst);
+            u_int8_t buffer[18];
+            memcpy(buffer, msg->dst->addr->sin6_addr.s6_addr, 16);
+            memcpy(buffer + 16, &msg->dst->addr->sin6_port, 2);
+            dinfo = hashmap_get(map, buffer);
             if (!dinfo){
                 printf("DINFO is NULL, content :\n");
                 for (size_t i = 0; i < p->size; i++) {

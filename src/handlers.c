@@ -130,7 +130,10 @@ static void handle_data(const char *tlv, neighbour_t *n){
     body->next = NULL;
 
     push_tlv(body, n);
-    hashmap_remove(map, n, 1, 1);
+    u_int8_t buffer[18];
+    memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
+    memcpy(buffer + 16, &n->addr->sin6_port, 2);
+    printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){
@@ -147,8 +150,11 @@ static void handle_ack(const char *tlv, neighbour_t *n){
         return;
     }
 
+    u_int8_t buffer[18];
+    memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
+    memcpy(buffer + 16, &n->addr->sin6_port, 2);
     printf("Remove from %p\n", map);
-    hashmap_remove(map, n, 1, 1);
+    printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){

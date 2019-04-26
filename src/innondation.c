@@ -11,7 +11,7 @@
 #include "structs/list.h"
 #include "pseudo.h"
 
-#define MAX_TIMEOUT 30
+#define MAX_TIMEOUT 10
 
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
@@ -108,7 +108,7 @@ int hello_neighbours(struct timeval *tv) {
             p = (neighbour_t*)l->val;
             if (now - p->last_hello < 120) {
                 delta = now - p->last_hello_send;
-                if (delta >= 30) {
+                if (delta >= MAX_TIMEOUT) {
                     body_t *hello = malloc(sizeof(body_t));
                     hello->size = tlv_hello_long(&hello->content, id, p->id);
                     rc = push_tlv(hello, p);
@@ -149,8 +149,7 @@ int innondation_add_message(const char *data, int size) {
     size_t i;
     list_t *l;
 
-    hashmap_t *ns = hashmap_init(sizeof(neighbour_t),
-                                 (unsigned int(*)(const void*))hash_neighbour);
+    hashmap_t *ns = hashmap_init(18, (unsigned int(*)(const void*))hash_neighbour);
     if (!ns) {
         return -1;
     }

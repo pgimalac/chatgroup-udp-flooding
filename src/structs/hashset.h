@@ -33,7 +33,7 @@ neighbour_t* hashset_remove(hashset_t*, const u_int8_t[sizeof(struct in6_addr)],
 /**
  * Remove the given neighbour of the set
  */
-neighbour_t* hashset_remove_neighbour(hashset_t*, neighbour_t*);
+neighbour_t* hashset_remove_neighbour(hashset_t*, const neighbour_t*);
 
 /**
  * return 1 if the given element is in the set, 0 otherwise

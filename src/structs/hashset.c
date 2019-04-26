@@ -105,12 +105,12 @@ static void* hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6
     return NULL;
 }
 
-neighbour_t* hashset_remove_neighbour(hashset_t* h, neighbour_t *n){
+neighbour_t* hashset_remove_neighbour(hashset_t* h, const neighbour_t *n){
     return hashset_remove(h, GET_IP(n), GET_PORT(n));
 }
 
 neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
-    if (h != NULL && hashset_contains(h, ip, port)){
+    if (h != NULL && hashset_contains(h, ip, port)) {
         int i = hash_neighbour_data(ip, port) % h->capacity;
         neighbour_t *n = hashset_list_remove(&h->tab[i], ip, port);
         h->size--;

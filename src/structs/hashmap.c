@@ -73,6 +73,12 @@ static map_elem *get (hashmap_t *map, const void *key) {
 short hashmap_add(hashmap_t *map, const void *key, void *value) {
     if (map == 0) return 0;
 
+    printf("Trying to add to %p :\n", map);
+    for (size_t i = 0; i < map->keylen; i++) {
+        printf("%02hhx ", ((u_int8_t*)key)[i]);
+    }
+    printf("\n");
+
     map_elem *e = get(map, key);
     if (!e) {
         if (map->size + 1 > HASHMAP_RATIO_UPPER_LIMIT * map->capacity)
@@ -134,6 +140,12 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
 
 short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if (!map) return 0;
+
+    printf("Trying to remove %p :\n", map);
+    for (size_t i = 0; i < map->keylen; i++)
+        printf("%02hhx ", ((u_int8_t*)key)[i]);
+    printf("\n");
+
     if(map_list_remove(&map->tab[map->hash(key) % map->capacity], key, map->keylen, k, v)) {
         map->size--;
         return 1;
