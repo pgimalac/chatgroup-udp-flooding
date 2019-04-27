@@ -223,7 +223,8 @@ void handle_tlv(const body_t *tlv, neighbour_t *n) {
     do {
         if (tlv->content[0] >= NUMBER_TLV_TYPE) {
             handlers[NUMBER_TLV_TYPE](tlv->content, n);
-        } else {
+        } else if (n->status == NEIGHBOUR_SYM ||
+                   (n->status == NEIGHBOUR_POT && tlv->content[0] == BODY_HELLO))) {
             handlers[(int)tlv->content[0]](tlv->content, n);
         }
     } while ((tlv = tlv->next) != NULL);
