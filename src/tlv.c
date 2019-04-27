@@ -96,7 +96,6 @@ int tlv_data(u_int8_t **buffer,
     *offset = type;
     memmove(offset + 1, data, datalen);
 
-    printf("TLV DATA SIZE %d\n", size);
     return size;
 }
 

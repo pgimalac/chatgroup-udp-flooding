@@ -16,13 +16,11 @@
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
 
-    printf("size of the message : %d\n", size);
     char *pseudo = getPseudo();
     int pseudolen = strlen(pseudo);
     if (size + pseudolen > 240){
         size = 240 - pseudolen;
         buffer[size] = '\0';
-        printf("bufferlen %lu\n", strlen(buffer));
     }
 
     char tmp[243] = { 0 };
