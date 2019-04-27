@@ -431,7 +431,7 @@ void quit_handler (int sig) {
     message_t msg = { 0 };
     body_t goaway = { 0 };
 
-    dprintf(logfd, "Send go away leave to neighbours before quit,\n");
+    dprintf(logfd, "Send go away leave to neighbours before quit.\n");
 
     goaway.size = tlv_goaway(&goaway.content, GO_AWAY_LEAVE, "Bye !", 5);
 
@@ -456,5 +456,7 @@ void quit_handler (int sig) {
     }
 
     free(goaway.content);
+
+    printf("Bye.\n");
     exit(sig);
 }

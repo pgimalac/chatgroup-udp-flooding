@@ -125,7 +125,6 @@ int main(int argc, char **argv) {
     dprintf(logfd, "local id: %lx\n", id);
 
     signal(SIGINT, quit_handler);
-    signal(SIGQUIT, quit_handler);
 
     unsigned short port = 0;
     if (argc > 1){

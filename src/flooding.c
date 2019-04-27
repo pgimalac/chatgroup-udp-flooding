@@ -59,9 +59,9 @@ void hello_potential_neighbours(struct timeval *tv) {
                               ipstr, INET6_ADDRSTRLEN) == 0){
                     perror("inet_ntop");
                 } else {
-                    printf("Remove (%s, %u) from potential neighbour list.\n",
+                    dprintf(logfd, "Remove (%s, %u) from potential neighbour list.\n",
                            ipstr, ntohs(p->addr->sin6_port));
-                    printf("He did not answer to short hello for too long.\n");
+                    dprintf(logfd, "He did not answer to short hello for too long.\n");
                 }
 
                 list_add(&to_delete, p);
@@ -133,8 +133,8 @@ int hello_neighbours(struct timeval *tv) {
                       ipstr, INET6_ADDRSTRLEN) == 0){
             perror("inet_ntop");
         } else {
-            printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(p->addr->sin6_port));
-            printf("He did not send long hello for too long.\n");
+            dprintf(logfd, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(p->addr->sin6_port));
+            dprintf(logfd, "He did not send long hello for too long.\n");
         }
     }
 
@@ -210,8 +210,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                               ipstr, INET6_ADDRSTRLEN) == 0){
                     perror("inet_ntop");
                 } else {
-                    printf("Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
-                    printf("He did not answer to data for too long.\n");
+                    dprintf(logfd, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n", ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
+                    dprintf(logfd, "He did not answer to data for too long.\n");
                 }
 
                 hashset_remove(neighbours,
@@ -237,25 +237,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
                 body->size = size;
 
-                if (inet_ntop(AF_INET6,
-                              &dinfo->neighbour->addr->sin6_addr,
-                              ipstr, INET6_ADDRSTRLEN) == 0){
-                    perror("inet_ntop");
-                } else {
-                    printf("Push tlv data to (%s, %u).\n",
-                           ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
-                }
-
                 push_tlv(body, dinfo->neighbour);
-
-                if (inet_ntop(AF_INET6,
-                              &dinfo->neighbour->addr->sin6_addr,
-                              ipstr, INET6_ADDRSTRLEN) == 0){
-                    perror("inet_ntop");
-                } else {
-                    printf("Tlv data to (%s, %u) pushed.\n",
-                           ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
-                }
             }
 
             if (delta < tv) {
@@ -271,8 +253,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                       ipstr, INET6_ADDRSTRLEN) == 0){
             perror("inet_ntop");
         } else {
-            printf("Remove (%s, %u) from map.\n",
-                   ipstr, ntohs(obj->addr->sin6_port));
+            dprintf(logfd, "Remove (%s, %u) from map.\n",
+                    ipstr, ntohs(obj->addr->sin6_port));
         }
 
         char buf[18];
