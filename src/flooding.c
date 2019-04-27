@@ -126,7 +126,7 @@ void hello_potential_neighbours(struct timeval *tv) {
 
         if (n->tutor_id) {
             neighbour_t *m = hashset_get(neighbours, n->tutor_id, *(u_int16_t*)(n->tutor_id + 16));
-            char msg[256];
+            char msg[256] = { 0 };
             if (m) {
                 hello = malloc(sizeof(body_t));
                 assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
