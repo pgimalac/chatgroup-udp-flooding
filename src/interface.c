@@ -4,7 +4,10 @@
 #include <network.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
-
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <assert.h>
 
 #include "types.h"
 #include "interface.h"
@@ -59,15 +62,16 @@ static void add(char *buffer){
     name = strtok(buffer, " ");
     service = strtok(0, " \n");
     if (!name || !service) {
-        fprintf(stderr, "Usage: %s\n", usages[0]);
+        fprintf(stderr, "%s%sUsage: %s\n%s", STDERR_F, STDERR_B, usages[0], RESET);
         return;
     }
 
     rc = add_neighbour(name, service);
-    if (rc < 0) {
-        perror("add neighbour");
+    if (rc != 0) {
+        fprintf(stderr, "%s%sCould not add the given neighbour: %s\n%s", STDERR_F, STDERR_B, gai_strerror(rc), RESET);
+        return;
     }
-    printf("Add %s, %s to potential neighbours\n", name, service);
+    printf("%s%s The neighbour %s, %s was added to potential neighbours\n%s", STDOUT_F, STDOUT_B, name, service, RESET);
 }
 
 static void name(char *buffer){
@@ -79,31 +83,26 @@ static void nameRandom(char *buffer){
 }
 
 static void __print(const neighbour_t *n){
-    if (n != NULL && n->addr != NULL){
-        char ipstr[INET6_ADDRSTRLEN];
-        if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL){
-            printf("    @ %s / %d\n", ipstr, ntohs(n->addr->sin6_port));
-            return;
-        }
-    }
-    printf("    Could not display.\n");
+    char ipstr[INET6_ADDRSTRLEN];
+    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    printf("%s%s    @ %s / %d\n%s", STDOUT_F, STDOUT_B, ipstr, ntohs(n->addr->sin6_port), RESET);
 }
 
 static void print(char *buffer){
     if (hashset_isempty(neighbours)){
-        printf("You have no neighbour\n");
+        printf("%s%sYou have no neighbour\n%s", STDOUT_F, STDOUT_B, RESET);
     } else {
-        printf("You have %lu neighbour%s:\n", neighbours->size, neighbours->size == 1 ? "" : "s");
+        printf("%s%sYou have %lu neighbour%s:\n%s", STDOUT_F, STDOUT_B, neighbours->size, neighbours->size == 1 ? "" : "s", RESET);
         hashset_iter(neighbours, __print);
     }
     if (hashset_isempty(potential_neighbours)){
-        printf("You have no potential_neighbour.\n");
+        printf("%s%sYou have no potential_neighbour.\n%s", STDOUT_F, STDOUT_B, RESET);
     } else {
-        printf("You have %lu potential neighbour%s:\n", potential_neighbours->size,
-                    potential_neighbours->size == 1 ? "" : "s");
+        printf("%s%sYou have %lu potential neighbour%s:\n%s", STDOUT_F, STDOUT_B, potential_neighbours->size,
+                    potential_neighbours->size == 1 ? "" : "s", RESET);
         hashset_iter(potential_neighbours, __print);
     }
-    printf("\n");
+    printf("%s%s\n%s", STDOUT_F, STDOUT_B, RESET);
 }
 
 static void juliusz(char *buffer){
@@ -123,9 +122,9 @@ static void quit(char *buffer){
 }
 
 static void unknown(char *buffer){
-    printf("Usage:\n");
+    printf("Invalid command, possible commands are:\n");
     for (const char **usage = usages; *usage; usage++)
-        printf("    %s\n", *usage);
+        printf("%s%s    %s\n%s", STDOUT_F, STDOUT_B, *usage, RESET);
 }
 
 static const char *names[] = {
@@ -138,6 +137,7 @@ static void (*interface[])(char*) = {
 
 
 void handle_command(char *buffer) {
+    printf("%s%s================================================\n%s", STDOUT_F, STDOUT_B, RESET);
     char *ins = strpbrk(buffer, " \n");
     int ind;
     if (ins != NULL)
@@ -149,11 +149,12 @@ void handle_command(char *buffer) {
 
     if (ins == NULL || names[ind] == NULL)
         unknown(buffer);
+    printf("%s%s================================================\n%s", STDOUT_F, STDOUT_B, RESET);
 }
 
 // =========== PSEUDO part ===========
 
-char* getPseudo(){
+const char* getPseudo(){
     return pseudo;
 }
 
@@ -164,9 +165,9 @@ void setPseudo(char *buffer){
         len--;
 
     if (len > PSEUDO_LENGTH){
-        printf("Nickname too long.\n");
+        fprintf(stderr, "%s%sNickname too long.\n%s", STDERR_F, STDERR_B, RESET);
     } else if (len < 3){
-        printf("Nickname too short\n");
+        fprintf(stderr, "%s%sNickname too short\n%s", STDERR_F, STDERR_B, RESET);
     } else {
         for (int i = 0; i < len; i++)
             if (strchr(forbiden, buffer[i]) != NULL)
@@ -174,12 +175,12 @@ void setPseudo(char *buffer){
 
         memcpy(pseudo, buffer, len);
         pseudo[len] = '\0';
-        printf("Nickname set to \"%s\"\n", pseudo);
+        printf("%s%sNickname set to \"%s\"\n%s", STDOUT_F, STDOUT_B, pseudo, RESET);
     }
 }
 
 void setRandomPseudo(){
     int index = rand() % pseudo_length;
     strcpy(pseudo, pseudos[index]);
-    printf("Nickname set to \"%s\"\n", pseudo);
+    printf("%s%sNickname set to \"%s\"\n%s", STDOUT_F, STDOUT_B, pseudo, RESET);
 }

@@ -79,12 +79,11 @@ short hashset_add(hashset_t *h, neighbour_t* n){
     } else {
         if (h->size + 1 > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
             resize(h, h->capacity * 2);
-        list_add(&h->tab[hash_neighbour_data(ip, port) % h->capacity], n);
+        if (!list_add(&h->tab[hash_neighbour_data(ip, port) % h->capacity], n))
+            return 0;
         h->size++;
         return 1;
     }
-
-    return 0;
 }
 
 static void* hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){

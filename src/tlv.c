@@ -102,6 +102,8 @@ int tlv_data(u_int8_t **buffer,
 int tlv_ack(u_int8_t **buffer, u_int64_t sender, nonce_t nonce){
     int size = HEADER_OFFSET + sizeof(sender) + sizeof(nonce);
     (*buffer) = malloc(size);
+    if (*buffer == NULL)
+        return -1;
 
     u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_ACK;
@@ -119,6 +121,8 @@ int tlv_goaway(u_int8_t **buffer, u_int8_t code,
 
     int size = HEADER_OFFSET + sizeof(code) + messagelen;
     *buffer = malloc(size);
+    if (*buffer == NULL)
+        return -1;
 
     (*buffer)[0] = BODY_GO_AWAY;
     (*buffer)[1] = messagelen + sizeof(code);
@@ -131,6 +135,8 @@ int tlv_goaway(u_int8_t **buffer, u_int8_t code,
 int tlv_warning(u_int8_t **buffer, const char *message, u_int8_t messagelen){
     int size = HEADER_OFFSET + messagelen;
     *buffer = malloc(size);
+    if (*buffer == NULL)
+        return -1;
 
     (*buffer)[0] = BODY_WARNING;
     (*buffer)[1] = messagelen;

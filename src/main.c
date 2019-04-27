@@ -71,21 +71,21 @@ void handle_reception () {
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
                           addr.sin6_port);
-        dprintf(logfd, "Add to potential neighbours.\n");
+        dprintf(logfd, "%s%sAdd to potential neighbours.\n%s", LOGFD_F, LOGFD_B, RESET);
     }
 
     msg = bytes_to_message(c, len, n);
     if (!msg){
-        fprintf(stderr, "Error decripting the message : %d\n", rc);
+        fprintf(stderr, "%s%sError decripting the message : %d\n%s", LOGFD_F, LOGFD_B, rc, RESET);
         return;
     }
 
-    dprintf(logfd, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
+    dprintf(logfd, "%s%sReceived message : magic %d, version %d, size %d\n%s", LOGFD_F, LOGFD_B, msg->magic, msg->version, msg->body_length, RESET);
 
     if (msg->magic != MAGIC) {
-        fprintf(stderr, "Invalid magic value\n");
+        fprintf(stderr, "%s%sInvalid magic value\n%s", LOGFD_F, LOGFD_B, RESET);
     } else if (msg->version != VERSION) {
-        fprintf(stderr, "Invalid version\n");
+        fprintf(stderr, "%s%sInvalid version\n%s", LOGFD_F, LOGFD_B, RESET);
     } else {
         handle_tlv(msg->body, n);
     }
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
 
     rc = init();
     if (rc != 0) return rc;
-    dprintf(logfd, "local id: %lx\n", id);
+    dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
 
     signal(SIGINT, quit_handler);
 
@@ -140,15 +140,15 @@ int main(int argc, char **argv) {
     else
         setRandomPseudo();
 
-    printf("Welcome %s.\n", getPseudo());
+    printf("%s%sWelcome %s.\n%s", STDOUT_F, STDOUT_B, getPseudo(), RESET);
 
     sock = start_server(port);
     if (sock < 0) {
-        fprintf(stderr, "coudn't create socket\n");
+        fprintf(stderr, "%s%scoudn't create socket\n%s", STDERR_F, STDERR_B, RESET);
         return 1;
     }
 
-    printf("================================\n\n");
+    printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
 
     int size;
     message_t *msg;
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
             free_message(msg);
         }
 
-        dprintf(logfd, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
+        dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
 
         fd_set readfds;
         FD_ZERO(&readfds);
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("Bye !\n");
+    printf("%s%sBye !\n%s", STDOUT_F, STDOUT_B, RESET);
 
     return 0;
 }

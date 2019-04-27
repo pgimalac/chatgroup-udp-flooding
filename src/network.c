@@ -12,6 +12,7 @@
 
 #include "network.h"
 #include "tlv.h"
+#include "interface.h"
 
 // user address
 struct sockaddr_in6 local_addr;
@@ -170,15 +171,11 @@ int start_server(int port) {
     }
 
     char out[INET6_ADDRSTRLEN];
-    if (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) == 0){
-        // both errors from inet_ntop aren't possible here but you never know
-        perror("inet_ntop");
-    } else {
-        if (local_addr.sin6_port)
-            dprintf(logfd, "Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
-        else
-            dprintf(logfd, "Start server at %s on a random port.\n", out);
-    }
+    assert (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) != NULL);
+    if (local_addr.sin6_port)
+        dprintf(logfd, "%s%sStart server at %s on port %d.\n%s", LOGFD_F, LOGFD_B, out, ntohs(local_addr.sin6_port), RESET);
+    else
+        dprintf(logfd, "%s%sStart server at %s on a random port.\n%s", LOGFD_F, LOGFD_B, out, RESET);
 
     int one = 1;
     rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
@@ -233,8 +230,8 @@ int add_neighbour(const char *hostname, const char *service) {
     hints.ai_flags = AI_V4MAPPED | AI_ALL;
 
     rc = getaddrinfo (hostname, service, &hints, &r);
-    if (rc != 0 || r == NULL){
-        return -1;
+    if (rc != 0){
+        return rc;
     }
 
     for (struct addrinfo *p = r; p != NULL; p = p->ai_next) {
@@ -248,10 +245,8 @@ int add_neighbour(const char *hostname, const char *service) {
         if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port))
             continue;
 
-        if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0)
-            perror("inet_ntop");
-        else
-            dprintf(logfd, "Add %s, %d to potential neighbours\n", ipstr, ntohs(addr->sin6_port));
+        assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        dprintf(logfd, "%s%sAdd %s, %d to potential neighbours\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(addr->sin6_port), RESET);
     }
 
     freeaddrinfo(r);
@@ -270,25 +265,25 @@ int add_neighbour(const char *hostname, const char *service) {
 typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*);
 
 static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing PAD1\n");
+    dprintf(logfd, "%s%s* Containing PAD1\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
 static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing PadN %u\n", tlv[1]);
+    dprintf(logfd, "%s%s* Containing PadN %u\n%s", LOGFD_F, LOGFD_B, tlv[1], RESET);
 }
 
 static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst) {
     dst->last_hello_send = time(0);
     if (tlv[1] == 8) {
         dst->short_hello_count++;
-        dprintf(logfd, "* Containing short hello.\n");
+        dprintf(logfd, "%s%s* Containing short hello.\n%s", LOGFD_F, LOGFD_B, RESET);
     } else {
-        dprintf(logfd, "* Containing long hello.\n");
+        dprintf(logfd, "%s%s* Containing long hello.\n%s", LOGFD_F, LOGFD_B, RESET);
     }
 }
 
 static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing neighbour.\n");
+    dprintf(logfd, "%s%s* Containing neighbour.\n%s", LOGFD_F, LOGFD_B, RESET);
     dst->last_neighbour_send = time(0);
 }
 
@@ -305,24 +300,24 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst) {
     dinfo->send_count++;
     dinfo->last_send = time(0);
 
-    dprintf(logfd, "* Containing data.\n");
+    dprintf(logfd, "%s%s* Containing data.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
 
 static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing ack.\n");
+    dprintf(logfd, "%s%s* Containing ack.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
 static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing go away %u.\n", tlv[2]);
+    dprintf(logfd, "%s%s* Containing go away %u.\n%s", LOGFD_F, LOGFD_B, tlv[2], RESET);
 }
 
 static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing warning.\n");
+    dprintf(logfd, "%s%s* Containing warning.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
 static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst) {
-    dprintf(logfd, "* Containing an unknow tlv.\n");
+    dprintf(logfd, "%s%s* Containing an unknow tlv.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
 onsend_fnc onsenders[9] = {
@@ -345,17 +340,14 @@ int send_message(int sock, message_t *msg) {
 
     msg->body_length = htons(msg->body_length);
 
-    if (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
-        perror("inet_ntop");
-    } else {
-        dprintf(logfd, "> Send message to (%s, %u).\n", ipstr, ntohs(msg->dst->addr->sin6_port));
-    }
+    assert (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    dprintf(logfd, "%s%s> Send message to (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(msg->dst->addr->sin6_port), RESET);
 
     for (p = msg->body; p; p = p->next) {
         onsenders[(int)p->content[0]](p->content, msg->dst);
     }
 
-    dprintf(logfd, "\n");
+    dprintf(logfd, "%s%s\n%s", LOGFD_F, LOGFD_B, RESET);
 
     hdr.msg_name = msg->dst->addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
@@ -409,16 +401,13 @@ int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buf
 
     if(info == NULL) {
         /* ce cas ne devrait pas arriver */
-        fprintf(stderr, "IPV6_PKTINFO non trouvé\n");
+        fprintf(stderr, "%s%sIPV6_PKTINFO non trouvé\n%s", STDERR_F, STDERR_B, RESET);
         return -2;
     }
 
     char ipstr[INET6_ADDRSTRLEN];
-    if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
-        perror("inet_ntop");
-    } else {
-        dprintf(logfd, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
-    }
+    assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    dprintf(logfd, "%s%sReceive message from (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(addr->sin6_port), RESET);
 
     return 0;
 }
@@ -431,7 +420,7 @@ void quit_handler (int sig) {
     message_t msg = { 0 };
     body_t goaway = { 0 };
 
-    dprintf(logfd, "Send go away leave to neighbours before quit.\n");
+    dprintf(logfd, "%s%sSend go away leave to neighbours before quit.\n%s", LOGFD_F, LOGFD_B, RESET);
 
     goaway.size = tlv_goaway(&goaway.content, GO_AWAY_LEAVE, "Bye !", 5);
 
@@ -445,18 +434,14 @@ void quit_handler (int sig) {
             msg.dst = (neighbour_t*)l->val;
             rc = send_message(sock, &msg);
             if (rc < 0) {
-                if (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0) {
-                    perror("inet_ntop");
-                } else {
-                    fprintf(stderr, "Failed to send goaway to (%s, %u).\n", ipstr, ntohs(msg.dst->addr->sin6_port));
-                }
-
+                assert (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+                fprintf(stderr, "%s%sFailed to send goaway to (%s, %u).\n%s", STDERR_F, STDERR_B, ipstr, ntohs(msg.dst->addr->sin6_port), RESET);
             }
         }
     }
 
     free(goaway.content);
 
-    printf("Bye.\n");
+    printf("%s%sBye.\n%s", LOGFD_F, LOGFD_B, RESET);
     exit(sig);
 }
