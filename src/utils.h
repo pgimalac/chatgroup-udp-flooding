@@ -30,7 +30,7 @@ char *strappl(char* str1, ...);
 
 char *strappv(char** str);
 
-void bytes_from_neighbour(const neighbour_t *n, char buffer[18]);
+void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]);
 
 void print_bytes(const char *buf, size_t len);
 

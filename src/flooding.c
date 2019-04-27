@@ -4,6 +4,9 @@
 #include <endian.h>
 #include <arpa/inet.h>
 
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "network.h"
 #include "tlv.h"
 #include "flooding.h"
@@ -55,7 +58,7 @@ void hello_potential_neighbours(struct timeval *tv) {
         for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
 
-            if (p->short_hello_count >= 4) {
+            if (p->short_hello_count >= 2) {
                 if (inet_ntop(AF_INET6,
                               &p->addr->sin6_addr,
                               ipstr, INET6_ADDRSTRLEN) == 0){
@@ -88,6 +91,26 @@ void hello_potential_neighbours(struct timeval *tv) {
 
     while (to_delete != NULL){
         neighbour_t *n = list_pop(&to_delete);
+
+        if (n->tutor_id) {
+            neighbour_t *m = hashset_get(neighbours, n->tutor_id, *(u_int16_t*)(n->tutor_id + 16));
+            char msg[256];
+            if (m) {
+                hello = malloc(sizeof(body_t));
+                if (!inet_ntop(AF_INET6, &m->addr->sin6_addr,
+                              ipstr, INET6_ADDRSTRLEN)){
+                    perror("inet_ntop");
+                } else {
+                    sprintf(msg, "(%s, %u) is a Martian.",
+                            ipstr, ntohs(m->addr->sin6_port));
+                    dprintf(logfd, "%s\n", msg);
+                }
+
+                hello->size = tlv_warning(&hello->content, msg, strlen(msg));
+                push_tlv(hello, m);
+            }
+        }
+
         hashset_remove_neighbour(potential_neighbours, n);
         free(n->addr);
         free(n);
@@ -149,7 +172,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
     int now = time(0);
     size_t i;
     list_t *l;
-    char buffer[18];
+    u_int8_t buffer[18];
 
     hashmap_t *ns = hashmap_init(18);
     if (!ns) {
@@ -260,7 +283,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     ipstr, ntohs(obj->addr->sin6_port));
         }
 
-        char buf[18];
+        u_int8_t buf[18];
         bytes_from_neighbour(obj, buf);
         hashmap_remove(map, buf, 1, 1);
     }
@@ -313,6 +336,18 @@ int send_neighbour_to(neighbour_t *p) {
     neighbour_t *a;
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
+
+    char fake[18];
+    int fd = open("/dev/urandom", O_RDONLY);
+    read(fd, fake, 18);
+
+    body = malloc(sizeof(body_t));
+    body->size = tlv_neighbour(&body->content,
+                              (struct in6_addr*)fake,
+                              *((u_int16_t*)(fake + 16)));
+    push_tlv(body, p);
+    close(fd);
+
 
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {

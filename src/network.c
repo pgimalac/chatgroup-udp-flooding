@@ -198,7 +198,8 @@ int start_server(int port) {
  */
 
 neighbour_t *
-new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port) {
+new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
+              unsigned int port, const neighbour_t *tutor) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (addr == NULL) return 0;
     memset(addr, 0, sizeof(struct sockaddr_in6));
@@ -218,6 +219,19 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
     n->addr = addr;
     n->last_neighbour_send = time(0);
     n->status = NEIGHBOUR_POT;
+    n->tutor_id = 0;
+
+    if (tutor) {
+        n->tutor_id = malloc(18);
+        if (!n->tutor_id) {
+            perror("malloc");
+            free(n);
+            return 0;
+        }
+
+        bytes_from_neighbour(tutor, n->tutor_id);
+    }
+
     hashset_add(potential_neighbours, n);
     return hashset_get(potential_neighbours, ip, port);
 }
@@ -245,7 +259,7 @@ int add_neighbour(const char *hostname, const char *service) {
 
 
         addr = (struct sockaddr_in6*)p->ai_addr;
-        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port))
+        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, 0))
             continue;
 
         if (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0)
@@ -295,13 +309,11 @@ static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst) {
 static void onsend_data(const u_int8_t *tlv, neighbour_t *dst) {
     hashmap_t *map;
     data_info_t *dinfo;
-    char buffer[18];
+    u_int8_t buffer[18];
 
     map = hashmap_get(flooding_map, tlv + 2);
-
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
-
     dinfo->send_count++;
     dinfo->last_send = time(0);
 

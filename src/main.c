@@ -70,7 +70,7 @@ void handle_reception () {
 
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
-                          addr.sin6_port);
+                          addr.sin6_port, 0);
         dprintf(logfd, "Add to potential neighbours.\n");
     }
 

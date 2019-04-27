@@ -85,7 +85,7 @@ static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
         return;
     }
 
-    if (!new_neighbour(ip, port)) {
+    if (!new_neighbour(ip, port, n)) {
         fprintf(stderr, "An error occured while adding peer to potential neighbours.\n");
     }
 }
@@ -95,7 +95,8 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
     body_t *body;
-    char buffer[18], buff[243];
+    char buff[243];
+    u_int8_t buffer[18];
 
     dprintf(logfd, "Data received.\nData type %u.\n", tlv[14]);
 
@@ -131,7 +132,8 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 }
 
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
-    char ipstr[INET6_ADDRSTRLEN], buffer[18];
+    char ipstr[INET6_ADDRSTRLEN];
+    u_int8_t buffer[18];
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
