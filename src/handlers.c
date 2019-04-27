@@ -21,7 +21,9 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     int now = time(0), is_long = tlv[1] == 16;
     chat_id_t src_id, dest_id;
     char ipstr[INET6_ADDRSTRLEN];
+
     memcpy(&src_id, tlv + 2, 8);
+    n->id = src_id;
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
@@ -41,7 +43,6 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     if (n->status == NEIGHBOUR_POT) {
         dprintf(logfd, "Remove from potential id: %lx.\n", src_id);
         n->last_hello_send = 0;
-        n->id = src_id;
         hashset_add(neighbours, n);
         hashset_remove(potential_neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port);
         n->status = NEIGHBOUR_SYM;
@@ -224,7 +225,7 @@ void handle_tlv(const body_t *tlv, neighbour_t *n) {
         if (tlv->content[0] >= NUMBER_TLV_TYPE) {
             handlers[NUMBER_TLV_TYPE](tlv->content, n);
         } else if (n->status == NEIGHBOUR_SYM ||
-                   (n->status == NEIGHBOUR_POT && tlv->content[0] == BODY_HELLO))) {
+                   (n->status == NEIGHBOUR_POT && tlv->content[0] == BODY_HELLO)) {
             handlers[(int)tlv->content[0]](tlv->content, n);
         }
     } while ((tlv = tlv->next) != NULL);

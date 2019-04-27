@@ -1,11 +1,11 @@
-* Minimum project [50%]
+* Minimum project [75%]
 ** DONE Go away on quit
    handlers on sigterm/kill... + quit command
 ** DONE find the data bug
 ** TODO better error handling
    for every function call check what is returned,...
    maybe do a function to free some memory that could be called when needed
-** TODO send a warning (like juliusz does)
+** DONE send a warning (like juliusz does)
 *** TODO MARTIAN neighbours
 *** TODO not my id
 * Bonus [0/11]

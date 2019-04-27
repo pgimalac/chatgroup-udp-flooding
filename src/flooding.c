@@ -337,18 +337,6 @@ int send_neighbour_to(neighbour_t *p) {
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
 
-    char fake[18];
-    int fd = open("/dev/urandom", O_RDONLY);
-    read(fd, fake, 18);
-
-    body = malloc(sizeof(body_t));
-    body->size = tlv_neighbour(&body->content,
-                              (struct in6_addr*)fake,
-                              *((u_int16_t*)(fake + 16)));
-    push_tlv(body, p);
-    close(fd);
-
-
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             a = (neighbour_t*)l->val;
