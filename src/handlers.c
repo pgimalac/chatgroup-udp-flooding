@@ -108,7 +108,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     map = hashmap_get(flooding_map, tlv + 2);
 
-    if (!map) {
+    if (!map && !hashmap_get(data_map, tlv + 2)) {
         dprintf(logfd, "New message received.\n");
         if (tlv[14] == 0) {
             memcpy(buff, tlv + 15, size);
@@ -140,6 +140,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
     u_int8_t buffer[18];
+    datime_t *datime;
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
@@ -152,6 +153,9 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
         dprintf(logfd, "Not necessary ack\n");
         return;
     }
+
+    datime = hashmap_get(data_map, tlv + 2);
+    datime->last = time(0);
 
     bytes_from_neighbour(n, buffer);
     hashmap_remove(map, buffer, 1, 1);

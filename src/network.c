@@ -281,17 +281,17 @@ int add_neighbour(const char *hostname, const char *service) {
  *
  */
 
-typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*);
+typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*, struct timeval *tv);
 
-static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing PAD1\n");
 }
 
-static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing PadN %u\n", tlv[1]);
 }
 
-static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dst->last_hello_send = time(0);
     if (tlv[1] == 8) {
         dst->short_hello_count++;
@@ -301,39 +301,48 @@ static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst) {
     }
 }
 
-static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing neighbour.\n");
     dst->last_neighbour_send = time(0);
 }
 
-static void onsend_data(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     hashmap_t *map;
     data_info_t *dinfo;
+    datime_t *datime;
     u_int8_t buffer[18];
+    time_t now = time(0), delta;
 
     map = hashmap_get(flooding_map, tlv + 2);
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
-    dinfo->send_count++;
-    dinfo->last_send = time(0);
+    dinfo->time = now + (rand() % ((1 << (++dinfo->send_count + 1)))) + 1;
+    delta = dinfo->time - now;
+
+    datime = hashmap_get(data_map, tlv + 2);
+    datime->last = now;
+
+    if (delta < tv->tv_sec) {
+        tv->tv_sec = delta;
+    }
 
     dprintf(logfd, "* Containing data.\n");
 }
 
 
-static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing ack.\n");
 }
 
-static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing go away %u.\n", tlv[2]);
 }
 
-static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing warning.\n");
 }
 
-static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "* Containing an unknow tlv.\n");
 }
 
@@ -349,7 +358,7 @@ onsend_fnc onsenders[9] = {
                onsend_unknow
 };
 
-int send_message(int sock, message_t *msg) {
+int send_message(int sock, message_t *msg, struct timeval *tv) {
     int rc;
     struct msghdr hdr = { 0 };
     body_t *p;
@@ -364,8 +373,8 @@ int send_message(int sock, message_t *msg) {
     }
 
     for (p = msg->body; p; p = p->next) {
-        if (p->content[0] >= 9) onsend_unknow(p->content, msg->dst);
-        else onsenders[(int)p->content[0]](p->content, msg->dst);
+        if (p->content[0] >= 9) onsend_unknow(p->content, msg->dst, tv);
+        else onsenders[(int)p->content[0]](p->content, msg->dst, tv);
     }
 
     dprintf(logfd, "\n");
@@ -444,6 +453,7 @@ void quit_handler (int sig) {
     char ipstr[INET6_ADDRSTRLEN];
     message_t msg = { 0 };
     body_t goaway = { 0 };
+    struct timeval tv = { 0 };
 
     dprintf(logfd, "Send go away leave to neighbours before quit.\n");
 
@@ -457,7 +467,7 @@ void quit_handler (int sig) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             msg.dst = (neighbour_t*)l->val;
-            rc = send_message(sock, &msg);
+            rc = send_message(sock, &msg, &tv);
             if (rc < 0) {
                 if (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0) {
                     perror("inet_ntop");

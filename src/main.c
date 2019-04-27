@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     if (rc != 0) return rc;
     dprintf(logfd, "local id: %lx\n", id);
 
-    signal(SIGINT, quit_handler);
+    // signal(SIGINT, quit_handler);
 
     unsigned short port = 0;
     if (argc > 1){
@@ -164,9 +164,11 @@ int main(int argc, char **argv) {
         neighbour_flooding(0);
 
         while((msg = pull_message())) {
-            send_message(sock, msg);
+            send_message(sock, msg, &tv);
             free_message(msg);
         }
+
+        clean_old_data();
 
         dprintf(logfd, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
 

@@ -18,8 +18,8 @@
 ** TODO Agregation [1/2]
 *** DONE multiple tlv in messages
 *** TODO pmtu calculus
-** TODO Optimisation [0/3]
-*** TODO neighbours flooding
+** TODO Optimisation [1/3]
+*** DONE neighbours flooding
 *** TODO randomize data send
 *** TODO dynamic timeouts
 ** TODO Multiple interfaces

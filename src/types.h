@@ -56,7 +56,11 @@ typedef struct data_info {
     neighbour_t *neighbour;
     size_t send_count;
     time_t time;
-    time_t last_send;
 } data_info_t;
+
+typedef struct datime {
+    u_int8_t *data;
+    time_t last;
+} datime_t;
 
 #endif

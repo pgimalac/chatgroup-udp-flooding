@@ -16,6 +16,15 @@
 
 #define MAX_TIMEOUT 30
 
+// number of shot hello before removing from potential neighbour
+#define NBSH 5
+
+#define SYM_TIMEOUT 120
+
+#define NEIGHBOUR_TIMEOUT 120
+
+#define CLEAN_TIMEOUT 120
+
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
 
@@ -58,7 +67,7 @@ void hello_potential_neighbours(struct timeval *tv) {
         for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
 
-            if (p->short_hello_count >= 2) {
+            if (p->short_hello_count >= NBSH) {
                 if (inet_ntop(AF_INET6,
                               &p->addr->sin6_addr,
                               ipstr, INET6_ADDRSTRLEN) == 0){
@@ -130,7 +139,7 @@ int hello_neighbours(struct timeval *tv) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next, size++) {
             p = (neighbour_t*)l->val;
-            if (now - p->last_hello < 120) {
+            if (now - p->last_hello < SYM_TIMEOUT) {
                 delta = now - p->last_hello_send;
                 if (delta >= MAX_TIMEOUT) {
                     body_t *hello = malloc(sizeof(body_t));
@@ -169,10 +178,11 @@ int hello_neighbours(struct timeval *tv) {
 int flooding_add_message(const u_int8_t *data, int size) {
     neighbour_t *p;
     data_info_t *dinfo;
+    datime_t *datime;
     int now = time(0);
     size_t i;
     list_t *l;
-    u_int8_t buffer[18];
+    u_int8_t buffer[18], key[12];
 
     hashmap_t *ns = hashmap_init(18);
     if (!ns) {
@@ -190,15 +200,21 @@ int flooding_add_message(const u_int8_t *data, int size) {
             memset(dinfo, 0, sizeof(data_info_t));
 
             dinfo->neighbour = p;
-            dinfo->time = now;
+            dinfo->time = now + rand() % 1;
 
             bytes_from_neighbour(p, buffer);
             hashmap_add(ns, buffer, dinfo);
         }
     }
 
-    hashmap_add(flooding_map, data + 2, ns);
-    hashmap_add(data_map, data + 2, voidndup(data, size));
+    memcpy(key, data + 2, 12);
+
+    datime = malloc(sizeof(datime_t));
+    datime->data = voidndup(data, size);
+    datime->last = now;
+
+    hashmap_add(flooding_map, key, ns);
+    hashmap_add(data_map, key, datime);
     return 0;
 }
 
@@ -207,13 +223,16 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     list_t *l;
     data_info_t *dinfo;
+    datime_t *datime;
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
     u_int8_t *data;
     hashmap_t *map;
 
-    data = hashmap_get(data_map, dataid);
-    if (!data) return -1;
+    datime = hashmap_get(data_map, dataid);
+    if (!datime) return -1;
+
+    data = datime->data;
 
     size = data[1] + 2;
 
@@ -225,7 +244,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
 
-            if (dinfo->send_count >= 5) {
+            if (!hashset_get(neighbours,
+                            dinfo->neighbour->addr->sin6_addr.s6_addr,
+                            dinfo->neighbour->addr->sin6_port)) {
+                list_add(&to_delete, dinfo->neighbour);
+                continue;
+            }
+
+            if (now >= dinfo->time && dinfo->send_count >= 5) {
                 body = malloc(sizeof(body_t));
                 body->size = tlv_goaway(&body->content, GO_AWAY_HELLO,
                                        "You did not answer to data for too long.", 40);
@@ -249,9 +275,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 continue;
             }
 
-            delta = 1UL << dinfo->send_count;
-
-            if (delta < now - dinfo->last_send) {
+            if (now >= dinfo->time) {
                 body = malloc(sizeof(body_t));
                 if (!body) continue;
 
@@ -262,9 +286,11 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 }
 
                 body->size = size;
-
                 push_tlv(body, dinfo->neighbour);
+                continue;
             }
+
+            delta = dinfo->time - now;
 
             if (delta < tv) {
                 tv = delta;
@@ -322,10 +348,34 @@ int message_flooding(struct timeval *tv) {
         map = hashmap_get(flooding_map, dataid);
 
         hashmap_destroy(map, 1);
-        hashmap_remove(data_map, dataid, 1, 1);
         hashmap_remove(flooding_map, dataid, 1, 0);
         free(dataid);
     }
+
+    return 0;
+}
+
+int clean_old_data() {
+    size_t i;
+    list_t *l, *to_delete = 0;
+    datime_t *datime;
+
+    for (i = 0; i < data_map->capacity; i++) {
+        for (l = data_map->tab[i]; l; l = l->next) {
+            datime = ((map_elem*)l->val)->value;
+            if (time(0) - datime->last > CLEAN_TIMEOUT) {
+                list_add(&to_delete, datime);
+            }
+        }
+    }
+
+    for (i = 0; to_delete; i++) {
+        datime = list_pop(&to_delete);
+        free(datime->data);
+        hashmap_remove(data_map, datime->data + 2, 1, 1);
+    }
+
+    dprintf(logfd, "%lu old data removed.\n", i);
 
     return 0;
 }
@@ -370,7 +420,7 @@ void neighbour_flooding(short force) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
-            if (force || now - p->last_neighbour_send > 120) {
+            if (force || now - p->last_neighbour_send > NEIGHBOUR_TIMEOUT) {
                 send_neighbour_to(p);
             }
         }
