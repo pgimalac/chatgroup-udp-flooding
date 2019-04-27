@@ -120,8 +120,6 @@ static void neighbour(char *buffer){
 
 static void quit(char *buffer){
     quit_handler(0);
-    printf("Bye.\n");
-    exit(0);
 }
 
 static void unknown(char *buffer){

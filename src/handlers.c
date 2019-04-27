@@ -95,7 +95,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
     body_t *body;
-    char buffer[18], *buff;
+    char buffer[18], buff[243];
 
     dprintf(logfd, "Data received.\nData type %u.\n", tlv[14]);
 
@@ -104,10 +104,9 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     if (!map) {
         dprintf(logfd, "New message received.\n");
         if (tlv[14] == 0) {
-            buff = calloc(256, 1);
             memcpy(buff, tlv + 15, size);
+            buff[size] = '\0';
             printf("%s\n", buff);
-            free(buff);
         }
 
         rc = flooding_add_message(tlv, tlv[1] + 2);

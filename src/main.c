@@ -80,7 +80,7 @@ void handle_reception () {
         return;
     }
 
-    dprintf(logfd, "Message reçu : %d %d %d\n", msg->magic, msg->version, msg->body_length);
+    dprintf(logfd, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
 
     if (msg->magic != MAGIC) {
         fprintf(stderr, "Invalid magic value\n");
