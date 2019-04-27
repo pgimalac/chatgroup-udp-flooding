@@ -4,7 +4,7 @@ FOLDER_SRC = src/
 FOLDER_STRUCTS = src/structs/
 FOLDER_ALL = $(FOLDER_SRC) $(FOLDER_STRUCTS)
 
-FILES_SRC = utils.c commands.c tlv.c network.c checkers.c innondation.c handlers.c pseudo.c main.c
+FILES_SRC = utils.c commands.c tlv.c network.c checkers.c flooding.c handlers.c pseudo.c main.c
 FILES_STRUCTS = array.c list.c hashmap.c hashset.c
 
 FILES_SRC_FP = $(addprefix $(FOLDER_SRC), $(FILES_SRC))

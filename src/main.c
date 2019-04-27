@@ -15,7 +15,7 @@
 #include "network.h"
 #include "commands.h"
 #include "tlv.h"
-#include "innondation.h"
+#include "flooding.h"
 #include "pseudo.h"
 
 #define MIN_PORT 1024
@@ -36,7 +36,7 @@ int init() {
         return 2;
     }
 
-    innondation_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
+    flooding_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
     data_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
 
     return 0;
@@ -74,17 +74,13 @@ void handle_reception () {
         dprintf(logfd, "Add to potential neighbours.\n");
     }
 
-    printf("handle reception %p\n", n);
     msg = bytes_to_message(c, len, n);
     if (!msg){
         fprintf(stderr, "Error decripting the message : %d\n", rc);
         return;
     }
 
-    dprintf(logfd, "Message description:\n");
-    dprintf(logfd, "magic: %d\n", msg->magic);
-    dprintf(logfd, "version: %d\n", msg->version);
-    dprintf(logfd, "body length: %d\n\n", msg->body_length);
+    dprintf(logfd, "Message reçu : %d %d %d\n", msg->magic, msg->version, msg->body_length);
 
     if (msg->magic != MAGIC) {
         fprintf(stderr, "Invalid magic value\n");
@@ -152,12 +148,11 @@ int main(int argc, char **argv) {
     while (1) {
         size = hello_neighbours(&tv);
         if (size < 8) {
-            dprintf(logfd, "You have %d friends, try to find new ones.\n", size);
             hello_potential_neighbours(&tv);
         }
 
-        message_innondation(&tv);
-        neighbour_innondation(0);
+        message_flooding(&tv);
+        neighbour_flooding(0);
 
         while((msg = pull_message())) {
             send_message(sock, msg);

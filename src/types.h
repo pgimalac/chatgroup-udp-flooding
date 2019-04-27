@@ -49,7 +49,7 @@ message_t *pull_message();
 
 message_t *create_message(u_int8_t, u_int8_t, u_int16_t, body_t*, neighbour_t*);
 
-hashmap_t *innondation_map, *data_map;
+hashmap_t *flooding_map, *data_map;
 
 typedef struct data_info {
     neighbour_t *neighbour;

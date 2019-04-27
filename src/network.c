@@ -305,7 +305,7 @@ static void onsend_data(const char *tlv, neighbour_t *dst) {
     data_info_t *dinfo;
     char buffer[18];
 
-    map = hashmap_get(innondation_map, tlv + 2);
+    map = hashmap_get(flooding_map, tlv + 2);
 
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
@@ -315,6 +315,7 @@ static void onsend_data(const char *tlv, neighbour_t *dst) {
 
     dprintf(logfd, "* Containing data.\n");
 }
+
 
 static void onsend_ack(const char *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing ack.\n");
