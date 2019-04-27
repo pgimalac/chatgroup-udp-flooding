@@ -8,7 +8,7 @@
 ** DONE send a warning (like juliusz does)
 *** TODO MARTIAN neighbours
 *** TODO not my id
-* Bonus [2/13]
+* Bonus [3/13]
 ** TODO commands to print own id, ip, port
 ** DONE command to change id
 ** TODO Error managment
@@ -18,9 +18,9 @@
 ** TODO Agregation [1/2]
 *** DONE multiple tlv in messages
 *** TODO pmtu calculus
-** TODO Optimisation [1/3]
+** DONE Optimisation [2/3]
 *** DONE neighbours flooding
-*** TODO randomize data send
+*** DONE randomize data send
 *** TODO dynamic timeouts
 ** TODO Multiple interfaces
 ** DONE Implemtation security [2/2]
