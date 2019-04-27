@@ -9,7 +9,7 @@ void hello_potential_neighbours(struct timeval *tv);
 
 int hello_neighbours(struct timeval *tv);
 
-int flooding_add_message(const char *data, int size);
+int flooding_add_message(const u_int8_t *data, int size);
 
 int message_flooding(struct timeval *tv);
 

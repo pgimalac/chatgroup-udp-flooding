@@ -16,16 +16,19 @@
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
 
+    printf("size of the message : %d\n", size);
     char *pseudo = getPseudo();
     int pseudolen = strlen(pseudo);
-    if (size + pseudolen > 240)
-        buffer[240 - size] = '\0';
+    if (size + pseudolen > 240){
+        size = 240 - pseudolen;
+        buffer[size] = '\0';
+    }
 
     char tmp[243] = { 0 };
     snprintf(tmp, 243, "%s: %s", pseudo, buffer);
 
     body_t data = { 0 };
-    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, strlen(tmp));
+    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, pseudolen + 2 + size);
 
     if (rc < 0){
         dprintf(logfd, "Message too long but supposed to be cut...\n");
@@ -141,7 +144,7 @@ int hello_neighbours(struct timeval *tv) {
     return size;
 }
 
-int flooding_add_message(const char *data, int size) {
+int flooding_add_message(const u_int8_t *data, int size) {
     neighbour_t *p;
     data_info_t *dinfo;
     int now = time(0);
@@ -149,7 +152,7 @@ int flooding_add_message(const char *data, int size) {
     list_t *l;
     char buffer[18];
 
-    hashmap_t *ns = hashmap_init(18, (unsigned int(*)(const void*))hash_neighbour);
+    hashmap_t *ns = hashmap_init(18);
     if (!ns) {
         return -1;
     }

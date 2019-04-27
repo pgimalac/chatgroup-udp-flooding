@@ -28,7 +28,7 @@ static short resize (hashmap_t *map, int capacity) {
     for (size_t i = 0; i < map->capacity; i++)
         for (list_t *l = map->tab[i]; l; ) {
             e = (map_elem*)list_pop(&l);
-            if (!list_add(&tab[map->hash(e->key) % map->capacity], e)){
+            if (!list_add(&tab[hash_key(e->key, map->keylen) % map->capacity], e)){
                 free(tab);
                 return 0;
             }
@@ -40,12 +40,11 @@ static short resize (hashmap_t *map, int capacity) {
     return 1;
 }
 
-hashmap_t *hashmap_init(int keylen, unsigned int (*hash)(const void*)) {
+hashmap_t *hashmap_init(int keylen) {
     hashmap_t *map = malloc(sizeof(hashmap_t));
     if (map) {
         map->size = 0;
         map->capacity = HASHMAP_INITIAL_CAPACITY;
-        map->hash = hash;
         map->keylen = keylen;
 
         map->tab = calloc(map->capacity, sizeof(list_t *));
@@ -62,7 +61,7 @@ static map_elem *get (hashmap_t *map, const void *key) {
     if (map == NULL) return NULL;
 
     map_elem *e;
-    for (list_t *l = map->tab[map->hash(key) % map->capacity]; l; l = l->next) {
+    for (list_t *l = map->tab[hash_key(key, map->keylen) % map->capacity]; l; l = l->next) {
         e = (map_elem*)l->val;
         if (memcmp(e->key, key, map->keylen) == 0) return e;
     }
@@ -74,23 +73,24 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
     if (map == 0) return 0;
 
     map_elem *e = get(map, key);
-    if (!e) {
-        if (map->size + 1 > HASHMAP_RATIO_UPPER_LIMIT * map->capacity)
-            if (!resize(map, map->capacity * 2)) return -1;
-
-        void * newkey = voidndup(key, map->keylen);
-        e = elem(newkey, value);
-        if (e == NULL){
-            free(newkey);
-            return 0;
-        }
-
-        if (!list_add(&map->tab[map->hash(key) % map->capacity], e)){
-            free(newkey);
-            return 0;
-        }
-        map->size++;
+    if (e) {
+        return 2;
     }
+    if (map->size + 1 > HASHMAP_RATIO_UPPER_LIMIT * map->capacity)
+        if (!resize(map, map->capacity * 2)) return -1;
+
+    void * newkey = voidndup(key, map->keylen);
+    e = elem(newkey, value);
+    if (e == NULL){
+        free(newkey);
+        return 0;
+    }
+
+    if (!list_add(&map->tab[hash_key(key, map->keylen) % map->capacity], e)){
+        free(newkey);
+        return 0;
+    }
+    map->size++;
 
     return 1;
 }
@@ -133,7 +133,7 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
 short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if (!map) return 0;
 
-    if(map_list_remove(&map->tab[map->hash(key) % map->capacity], key, map->keylen, k, v)) {
+    if(map_list_remove(&map->tab[hash_key(key, map->keylen) % map->capacity], key, map->keylen, k, v)) {
         map->size--;
         return 1;
     }

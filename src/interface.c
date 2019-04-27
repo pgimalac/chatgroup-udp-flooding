@@ -63,11 +63,11 @@ static void add(char *buffer){
         return;
     }
 
-    printf("Add %s, %s to potential neighbours\n", name, service);
     rc = add_neighbour(name, service);
     if (rc < 0) {
         perror("add neighbour");
     }
+    printf("Add %s, %s to potential neighbours\n", name, service);
 }
 
 static void name(char *buffer){

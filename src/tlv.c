@@ -6,7 +6,7 @@
 #include <endian.h>
 #include <stdio.h>
 
-int tlv_pad(char **buffer){
+int tlv_pad(u_int8_t **buffer){
     *buffer = malloc(1);
     if (*buffer == NULL)
         return -1;
@@ -16,7 +16,7 @@ int tlv_pad(char **buffer){
     return 1;
 }
 
-int tlv_padn(char **buffer, u_int8_t n){
+int tlv_padn(u_int8_t **buffer, u_int8_t n){
     int size = HEADER_OFFSET + n;
     *buffer = malloc(size);
     if (*buffer == NULL)
@@ -29,7 +29,7 @@ int tlv_padn(char **buffer, u_int8_t n){
     return size;
 }
 
-int tlv_hello_short(char **buffer, chat_id_t source){
+int tlv_hello_short(u_int8_t **buffer, chat_id_t source){
     int size = HEADER_OFFSET + sizeof(source);
     *buffer = malloc(size);
     if (*buffer == NULL)
@@ -43,13 +43,13 @@ int tlv_hello_short(char **buffer, chat_id_t source){
     return size;
 }
 
-int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
+int tlv_hello_long(u_int8_t **buffer, chat_id_t source, chat_id_t dest){
     int size = HEADER_OFFSET + sizeof(source) + sizeof(dest);
     *buffer = malloc(size);
     if (*buffer == NULL)
         return -1;
 
-    char *offset = *buffer + HEADER_OFFSET;
+    u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_HELLO;
     (*buffer)[1] = sizeof(source) + sizeof(dest);
     memmove(offset, &source, sizeof(source));
@@ -58,14 +58,14 @@ int tlv_hello_long(char **buffer, chat_id_t source, chat_id_t dest){
     return size;
 }
 
-int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
+int tlv_neighbour(u_int8_t **buffer, const struct in6_addr *addr, u_int16_t port){
     int size = HEADER_OFFSET + sizeof(struct in6_addr) + sizeof(port);
 
     *buffer = malloc(size);
     if (*buffer == NULL)
         return -1;
 
-    char *offset = *buffer + HEADER_OFFSET;
+    u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_NEIGHBOUR;
     (*buffer)[1] = sizeof(struct in6_addr) + sizeof(port);
     memmove(offset, addr, sizeof(struct in6_addr));
@@ -74,7 +74,7 @@ int tlv_neighbour(char **buffer, const struct in6_addr *addr, u_int16_t port){
     return size;
 }
 
-int tlv_data(char **buffer,
+int tlv_data(u_int8_t **buffer,
              chat_id_t sender, nonce_t nonce,
              u_int8_t type, const char *data, u_int8_t datalen){
     u_int32_t true_size = datalen + sizeof(sender) + sizeof(nonce) + sizeof(type);
@@ -86,7 +86,7 @@ int tlv_data(char **buffer,
     if (*buffer == NULL)
         return -1;
 
-    char *offset = *buffer + HEADER_OFFSET;
+    u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_DATA;
     (*buffer)[1] = (u_int8_t) true_size;
     memmove(offset, &sender, sizeof(sender));
@@ -99,11 +99,11 @@ int tlv_data(char **buffer,
     return size;
 }
 
-int tlv_ack(char **buffer, u_int64_t sender, nonce_t nonce){
+int tlv_ack(u_int8_t **buffer, u_int64_t sender, nonce_t nonce){
     int size = HEADER_OFFSET + sizeof(sender) + sizeof(nonce);
     (*buffer) = malloc(size);
 
-    char *offset = *buffer + HEADER_OFFSET;
+    u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_ACK;
     (*buffer)[1] = sizeof(sender) + sizeof(nonce);
     memmove(offset, &sender, sizeof(sender));
@@ -112,7 +112,7 @@ int tlv_ack(char **buffer, u_int64_t sender, nonce_t nonce){
     return size;
 }
 
-int tlv_goaway(char **buffer, u_int8_t code,
+int tlv_goaway(u_int8_t **buffer, u_int8_t code,
                const char *message, u_int8_t messagelen){
     if (messagelen + sizeof(code) > 255)
         return -2;
@@ -128,7 +128,7 @@ int tlv_goaway(char **buffer, u_int8_t code,
     return size;
 }
 
-int tlv_warning(char **buffer, const char *message, u_int8_t messagelen){
+int tlv_warning(u_int8_t **buffer, const char *message, u_int8_t messagelen){
     int size = HEADER_OFFSET + messagelen;
     *buffer = malloc(size);
 

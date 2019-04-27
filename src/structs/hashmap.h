@@ -6,7 +6,6 @@
 typedef struct hashmap {
     size_t size, capacity, keylen;
     list_t **tab;
-    unsigned int (*hash)(const void*);
 } hashmap_t;
 
 typedef struct map_elem {
@@ -17,7 +16,7 @@ typedef struct map_elem {
 /**
  * Allocate a new hashset
  */
-hashmap_t* hashmap_init(int keylen, unsigned int (*hash)(const void*));
+hashmap_t* hashmap_init(int keylen);
 
 /**
  * Add the given element in the given set

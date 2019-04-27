@@ -24,9 +24,7 @@ void free_message(message_t *msg);
 
 unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port);
 
-unsigned int hash_neighbour(const char*);
-
-unsigned int hash_msg_id(const char idnonce[12]);
+unsigned int hash_key(const char *idnonce, int len);
 
 char *strappl(char* str1, ...);
 

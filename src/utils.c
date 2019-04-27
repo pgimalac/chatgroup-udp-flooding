@@ -16,7 +16,6 @@ void* voidndup(const void *o, int n){
 }
 
 int init_random() {
-
     int seed = time(0);
     if (seed == -1) return -1;
 
@@ -55,28 +54,19 @@ unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port) {
     return hash;
 }
 
-unsigned int hash_neighbour(const char *s) {
-    unsigned int hash = 5381;
-    for (int i = 0; i < 18; i++)
-        hash = ((hash << 5) + hash) + s[i];
-    return hash;
-}
-
-unsigned int hash_msg_id(const char idnonce[12]) {
+unsigned int hash_key(const char *buffer, int keylen) {
     unsigned int hash = 5381;
 
-    for (int i = 0; i < 12; i++) {
-        hash = ((hash << 5) + hash) + idnonce[i];
-    }
+    for (int i = 0; i < keylen; i++)
+        hash = ((hash << 5) + hash) + buffer[i];
 
     return hash;
 }
 
 void free_message(message_t *msg) {
-    body_t *p, *b;
-
     if (!msg) return;
 
+    body_t *p, *b;
     p = msg->body;
 
     while (p != NULL) {
@@ -253,6 +243,8 @@ char *strappv(char** str){
 }
 
 void print_bytes(const char *buffer, size_t len) {
+    if (!buffer) return;
+
     for (size_t i = 0; i < len; i++) {
         printf("%02hhx ", buffer[i]);
         if ((i + 1) % 4 == 0) printf("\n");

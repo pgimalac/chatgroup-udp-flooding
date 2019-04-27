@@ -9,15 +9,15 @@
 #include "tlv.h"
 #include "flooding.h"
 
-static void handle_pad1(const char *tlv, neighbour_t *n) {
+static void handle_pad1(const u_int8_t *tlv, neighbour_t *n) {
     dprintf(logfd, "Pad1 received\n");
 }
 
-static void handle_padn(const char *tlv, neighbour_t *n) {
-    dprintf(logfd, "Pad %d received\n", tlv[0]);
+static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
+    dprintf(logfd, "Padn of length %d received\n", tlv[1]);
 }
 
-static void handle_hello(const char *tlv, neighbour_t *n){
+static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     int now = time(0), is_long = tlv[1] == 16;
     chat_id_t src_id, dest_id;
     char ipstr[INET6_ADDRSTRLEN];
@@ -53,7 +53,7 @@ static void handle_hello(const char *tlv, neighbour_t *n){
     }
 }
 
-static void handle_neighbour(const char *tlv, neighbour_t *n) {
+static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
     neighbour_t *p;
     const unsigned char *ip = (const unsigned char*)tlv + 2;
     u_int16_t port;
@@ -90,7 +90,7 @@ static void handle_neighbour(const char *tlv, neighbour_t *n) {
     }
 }
 
-static void handle_data(const char *tlv, neighbour_t *n){
+static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     int rc;
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
@@ -131,7 +131,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     hashmap_remove(map, buffer, 1, 1);
 }
 
-static void handle_ack(const char *tlv, neighbour_t *n){
+static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN], buffer[18];
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
@@ -150,7 +150,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
     hashmap_remove(map, buffer, 1, 1);
 }
 
-static void handle_goaway(const char *tlv, neighbour_t *n){
+static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
     char *msg = 0, ipstr[INET6_ADDRSTRLEN];
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
@@ -189,7 +189,7 @@ static void handle_goaway(const char *tlv, neighbour_t *n){
     hashset_add(potential_neighbours, n);
 }
 
-static void handle_warning(const char *tlv, neighbour_t *n){
+static void handle_warning(const u_int8_t *tlv, neighbour_t *n){
     if (tlv[1] == 0) {
         dprintf(logfd, "Receive empty hello\n");
         return;
@@ -202,11 +202,11 @@ static void handle_warning(const char *tlv, neighbour_t *n){
     free(msg);
 }
 
-static void handle_unknown(const char *tlv, neighbour_t *n){
+static void handle_unknown(const u_int8_t *tlv, neighbour_t *n){
     dprintf(logfd, "Unknown tlv type received %u\n", tlv[0]);
 }
 
-static void (*handlers[NUMBER_TLV_TYPE + 1])(const char*, neighbour_t*) = {
+static void (*handlers[NUMBER_TLV_TYPE + 1])(const u_int8_t*, neighbour_t*) = {
     handle_pad1,
     handle_padn,
     handle_hello,
@@ -220,7 +220,7 @@ static void (*handlers[NUMBER_TLV_TYPE + 1])(const char*, neighbour_t*) = {
 
 void handle_tlv(const body_t *tlv, neighbour_t *n) {
     do {
-        if (tlv->content[0] >= NUMBER_TLV_TYPE || tlv->content[0] < 0) {
+        if (tlv->content[0] >= NUMBER_TLV_TYPE) {
             handlers[NUMBER_TLV_TYPE](tlv->content, n);
         } else {
             handlers[(int)tlv->content[0]](tlv->content, n);

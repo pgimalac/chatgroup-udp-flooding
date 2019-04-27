@@ -60,7 +60,7 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
 }
 
 
-static int check_message_size(const char* buffer, int buflen){
+static int check_message_size(const u_int8_t* buffer, int buflen){
     if (buffer == NULL)
         return BUFNULL;
     if (buflen < 4)
@@ -96,7 +96,7 @@ static int check_message_size(const char* buffer, int buflen){
     return body_num;
 }
 
-message_t *bytes_to_message(const char *src, size_t buflen, neighbour_t *n) {
+message_t *bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n) {
     int rc = check_message_size(src, buflen);
     if (rc < 0) return 0;
 
@@ -267,17 +267,17 @@ int add_neighbour(const char *hostname, const char *service) {
  *
  */
 
-typedef void (*onsend_fnc)(const char*, neighbour_t*);
+typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*);
 
-static void onsend_pad1(const char *tlv, neighbour_t *dst) {
+static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing PAD1\n");
 }
 
-static void onsend_padn(const char *tlv, neighbour_t *dst) {
+static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing PadN %u\n", tlv[1]);
 }
 
-static void onsend_hello(const char *tlv, neighbour_t *dst) {
+static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst) {
     dst->last_hello_send = time(0);
     if (tlv[1] == 8) {
         dst->short_hello_count++;
@@ -287,12 +287,12 @@ static void onsend_hello(const char *tlv, neighbour_t *dst) {
     }
 }
 
-static void onsend_neighbour(const char *tlv, neighbour_t *dst) {
+static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing neighbour.\n");
     dst->last_neighbour_send = time(0);
 }
 
-static void onsend_data(const char *tlv, neighbour_t *dst) {
+static void onsend_data(const u_int8_t *tlv, neighbour_t *dst) {
     hashmap_t *map;
     data_info_t *dinfo;
     char buffer[18];
@@ -309,19 +309,19 @@ static void onsend_data(const char *tlv, neighbour_t *dst) {
 }
 
 
-static void onsend_ack(const char *tlv, neighbour_t *dst) {
+static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing ack.\n");
 }
 
-static void onsend_goaway(const char *tlv, neighbour_t *dst) {
+static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing go away %u.\n", tlv[2]);
 }
 
-static void onsend_warning(const char *tlv, neighbour_t *dst) {
+static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing warning.\n");
 }
 
-static void onsend_unknow(const char *tlv, neighbour_t *dst) {
+static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst) {
     dprintf(logfd, "* Containing an unknow tlv.\n");
 }
 
@@ -370,7 +370,7 @@ int send_message(int sock, message_t *msg) {
 
     return 0;}
 
-int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen) {
+int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
     if (!out || !buflen) return 0;
 
     int rc;

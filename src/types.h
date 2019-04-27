@@ -27,7 +27,7 @@ typedef struct neighbour {
 } neighbour_t;
 
 typedef struct body {
-    char *content;
+    u_int8_t *content;
     size_t size;
     struct body *next;
 } body_t;

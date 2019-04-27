@@ -36,15 +36,15 @@ int init() {
         return 2;
     }
 
-    flooding_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
-    data_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
+    flooding_map = hashmap_init(12);
+    data_map = hashmap_init(12);
 
     return 0;
 }
 
 void handle_reception () {
     int rc;
-    char c[4096] = { 0 };
+    u_int8_t c[4096] = { 0 };
     size_t len = 4096;
     struct sockaddr_in6 addr = { 0 };
     message_t *msg = 0;
