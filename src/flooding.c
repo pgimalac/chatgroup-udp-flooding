@@ -9,9 +9,9 @@
 #include "flooding.h"
 #include "utils.h"
 #include "structs/list.h"
-#include "pseudo.h"
+#include "interface.h"
 
-#define MAX_TIMEOUT 10
+#define MAX_TIMEOUT 30
 
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;

@@ -13,10 +13,9 @@
 #include "types.h"
 #include "utils.h"
 #include "network.h"
-#include "commands.h"
+#include "interface.h"
 #include "tlv.h"
 #include "flooding.h"
-#include "pseudo.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
@@ -106,8 +105,15 @@ void handle_input() {
     if (rc <= 1)
         return;
 
-    if (buffer[0] == COMMAND) handle_command(buffer + 1);
-    else send_data(buffer, rc);
+    int tmp = strspn(buffer, forbiden);
+    char *bufferbis = buffer + tmp;
+    rc -= tmp;
+
+    while (rc > 0 && strchr(forbiden, bufferbis[rc - 1]) != NULL)
+        rc--;
+
+    if (bufferbis[0] == COMMAND) handle_command(bufferbis + 1);
+    else send_data(bufferbis, rc);
 }
 
 int main(int argc, char **argv) {
@@ -127,7 +133,7 @@ int main(int argc, char **argv) {
     }
 
     if (argc >= 3)
-        setPseudo(argv[2], strlen(argv[2]));
+        setPseudo(argv[2]);
     else
         setRandomPseudo();
 

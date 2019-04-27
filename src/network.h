@@ -23,8 +23,6 @@ int sock;
 chat_id_t id;
 hashset_t *neighbours, *potential_neighbours;
 
-void setnickname(char *name, int size);
-
 int init_network();
 
 size_t message_to_iovec(message_t *msg, struct iovec **iov);
