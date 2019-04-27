@@ -265,16 +265,16 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     while (to_delete != NULL){
+        neighbour_t *obj = list_pop(&to_delete);
         if (inet_ntop(AF_INET6,
-                      &dinfo->neighbour->addr->sin6_addr,
+                      &obj->addr->sin6_addr,
                       ipstr, INET6_ADDRSTRLEN) == 0){
             perror("inet_ntop");
         } else {
             printf("Remove (%s, %u) from map.\n",
-                   ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
+                   ipstr, ntohs(obj->addr->sin6_port));
         }
 
-        neighbour_t *obj = list_pop(&to_delete);
         char buf[18];
         bytes_from_neighbour(obj, buf);
         hashmap_remove(map, buf, 1, 1);
