@@ -97,12 +97,12 @@ void hello_potential_neighbours(struct timeval *tv) {
             char msg[256];
             if (m) {
                 hello = malloc(sizeof(body_t));
-                if (!inet_ntop(AF_INET6, &m->addr->sin6_addr,
+                if (!inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
                               ipstr, INET6_ADDRSTRLEN)){
                     perror("inet_ntop");
                 } else {
                     sprintf(msg, "(%s, %u) is a Martian.",
-                            ipstr, ntohs(m->addr->sin6_port));
+                            ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
                     dprintf(logfd, "%s\n", msg);
                 }
 
