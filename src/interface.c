@@ -3,15 +3,50 @@
 #include <strings.h>
 #include <network.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
+
 
 #include "types.h"
-#include "commands.h"
+#include "interface.h"
 #include "flooding.h"
-#include "pseudo.h"
+
+char pseudo[PSEUDO_LENGTH + 1];
+
+const int pseudo_length = 25;
+const char *pseudos[25] = {
+                "Raskolnikov",
+                "Mlle Swann",
+                "Joshep  K.",
+                "Humbert Humbert",
+                "Jacopo Belbo",
+                "Méphistophélès",
+                "Cthulhu",
+                "Samsaget Gamgie",
+                "Thomas Anderson",
+                "Walter White",
+                "Wednesday",
+                "Morty",
+                "Dexter",
+                "The eleventh Doctor",
+                "Elliot Alderson",
+                "Doctor House",
+                "Ragnar Lodbrok",
+                "Hannibal",
+                "Sherlock",
+                "Hamlet",
+                "King Lear",
+                "Zarathustra",
+                "Deep Thought",
+                "Alcèste",
+                "Arthur Dent"
+};
+
+// =========== COMMANDS part ===========
 
 static const char *usages[] = {
     "add <addr> <port>",
     "name <name>",
+    "random",
     "print",
     "juliusz",
     "neighbour"
@@ -36,20 +71,11 @@ static void add(char *buffer){
 }
 
 static void name(char *buffer){
-    buffer += strspn(buffer, forbiden);
-    int len = strlen(buffer);
-    while (len > 0 && strchr(forbiden, buffer[len - 1]) != NULL)
-        len--;
+    setPseudo(buffer);
+}
 
-    if (len > PSEUDO_LENGTH){
-        printf("Nickname too long.\n");
-    } else if (len < 3){
-        printf("Nickname too short\n");
-    } else {
-        buffer[len] = '\0';
-        setnickname(buffer, len);
-        printf("Nickname set to \"%s\"\n", buffer);
-    }
+static void nameRandom(char *buffer){
+    setRandomPseudo();
 }
 
 static void __print(const neighbour_t *n){
@@ -105,11 +131,11 @@ static void unknown(char *buffer){
 }
 
 static const char *names[] = {
-    "add", "name", "print", "juliusz", "neighbour", "quit", NULL
+    "add", "name", "random", "print", "juliusz", "neighbour", "quit", NULL
 };
 
-static void (*commands[])(char*) = {
-    add, name, print, juliusz, neighbour, quit, NULL
+static void (*interface[])(char*) = {
+    add, name, nameRandom, print, juliusz, neighbour, quit, NULL
 };
 
 
@@ -119,10 +145,43 @@ void handle_command(char *buffer) {
     if (ins != NULL)
         for (ind = 0; names[ind] != NULL; ind ++)
             if (strncasecmp(buffer, names[ind], strlen(names[ind])) == 0){
-                commands[ind](ins);
+                interface[ind](ins);
                 break;
             }
 
     if (ins == NULL || names[ind] == NULL)
         unknown(buffer);
+}
+
+// =========== PSEUDO part ===========
+
+char* getPseudo(){
+    return pseudo;
+}
+
+void setPseudo(char *buffer){
+    buffer += strspn(buffer, forbiden);
+    int len = strlen(buffer);
+    while (len > 0 && strchr(forbiden, buffer[len - 1]) != NULL)
+        len--;
+
+    if (len > PSEUDO_LENGTH){
+        printf("Nickname too long.\n");
+    } else if (len < 3){
+        printf("Nickname too short\n");
+    } else {
+        for (int i = 0; i < len; i++)
+            if (strchr(forbiden, buffer[i]) != NULL)
+                buffer[i] = ' ';
+
+        memcpy(pseudo, buffer, len);
+        pseudo[len] = '\0';
+        printf("Nickname set to \"%s\"\n", pseudo);
+    }
+}
+
+void setRandomPseudo(){
+    int index = rand() % pseudo_length;
+    strcpy(pseudo, pseudos[index]);
+    printf("Nickname set to \"%s\"\n", pseudo);
 }

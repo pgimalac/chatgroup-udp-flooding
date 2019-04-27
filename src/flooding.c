@@ -9,7 +9,7 @@
 #include "flooding.h"
 #include "utils.h"
 #include "structs/list.h"
-#include "pseudo.h"
+#include "interface.h"
 
 #define MAX_TIMEOUT 30
 

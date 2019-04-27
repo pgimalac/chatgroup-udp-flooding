@@ -128,8 +128,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
     push_tlv(body, n);
 
     bytes_from_neighbour(n, buffer);
-    printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
-
+    hashmap_remove(map, buffer, 1, 1);
 }
 
 static void handle_ack(const char *tlv, neighbour_t *n){

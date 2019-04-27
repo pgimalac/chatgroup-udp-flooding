@@ -15,14 +15,6 @@
 
 // user address
 struct sockaddr_in6 local_addr;
-char *nickname = NULL;
-
-void setnickname(char *name, int size){
-    if (name != NULL){
-        free(nickname);
-        nickname = strndup(name, size);
-    }
-}
 
 /**
  * Generic network functions
