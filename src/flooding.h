@@ -13,6 +13,8 @@ int flooding_add_message(const u_int8_t *data, int size);
 
 int message_flooding(struct timeval *tv);
 
+int clean_old_data();
+
 void neighbour_flooding(short);
 
 #endif

@@ -6,6 +6,9 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "network.h"
 #include "tlv.h"
 #include "flooding.h"
@@ -15,6 +18,15 @@
 #include "utils.h"
 
 #define MAX_TIMEOUT 30
+
+// number of shot hello before removing from potential neighbour
+#define NBSH 5
+
+#define SYM_TIMEOUT 120
+
+#define NEIGHBOUR_TIMEOUT 120
+
+#define CLEAN_TIMEOUT 120
 
 void send_data(char *buffer, int size){
     if (buffer == 0 || size <= 0) return;
@@ -67,7 +79,7 @@ void hello_potential_neighbours(struct timeval *tv) {
         for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
 
-            if (p->short_hello_count >= 4) {
+            if (p->short_hello_count >= NBSH) {
                 assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
                 dprintf(logfd, "%s%sRemove (%s, %u) from potential neighbour list.\n%s", LOGFD_F, LOGFD_B,
                        ipstr, ntohs(p->addr->sin6_port), RESET);
@@ -111,9 +123,25 @@ void hello_potential_neighbours(struct timeval *tv) {
 
     while (to_delete != NULL){
         neighbour_t *n = list_pop(&to_delete);
-        if (!hashset_remove_neighbour(potential_neighbours, n))
-            dprintf(logfd, "%s%s%s:%d Tried to remove from a potential neighbour that wasn't one.\n%s",
-                LOGFD_B, LOGFD_F, __FILE__, __LINE__, RESET);
+
+        if (n->tutor_id) {
+            neighbour_t *m = hashset_get(neighbours, n->tutor_id, *(u_int16_t*)(n->tutor_id + 16));
+            char msg[256];
+            if (m) {
+                hello = malloc(sizeof(body_t));
+                assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
+                              ipstr, INET6_ADDRSTRLEN) != NULL);
+
+                sprintf(msg, "(%s, %u) is a Martian.",
+                        ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
+                dprintf(logfd, "%s%s%s\n%s", LOGFD_B, LOGFD_F, msg, RESET);
+
+                hello->size = tlv_warning(&hello->content, msg, strlen(msg));
+                push_tlv(hello, m);
+            }
+        }
+
+        hashset_remove_neighbour(potential_neighbours, n);
         free(n->addr);
         free(n);
     }
@@ -136,7 +164,7 @@ int hello_neighbours(struct timeval *tv) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next, size++) {
             p = (neighbour_t*)l->val;
-            if (now - p->last_hello < 120) {
+            if (now - p->last_hello < SYM_TIMEOUT) {
                 delta = now - p->last_hello_send;
                 if (delta >= MAX_TIMEOUT) {
                     body_t *hello = malloc(sizeof(body_t));
@@ -196,6 +224,7 @@ int hello_neighbours(struct timeval *tv) {
 int flooding_add_message(const u_int8_t *data, int size) {
     neighbour_t *p;
     data_info_t *dinfo;
+    datime_t *datime;
     int now = time(0), rc;
     if (now == -1){
         perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
@@ -203,7 +232,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
     }
     size_t i;
     list_t *l;
-    char buffer[18];
+    u_int8_t buffer[18], key[12];
 
     hashmap_t *ns = hashmap_init(18);
     if (!ns) {
@@ -223,7 +252,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
             memset(dinfo, 0, sizeof(data_info_t));
 
             dinfo->neighbour = p;
-            dinfo->time = now;
+            dinfo->time = now + rand() % 1;
 
             bytes_from_neighbour(p, buffer);
             rc = hashmap_add(ns, buffer, dinfo);
@@ -238,7 +267,13 @@ int flooding_add_message(const u_int8_t *data, int size) {
         }
     }
 
-    rc = hashmap_add(flooding_map, data + 2, ns);
+    memcpy(key, data + 2, 12);
+
+    datime = malloc(sizeof(datime_t));
+    datime->data = voidndup(data, size);
+    datime->last = now;
+
+    rc = hashmap_add(flooding_map, key, ns);
     if (rc == 2)
         fprintf(stderr, "%s%sTried to add a map in the flooding_map but it was already in at line %d in %s.\n%s",
             STDERR_B, STDERR_F, __LINE__, __FILE__, RESET);
@@ -247,15 +282,12 @@ int flooding_add_message(const u_int8_t *data, int size) {
     if (rc != 1)
         hashmap_destroy(ns, 1);
 
-    void *tmp = voidndup(data, size);
-    rc = hashmap_add(data_map, data + 2, tmp);
+    rc = hashmap_add(data_map, key, datime);
     if (rc == 2)
         fprintf(stderr, "%s%s%s:%d Tried to add a data in data_map but it was already in.\n%s",
             STDERR_B, STDERR_F, __FILE__, __LINE__, RESET);
     else if (rc == 0)
         perrorbis(STDERR_FILENO, ENOMEM, "hashset_add", STDERR_F, STDERR_B);
-    if (rc != 1)
-        free(tmp);
 
     return 0;
 }
@@ -270,17 +302,20 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
     list_t *l;
     data_info_t *dinfo;
+    datime_t *datime;
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
     u_int8_t *data;
     hashmap_t *map;
 
-    data = hashmap_get(data_map, dataid);
-    if (!data){
+    datime = hashmap_get(data_map, dataid);
+    if (!datime){
         fprintf(stderr, "%s%s%s:%d Data_map did not contained a dataid it was supposed to contain.\n%s",
             STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
         return -1;
     }
+
+    data = datime->data;
 
     size = data[1] + 2;
 
@@ -296,7 +331,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
 
-            if (dinfo->send_count >= 5) {
+            if (!hashset_get(neighbours,
+                            dinfo->neighbour->addr->sin6_addr.s6_addr,
+                            dinfo->neighbour->addr->sin6_port)) {
+                list_add(&to_delete, dinfo->neighbour);
+                continue;
+            }
+
+            if (now >= dinfo->time && dinfo->send_count >= 5) {
                 body = malloc(sizeof(body_t));
                 rc = tlv_goaway(&body->content, GO_AWAY_HELLO,
                                        "You did not answer to data for too long.", 40);
@@ -339,9 +381,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 continue;
             }
 
-            delta = 1UL << dinfo->send_count;
-
-            if (delta < now - dinfo->last_send) {
+            if (now >= dinfo->time) {
                 body = malloc(sizeof(body_t));
                 if (!body){
                     perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
@@ -356,7 +396,6 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 }
 
                 body->size = size;
-
                 rc = push_tlv(body, dinfo->neighbour);
                 if (rc < 0) {
                     fprintf(stderr, "%s%s%s:%d Could not insert data into message queue\n%s",
@@ -364,7 +403,10 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     free(body->content);
                     free(body);
                 }
+                continue;
             }
+
+            delta = dinfo->time - now;
 
             if (delta < tv) {
                 tv = delta;
@@ -378,7 +420,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
         dprintf(logfd, "%s%sRemove (%s, %u) from map.\n%s", LOGFD_F, LOGFD_B,
                 ipstr, ntohs(obj->addr->sin6_port), RESET);
 
-        char buf[18];
+        u_int8_t buf[18];
         bytes_from_neighbour(obj, buf);
         rc = hashmap_remove(map, buf, 1, 1);
         if (rc == 0)
@@ -422,16 +464,38 @@ int message_flooding(struct timeval *tv) {
             fprintf(stderr, "%s%s%s:%d Tried to get a dataid from flooding map but it wasn't in.\n%s",
                 STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
 
-        if (hashmap_remove(data_map, dataid, 1, 1) == 0)
-            fprintf(stderr, "%s%s%s:%d Tried to remove a dataid from data map but it wasn't in.\n%s",
-                STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
-
         if (hashmap_remove(flooding_map, dataid, 1, 0) == 0)
             fprintf(stderr, "%s%s%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n%s",
                 STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
 
         free(dataid);
     }
+
+    return 0;
+}
+
+int clean_old_data() {
+    size_t i;
+    list_t *l, *to_delete = 0;
+    datime_t *datime;
+
+    for (i = 0; i < data_map->capacity; i++) {
+        for (l = data_map->tab[i]; l; l = l->next) {
+            datime = ((map_elem*)l->val)->value;
+            if (time(0) - datime->last > CLEAN_TIMEOUT) {
+                list_add(&to_delete, datime);
+            }
+        }
+    }
+
+    for (i = 0; to_delete; i++) {
+        datime = list_pop(&to_delete);
+        free(datime->data);
+        hashmap_remove(data_map, datime->data + 2, 1, 1);
+    }
+
+    if (i != 0)
+        dprintf(logfd, "%s%s%lu old data removed.\n%s", LOGFD_B, LOGFD_F, i, RESET);
 
     return 0;
 }
@@ -493,7 +557,7 @@ void neighbour_flooding(short force) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
-            if (force || now - p->last_neighbour_send > 120) {
+            if (force || now - p->last_neighbour_send > NEIGHBOUR_TIMEOUT) {
                 send_neighbour_to(p);
             }
         }

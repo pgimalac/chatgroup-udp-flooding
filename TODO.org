@@ -1,16 +1,16 @@
-* Minimum project [50%]
+* Minimum project [75%]
 ** DONE Go away on quit
    handlers on sigterm/kill... + quit command
 ** DONE find the data bug
 ** TODO better error handling
    for every function call check what is returned,...
    maybe do a function to free some memory that could be called when needed
-** TODO send a warning (like juliusz does)
+** DONE send a warning (like juliusz does)
 *** TODO MARTIAN neighbours
 *** TODO not my id
-* Bonus [0/11]
+* Bonus [3/13]
 ** TODO commands to print own id, ip, port
-** TODO command to change id
+** DONE command to change id
 ** TODO Error managment
    local error or ICMP message
 ** TODO Concurrency
@@ -18,13 +18,13 @@
 ** TODO Agregation [1/2]
 *** DONE multiple tlv in messages
 *** TODO pmtu calculus
-** TODO Optimisation [0/3]
-*** TODO neighbours flooding
-*** TODO randomize data send
+** DONE Optimisation [2/3]
+*** DONE neighbours flooding
+*** DONE randomize data send
 *** TODO dynamic timeouts
 ** TODO Multiple interfaces
-** TODO Implemtation security [1/2]
-*** TODO reject peer dont know our id
+** DONE Implemtation security [2/2]
+*** DONE reject peer dont know our id
 *** DONE messages length inconsistency
 ** TODO Crypto messages
 ** TODO Multicast

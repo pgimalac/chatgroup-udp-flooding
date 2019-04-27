@@ -195,7 +195,8 @@ int start_server(int port) {
  */
 
 neighbour_t *
-new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port) {
+new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
+              unsigned int port, const neighbour_t *tutor) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (addr == NULL) return 0;
     memset(addr, 0, sizeof(struct sockaddr_in6));
@@ -215,6 +216,19 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)], unsigned int port
     n->addr = addr;
     n->last_neighbour_send = time(0);
     n->status = NEIGHBOUR_POT;
+    n->tutor_id = 0;
+
+    if (tutor) {
+        n->tutor_id = malloc(18);
+        if (!n->tutor_id) {
+            perror("malloc");
+            free(n);
+            return 0;
+        }
+
+        bytes_from_neighbour(tutor, n->tutor_id);
+    }
+
     hashset_add(potential_neighbours, n);
     return hashset_get(potential_neighbours, ip, port);
 }
@@ -242,7 +256,7 @@ int add_neighbour(const char *hostname, const char *service) {
 
 
         addr = (struct sockaddr_in6*)p->ai_addr;
-        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port))
+        if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, 0))
             continue;
 
         assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
@@ -262,17 +276,17 @@ int add_neighbour(const char *hostname, const char *service) {
  *
  */
 
-typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*);
+typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*, struct timeval *tv);
 
-static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing PAD1\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
-static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing PadN %u\n%s", LOGFD_F, LOGFD_B, tlv[1], RESET);
 }
 
-static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dst->last_hello_send = time(0);
     if (tlv[1] == 8) {
         dst->short_hello_count++;
@@ -282,41 +296,47 @@ static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst) {
     }
 }
 
-static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing neighbour.\n%s", LOGFD_F, LOGFD_B, RESET);
     dst->last_neighbour_send = time(0);
 }
 
-static void onsend_data(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     hashmap_t *map;
     data_info_t *dinfo;
-    char buffer[18];
+    datime_t *datime;
+    u_int8_t buffer[18];
+    time_t now = time(0), delta;
 
     map = hashmap_get(flooding_map, tlv + 2);
-
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
+    dinfo->time = now + (rand() % ((1 << (++dinfo->send_count + 1)))) + 1;
+    delta = dinfo->time - now;
 
-    dinfo->send_count++;
-    dinfo->last_send = time(0);
+    datime = hashmap_get(data_map, tlv + 2);
+    datime->last = now;
+
+    if (delta < tv->tv_sec) {
+        tv->tv_sec = delta;
+    }
 
     dprintf(logfd, "%s%s* Containing data.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
-
-static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing ack.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
-static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing go away %u.\n%s", LOGFD_F, LOGFD_B, tlv[2], RESET);
 }
 
-static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing warning.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
-static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst) {
+static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dprintf(logfd, "%s%s* Containing an unknow tlv.\n%s", LOGFD_F, LOGFD_B, RESET);
 }
 
@@ -332,7 +352,7 @@ onsend_fnc onsenders[9] = {
                onsend_unknow
 };
 
-int send_message(int sock, message_t *msg) {
+int send_message(int sock, message_t *msg, struct timeval *tv) {
     int rc;
     struct msghdr hdr = { 0 };
     body_t *p;
@@ -344,7 +364,8 @@ int send_message(int sock, message_t *msg) {
     dprintf(logfd, "%s%s> Send message to (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(msg->dst->addr->sin6_port), RESET);
 
     for (p = msg->body; p; p = p->next) {
-        onsenders[(int)p->content[0]](p->content, msg->dst);
+        if (p->content[0] >= 9) onsend_unknow(p->content, msg->dst, tv);
+        else onsenders[(int)p->content[0]](p->content, msg->dst, tv);
     }
 
     dprintf(logfd, "%s%s\n%s", LOGFD_F, LOGFD_B, RESET);
@@ -360,7 +381,8 @@ int send_message(int sock, message_t *msg) {
     // find a way to avoid using free here ?
     if (rc < 0) return -2;
 
-    return 0;}
+    return 0;
+}
 
 int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
     if (!out || !buflen) return 0;
@@ -419,6 +441,7 @@ void quit_handler (int sig) {
     char ipstr[INET6_ADDRSTRLEN];
     message_t msg = { 0 };
     body_t goaway = { 0 };
+    struct timeval tv = { 0 };
 
     dprintf(logfd, "%s%sSend go away leave to neighbours before quit.\n%s", LOGFD_F, LOGFD_B, RESET);
 
@@ -432,7 +455,7 @@ void quit_handler (int sig) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             msg.dst = (neighbour_t*)l->val;
-            rc = send_message(sock, &msg);
+            rc = send_message(sock, &msg, &tv);
             if (rc < 0) {
                 assert (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
                 fprintf(stderr, "%s%sFailed to send goaway to (%s, %u).\n%s", STDERR_F, STDERR_B, ipstr, ntohs(msg.dst->addr->sin6_port), RESET);

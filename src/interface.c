@@ -127,13 +127,36 @@ static void unknown(char *buffer){
         printf("%s%s    %s\n%s", STDOUT_F, STDOUT_B, *usage, RESET);
 }
 
-static const char *names[] = {
-    "add", "name", "random", "print", "juliusz", "neighbour", "quit", NULL
-};
+static void chid(char *buffer) {
+    id = random_uint64();
+    dprintf(logfd, "New id: %lx.\n", id);
+}
 
-static void (*interface[])(char*) = {
-    add, name, nameRandom, print, juliusz, neighbour, quit, NULL
-};
+static const char *names[] =
+    {
+     "chid",
+     "add",
+     "name",
+     "random",
+     "print",
+     "juliusz",
+     "neighbour",
+     "quit",
+     NULL
+    };
+
+static void (*interface[])(char*) =
+    {
+     chid,
+     add,
+     name,
+     nameRandom,
+     print,
+     juliusz,
+     neighbour,
+     quit,
+     NULL
+    };
 
 
 void handle_command(char *buffer) {

@@ -23,6 +23,7 @@ typedef struct neighbour {
     time_t last_neighbour_send;
     size_t pmtu, short_hello_count;
     unsigned char status;
+    u_int8_t *tutor_id;
     struct sockaddr_in6 *addr;
 } neighbour_t;
 
@@ -55,7 +56,11 @@ typedef struct data_info {
     neighbour_t *neighbour;
     size_t send_count;
     time_t time;
-    time_t last_send;
 } data_info_t;
+
+typedef struct datime {
+    u_int8_t *data;
+    time_t last;
+} datime_t;
 
 #endif

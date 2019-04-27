@@ -70,7 +70,7 @@ void handle_reception () {
 
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
-                          addr.sin6_port);
+                          addr.sin6_port, 0);
         dprintf(logfd, "%s%sAdd to potential neighbours.\n%s", LOGFD_F, LOGFD_B, RESET);
     }
 
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     if (rc != 0) return rc;
     dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
 
-    signal(SIGINT, quit_handler);
+    // signal(SIGINT, quit_handler);
 
     unsigned short port = 0;
     if (argc > 1){
@@ -164,10 +164,11 @@ int main(int argc, char **argv) {
         neighbour_flooding(0);
 
         while((msg = pull_message())) {
-            send_message(sock, msg);
+            send_message(sock, msg, &tv);
             free_message(msg);
         }
 
+        clean_old_data();
         dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
 
         fd_set readfds;

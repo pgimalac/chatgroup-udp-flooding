@@ -5,7 +5,7 @@
 #define forbiden " \n\t\r"
 
 #define EFFACER "\033[H\033[2J"
-#define RESET "\e[0m"
+#define RESET "\e[0m\e[0m"
 
 #define BLACKf "\e[30m"
 #define REDf "\e[31m"

@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#include <endian.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "types.h"
 #include "network.h"
@@ -22,9 +22,10 @@ static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     int now = time(0), is_long = tlv[1] == 16;
     if (now == -1){
-
+        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
         return;
     }
+
     chat_id_t src_id = 0, dest_id = 0;
     memcpy(&src_id, tlv + 2, sizeof(src_id));
 
@@ -36,15 +37,20 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     dprintf(logfd, "%s%sReceive %s hello from (%s, %u).\n%s", LOGFD_F, LOGFD_B,
            is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port), RESET);
 
+    n->id = src_id;
+
     if (is_long && dest_id != id) {
         dprintf(logfd, "%s%s%lx is not my id.\n%s", LOGFD_F, LOGFD_B, dest_id, RESET);
         return;
     }
 
+    if (n->status == NEIGHBOUR_SYM && src_id != n->id) {
+        dprintf(logfd, "%s%sHe has now id %lx.\n%s", LOGFD_B, LOGFD_F, src_id, RESET);
+    }
+
     if (n->status == NEIGHBOUR_POT) {
         dprintf(logfd, "%s%sRemove from potential %lx and add to symetrical.\n%s", LOGFD_F, LOGFD_B, src_id, RESET);
         n->last_hello_send = 0;
-        n->id = src_id;
 
         hashset_add(neighbours, n);
         hashset_remove(potential_neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port);
@@ -83,9 +89,8 @@ static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
         return;
     }
 
-    if (!new_neighbour(ip, port)) {
+    if (!new_neighbour(ip, port, n))
         fprintf(stderr, "%s%sAn error occured while adding peer to potential neighbours.\n%s", STDERR_F, STDERR_B, RESET);
-    }
 }
 
 static void handle_data(const u_int8_t *tlv, neighbour_t *n){
@@ -93,14 +98,17 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
     body_t *body;
-    char buffer[18], buff[243];
+    char buff[243];
+    u_int8_t buffer[18];
 
     dprintf(logfd, "%s%sData received.\nData type %u.\n%s", LOGFD_F, LOGFD_B, tlv[14], RESET);
 
     map = hashmap_get(flooding_map, tlv + 2);
 
-    if (!map) {
+
+    if (!map && !hashmap_get(data_map, tlv + 2)) {
         dprintf(logfd, "%s%sNew message received.\n%s", LOGFD_F, LOGFD_B, RESET);
+
         if (tlv[14] == 0) {
             memcpy(buff, tlv + 15, size);
             buff[size] = '\0';
@@ -129,7 +137,9 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 }
 
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
-    char ipstr[INET6_ADDRSTRLEN], buffer[18];
+    char ipstr[INET6_ADDRSTRLEN];
+    u_int8_t buffer[18];
+    datime_t *datime;
 
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
     dprintf(logfd, "%s%sAck from (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(n->addr->sin6_port), RESET);
@@ -139,6 +149,9 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
         dprintf(logfd, "%s%sNot necessary ack\n%s", LOGFD_F, LOGFD_B, RESET);
         return;
     }
+
+    datime = hashmap_get(data_map, tlv + 2);
+    datime->last = time(0);
 
     bytes_from_neighbour(n, buffer);
     hashmap_remove(map, buffer, 1, 1);
@@ -213,7 +226,8 @@ void handle_tlv(const body_t *tlv, neighbour_t *n) {
     do {
         if (tlv->content[0] >= NUMBER_TLV_TYPE) {
             handlers[NUMBER_TLV_TYPE](tlv->content, n);
-        } else {
+        } else if (n->status == NEIGHBOUR_SYM ||
+                   (n->status == NEIGHBOUR_POT && tlv->content[0] == BODY_HELLO)) {
             handlers[(int)tlv->content[0]](tlv->content, n);
         }
     } while ((tlv = tlv->next) != NULL);

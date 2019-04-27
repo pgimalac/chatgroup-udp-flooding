@@ -96,6 +96,7 @@ int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
 }
 
 int push_tlv(body_t *tlv, neighbour_t *dst) {
+    printf("%p\n", dst);
     msg_queue_t *p;
 
     p = queue;
@@ -255,7 +256,7 @@ void print_bytes(const char *buffer, size_t len) {
     printf("\n");
 }
 
-void bytes_from_neighbour(const neighbour_t *n, char buffer[18]) {
+void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
     memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
     memcpy(buffer + 16, &n->addr->sin6_port, 2);
 }
