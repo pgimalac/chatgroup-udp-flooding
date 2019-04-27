@@ -478,6 +478,7 @@ int clean_old_data() {
     size_t i;
     list_t *l, *to_delete = 0;
     datime_t *datime;
+    u_int8_t *tmp;
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
@@ -490,8 +491,9 @@ int clean_old_data() {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        free(datime->data);
+        tmp = datime->data;
         hashmap_remove(data_map, datime->data + 2, 1, 1);
+        free(tmp);
     }
 
     if (i != 0)
