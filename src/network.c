@@ -364,7 +364,8 @@ int send_message(int sock, message_t *msg) {
     }
 
     for (p = msg->body; p; p = p->next) {
-        onsenders[(int)p->content[0]](p->content, msg->dst);
+        if (p->content[0] >= 9) onsend_unknow(p->content, msg->dst);
+        else onsenders[(int)p->content[0]](p->content, msg->dst);
     }
 
     dprintf(logfd, "\n");
@@ -380,7 +381,8 @@ int send_message(int sock, message_t *msg) {
     // find a way to avoid using free here ?
     if (rc < 0) return -2;
 
-    return 0;}
+    return 0;
+}
 
 int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
     if (!out || !buflen) return 0;

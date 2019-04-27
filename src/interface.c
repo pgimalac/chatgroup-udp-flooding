@@ -130,6 +130,7 @@ static void unknown(char *buffer){
 
 static void chid(char *buffer) {
     id = random_uint64();
+    dprintf(logfd, "New id: %lx.\n", id);
 }
 
 static const char *names[] =

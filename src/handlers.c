@@ -23,7 +23,6 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
 
     memcpy(&src_id, tlv + 2, 8);
-    n->id = src_id;
 
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
@@ -31,6 +30,12 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
         dprintf(logfd, "Receive %s hello from (%s, %u).\n",
                is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
     }
+
+    if (n->status == NEIGHBOUR_SYM && src_id != n->id) {
+        dprintf(logfd, "He has now id %lx.\n", src_id);
+    }
+
+    n->id = src_id;
 
     if (is_long) {
         memcpy(&dest_id, tlv + 2 + 8, 8);

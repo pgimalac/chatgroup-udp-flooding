@@ -8,9 +8,9 @@
 ** DONE send a warning (like juliusz does)
 *** TODO MARTIAN neighbours
 *** TODO not my id
-* Bonus [0/11]
+* Bonus [2/13]
 ** TODO commands to print own id, ip, port
-** TODO command to change id
+** DONE command to change id
 ** TODO Error managment
    local error or ICMP message
 ** TODO Concurrency
@@ -23,8 +23,8 @@
 *** TODO randomize data send
 *** TODO dynamic timeouts
 ** TODO Multiple interfaces
-** TODO Implemtation security [1/2]
-*** TODO reject peer dont know our id
+** DONE Implemtation security [2/2]
+*** DONE reject peer dont know our id
 *** DONE messages length inconsistency
 ** TODO Crypto messages
 ** TODO Multicast
