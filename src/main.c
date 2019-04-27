@@ -74,17 +74,13 @@ void handle_reception () {
         dprintf(logfd, "Add to potential neighbours.\n");
     }
 
-    printf("handle reception %p\n", n);
     msg = bytes_to_message(c, len, n);
     if (!msg){
         fprintf(stderr, "Error decripting the message : %d\n", rc);
         return;
     }
 
-    dprintf(logfd, "Message description:\n");
-    dprintf(logfd, "magic: %d\n", msg->magic);
-    dprintf(logfd, "version: %d\n", msg->version);
-    dprintf(logfd, "body length: %d\n\n", msg->body_length);
+    dprintf(logfd, "Message reçu : %d %d %d\n", msg->magic, msg->version, msg->body_length);
 
     if (msg->magic != MAGIC) {
         fprintf(stderr, "Invalid magic value\n");
@@ -152,7 +148,6 @@ int main(int argc, char **argv) {
     while (1) {
         size = hello_neighbours(&tv);
         if (size < 8) {
-            dprintf(logfd, "You have %d friends, try to find new ones.\n", size);
             hello_potential_neighbours(&tv);
         }
 

@@ -34,7 +34,6 @@ void send_data(char *buffer, int size){
 
     data.size = rc;
 
-    printf("Add message to innondation map\n");
     innondation_add_message(data.content, data.size);
     free(data.content);
 }
@@ -165,7 +164,6 @@ int innondation_add_message(const char *data, int size) {
             }
             memset(dinfo, 0, sizeof(data_info_t));
 
-            printf("innondation add message %p\n", p);
             dinfo->neighbour = p;
             dinfo->time = now;
 
@@ -195,13 +193,11 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
 
     map = hashmap_get(innondation_map, dataid);
     if (!map) return -2;
-    printf("innondation map addr %p\n", map);
 
     list_t *to_delete = NULL;
     for (i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
-            printf("send count %lu\n", dinfo->send_count);
 
             if (dinfo->send_count >= 5) {
                 body = malloc(sizeof(body_t));
@@ -316,7 +312,7 @@ int message_innondation(struct timeval *tv) {
     while(msg_done) {
         dataid = list_pop(&msg_done);
         map = hashmap_get(innondation_map, dataid);
-        printf("Remove data to innondation map %p.\n", map);
+
         hashmap_destroy(map, 1);
         hashmap_remove(data_map, dataid, 1, 1);
         hashmap_remove(innondation_map, dataid, 1, 0);

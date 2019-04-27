@@ -26,7 +26,7 @@ static void handle_hello(const char *tlv, neighbour_t *n){
     if (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0){
         perror("inet_ntop");
     } else {
-        dprintf(logfd, "Receive hello %s from (%s, %u).\n",
+        dprintf(logfd, "Receive %s hello from (%s, %u).\n",
                is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
     }
 
@@ -148,8 +148,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
     }
 
     bytes_from_neighbour(n, buffer);
-    printf("Remove from %p\n", map);
-    printf("line %d file %s : %d\n", __LINE__, __FILE__, hashmap_remove(map, buffer, 1, 1));
+    hashmap_remove(map, buffer, 1, 1);
 }
 
 static void handle_goaway(const char *tlv, neighbour_t *n){
