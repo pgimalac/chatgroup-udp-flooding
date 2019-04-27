@@ -42,4 +42,6 @@ int recv_message(int sock, struct sockaddr_in6 *peer_addr, char *buf, size_t *bu
 
 message_t *bytes_to_message(const char *buf, size_t buflen, neighbour_t*);
 
+void quit_handler(int sig);
+
 #endif

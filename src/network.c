@@ -430,3 +430,39 @@ int recv_message(int sock, struct sockaddr_in6 *addr, char *out, size_t *buflen)
 
     return 0;
 }
+
+void quit_handler (int sig) {
+    int rc;
+    size_t i;
+    list_t *l;
+    char ipstr[INET6_ADDRSTRLEN];
+    message_t msg = { 0 };
+    body_t goaway = { 0 };
+
+    dprintf(logfd, "Send go away leave to neighbours before quit,\n");
+
+    goaway.size = tlv_goaway(&goaway.content, GO_AWAY_LEAVE, "Bye !", 5);
+
+    msg.magic = 93;
+    msg.version = 2;
+    msg.body_length = goaway.size;
+    msg.body = &goaway;
+
+    for (i = 0; i < neighbours->capacity; i++) {
+        for (l = neighbours->tab[i]; l; l = l->next) {
+            msg.dst = (neighbour_t*)l->val;
+            rc = send_message(sock, &msg);
+            if (rc < 0) {
+                if (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) == 0) {
+                    perror("inet_ntop");
+                } else {
+                    fprintf(stderr, "Failed to send goaway to (%s, %u).\n", ipstr, ntohs(msg.dst->addr->sin6_port));
+                }
+
+            }
+        }
+    }
+
+    free(goaway.content);
+    exit(sig);
+}

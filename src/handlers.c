@@ -183,7 +183,7 @@ static void handle_goaway(const char *tlv, neighbour_t *n){
     }
 
     if (hashset_remove(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port)) {
-        dprintf(logfd, "Remove %lu from friends.\n", n->id);
+        dprintf(logfd, "Remove %lx from friends.\n", n->id);
     }
 
     dprintf(logfd, "Add (%s, %u) to potential friends", ipstr, ntohs(n->addr->sin6_port));

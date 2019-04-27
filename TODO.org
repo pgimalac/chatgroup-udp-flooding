@@ -1,7 +1,7 @@
-* Minimum project [0%]
+* Minimum project [25%]
 ** TODO Go away on quit
    handlers on sigterm/kill... + quit command
-** TODO find the data bug
+** DONE find the data bug
 ** TODO better error handling
    for every function call check what is returned,...
    maybe do a function to free some memory that could be called when needed

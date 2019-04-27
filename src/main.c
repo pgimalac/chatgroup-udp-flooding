@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -116,6 +117,9 @@ int main(int argc, char **argv) {
     rc = init();
     if (rc != 0) return rc;
     dprintf(logfd, "local id: %lx\n", id);
+
+    signal(SIGINT, quit_handler);
+    signal(SIGQUIT, quit_handler);
 
     unsigned short port = 0;
     if (argc > 1){
