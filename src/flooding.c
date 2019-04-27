@@ -6,7 +6,7 @@
 
 #include "network.h"
 #include "tlv.h"
-#include "innondation.h"
+#include "flooding.h"
 #include "utils.h"
 #include "structs/list.h"
 #include "pseudo.h"
@@ -34,7 +34,7 @@ void send_data(char *buffer, int size){
 
     data.size = rc;
 
-    innondation_add_message(data.content, data.size);
+    flooding_add_message(data.content, data.size);
     free(data.content);
 }
 
@@ -141,7 +141,7 @@ int hello_neighbours(struct timeval *tv) {
     return size;
 }
 
-int innondation_add_message(const char *data, int size) {
+int flooding_add_message(const char *data, int size) {
     neighbour_t *p;
     data_info_t *dinfo;
     int now = time(0);
@@ -172,12 +172,12 @@ int innondation_add_message(const char *data, int size) {
         }
     }
 
-    hashmap_add(innondation_map, data + 2, ns);
+    hashmap_add(flooding_map, data + 2, ns);
     hashmap_add(data_map, data + 2, voidndup(data, size));
     return 0;
 }
 
-int innondation_send_msg(const char *dataid, list_t **msg_done) {
+int flooding_send_msg(const char *dataid, list_t **msg_done) {
     size_t i, size;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     list_t *l;
@@ -191,7 +191,7 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
 
     size = data[1] + 2;
 
-    map = hashmap_get(innondation_map, dataid);
+    map = hashmap_get(flooding_map, dataid);
     if (!map) return -2;
 
     list_t *to_delete = NULL;
@@ -287,18 +287,18 @@ int innondation_send_msg(const char *dataid, list_t **msg_done) {
     return tv;
 }
 
-int message_innondation(struct timeval *tv) {
+int message_flooding(struct timeval *tv) {
     size_t i;
     int rc;
     list_t *l, *msg_done = 0;
     char *dataid;
     hashmap_t *map;
 
-    for (i = 0; i < innondation_map->capacity; i++) {
-        for (l = innondation_map->tab[i]; l; l = l->next) {
+    for (i = 0; i < flooding_map->capacity; i++) {
+        for (l = flooding_map->tab[i]; l; l = l->next) {
             dataid = (char*)((map_elem*)l->val)->key;
 
-            rc = innondation_send_msg(dataid, &msg_done);
+            rc = flooding_send_msg(dataid, &msg_done);
             if (rc < 0) {
                 continue;
             }
@@ -311,11 +311,11 @@ int message_innondation(struct timeval *tv) {
 
     while(msg_done) {
         dataid = list_pop(&msg_done);
-        map = hashmap_get(innondation_map, dataid);
+        map = hashmap_get(flooding_map, dataid);
 
         hashmap_destroy(map, 1);
         hashmap_remove(data_map, dataid, 1, 1);
-        hashmap_remove(innondation_map, dataid, 1, 0);
+        hashmap_remove(flooding_map, dataid, 1, 0);
         free(dataid);
     }
 
@@ -353,7 +353,7 @@ int send_neighbour_to(neighbour_t *p) {
     return 0;
 }
 
-void neighbour_innondation(short force) {
+void neighbour_flooding(short force) {
     size_t i;
     time_t now = time(0);
     list_t *l;

@@ -7,7 +7,7 @@
 #include "types.h"
 #include "network.h"
 #include "tlv.h"
-#include "innondation.h"
+#include "flooding.h"
 
 static void handle_pad1(const char *tlv, neighbour_t *n) {
     dprintf(logfd, "Pad1 received\n");
@@ -99,7 +99,7 @@ static void handle_data(const char *tlv, neighbour_t *n){
 
     dprintf(logfd, "Data received.\nData type %u.\n", tlv[14]);
 
-    map = hashmap_get(innondation_map, tlv + 2);
+    map = hashmap_get(flooding_map, tlv + 2);
 
     if (!map) {
         dprintf(logfd, "New message received.\n");
@@ -110,13 +110,13 @@ static void handle_data(const char *tlv, neighbour_t *n){
             free(buff);
         }
 
-        rc = innondation_add_message(tlv, tlv[1] + 2);
+        rc = flooding_add_message(tlv, tlv[1] + 2);
         if (rc < 0) {
-            fprintf(stderr, "Problem while adding data to innondation map.\n");
+            fprintf(stderr, "Problem while adding data to flooding map.\n");
             return;
         }
 
-        map = hashmap_get(innondation_map, tlv + 2);
+        map = hashmap_get(flooding_map, tlv + 2);
     }
 
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
@@ -141,7 +141,7 @@ static void handle_ack(const char *tlv, neighbour_t *n){
         dprintf(logfd, "Ack from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
     }
 
-    hashmap_t *map = hashmap_get(innondation_map, (void*)(tlv + 2));
+    hashmap_t *map = hashmap_get(flooding_map, (void*)(tlv + 2));
     if (!map) {
         dprintf(logfd, "Not necessary ack\n");
         return;

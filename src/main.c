@@ -15,7 +15,7 @@
 #include "network.h"
 #include "commands.h"
 #include "tlv.h"
-#include "innondation.h"
+#include "flooding.h"
 #include "pseudo.h"
 
 #define MIN_PORT 1024
@@ -36,7 +36,7 @@ int init() {
         return 2;
     }
 
-    innondation_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
+    flooding_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
     data_map = hashmap_init(12, (unsigned int (*)(const void*))hash_msg_id);
 
     return 0;
@@ -151,8 +151,8 @@ int main(int argc, char **argv) {
             hello_potential_neighbours(&tv);
         }
 
-        message_innondation(&tv);
-        neighbour_innondation(0);
+        message_flooding(&tv);
+        neighbour_flooding(0);
 
         while((msg = pull_message())) {
             send_message(sock, msg);

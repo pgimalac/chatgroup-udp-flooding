@@ -6,7 +6,7 @@
 
 #include "types.h"
 #include "commands.h"
-#include "innondation.h"
+#include "flooding.h"
 #include "pseudo.h"
 
 static const char *usages[] = {
@@ -89,7 +89,7 @@ static void juliusz(char *buffer){
 }
 
 static void neighbour(char *buffer){
-    neighbour_innondation(1);
+    neighbour_flooding(1);
 }
 
 static void quit(char *buffer){

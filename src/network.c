@@ -168,7 +168,7 @@ int send_message(int sock, message_t *msg) {
             break;
 
         case BODY_DATA:
-            map = hashmap_get(innondation_map, p->content + 2);
+            map = hashmap_get(flooding_map, p->content + 2);
 
             bytes_from_neighbour(msg->dst, buffer);
             dinfo = hashmap_get(map, buffer);
