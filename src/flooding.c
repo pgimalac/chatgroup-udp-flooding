@@ -22,6 +22,7 @@ void send_data(char *buffer, int size){
     if (size + pseudolen > 240){
         size = 240 - pseudolen;
         buffer[size] = '\0';
+        printf("bufferlen %lu\n", strlen(buffer));
     }
 
     char tmp[243] = { 0 };
@@ -186,7 +187,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     list_t *l;
     data_info_t *dinfo;
     body_t *body;
-    char ipstr[INET6_ADDRSTRLEN], *data;
+    char ipstr[INET6_ADDRSTRLEN];
+    u_int8_t *data;
     hashmap_t *map;
 
     data = hashmap_get(data_map, dataid);
