@@ -90,6 +90,7 @@ void handle_reception () {
     } else {
         handle_tlv(msg->body, n);
     }
+
     free_message(msg);
 }
 
