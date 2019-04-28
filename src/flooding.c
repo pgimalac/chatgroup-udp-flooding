@@ -479,12 +479,23 @@ int clean_old_data() {
     size_t i;
     list_t *l, *to_delete = 0;
     datime_t *datime;
+    char *key;
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
             datime = ((map_elem*)l->val)->value;
+            key = ((map_elem*)l->val)->key;
             if (time(0) - datime->last > CLEAN_TIMEOUT) {
                 list_add(&to_delete, datime);
+                if (hashmap_get(flooding_map, key)) {
+                    fprintf(stderr, "%s%s<<<< OLD DATA SUPPRESS DATA REMAINING IN FLOODING MAP >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+                    fprintf(stderr, "%s%s<<<< OLD DATA SUPPRESS DATA REMAINING IN FLOODING MAP >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+                    fprintf(stderr, "%s%s<<<< OLD DATA SUPPRESS DATA REMAINING IN FLOODING MAP >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+                    fprintf(stderr, "%s%s<<<< OLD DATA SUPPRESS DATA REMAINING IN FLOODING MAP >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+                    fprintf(stderr, "%s%s<<<< OLD DATA SUPPRESS DATA REMAINING IN FLOODING MAP >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+                    fprintf(stderr, "%s%s<<<< OLD DATA SUPPRESS DATA REMAINING IN FLOODING MAP >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+
+                }
             }
         }
     }
