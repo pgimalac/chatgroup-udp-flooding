@@ -115,7 +115,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
         } else if (tlv[14] == DATA_FRAG) {
             if (size < 9) {
                 dprintf(logfd, "%s%sData fragment was corrupted (too short).\n%s",
-                        LOGFD_F, LOGFD_B, tlv[14], RESET);
+                        LOGFD_F, LOGFD_B, RESET);
             }
 
             char fragid[12] = { 0 };

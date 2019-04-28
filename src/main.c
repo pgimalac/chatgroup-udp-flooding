@@ -78,6 +78,7 @@ void handle_reception () {
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
         fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", STDERR_F, STDERR_B, __FILE__, __LINE__, rc, RESET);
+        free(msg);
         return;
     }
 

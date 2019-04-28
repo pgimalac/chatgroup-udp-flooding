@@ -79,6 +79,7 @@ void free_message(message_t *msg) {
         free(b->content);
         free(b);
     }
+
     free(msg);
 }
 
