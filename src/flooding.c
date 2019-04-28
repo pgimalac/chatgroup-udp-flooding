@@ -46,7 +46,7 @@ void send_data(char *buffer, int size){
 
     if (rc < 0){
         if (rc == -1)
-            perrorbis(STDERR_FILENO, errno, "tlv_data", STDERR_B, STDERR_F);
+            perrorbis(errno, "tlv_data");
         else if (rc == -2)
             dprintf(logfd, "%s%sMessage too long but supposed to be cut...\n%s", LOGFD_F, LOGFD_B, RESET);
         return;
@@ -55,7 +55,7 @@ void send_data(char *buffer, int size){
     data.size = rc;
 
     if (flooding_add_message(data.content, data.size) != 0){
-        perrorbis(STDERR_FILENO, errno, "tlv_data", STDERR_B, STDERR_F);
+        perrorbis(errno, "tlv_data");
     }
     free(data.content);
 }
@@ -65,7 +65,7 @@ void hello_potential_neighbours(struct timeval *tv) {
     size_t i;
     time_t max, delta, now = time(0);
     if (now == -1){
-        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
+        perrorbis(errno, "time");
         return;
     }
     list_t *l;
@@ -86,7 +86,7 @@ void hello_potential_neighbours(struct timeval *tv) {
                 dprintf(logfd, "%s%sHe did not answer to short hello for too long.\n%s", LOGFD_F, LOGFD_B, RESET);
 
                 if (list_add(&to_delete, p) == 0){
-                    perrorbis(STDERR_FILENO, errno, "list_add", STDERR_F, STDERR_B);
+                    perrorbis(errno, "list_add");
                 }
                 continue;
             }
@@ -97,13 +97,13 @@ void hello_potential_neighbours(struct timeval *tv) {
             if (delta >= max) {
                 hello = malloc(sizeof(body_t));
                 if (hello == NULL){
-                    perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                    perrorbis(errno, "malloc");
                     continue;
                 }
 
                 rc = tlv_hello_short(&hello->content, id);
                 if (rc < 0){
-                    perrorbis(STDERR_FILENO, errno, "tlv_hello_short", STDERR_F, STDERR_B);
+                    perrorbis(errno, "tlv_hello_short");
                     free(hello);
                     continue;
                 }
@@ -154,7 +154,7 @@ int hello_neighbours(struct timeval *tv) {
     size_t i, size = 0;
     time_t now = time(0), delta;
     if (now == -1){
-        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
+        perrorbis(errno, "time");
         return -1;
     }
     list_t *l, *to_delete = 0;
@@ -170,13 +170,13 @@ int hello_neighbours(struct timeval *tv) {
                 if (delta >= MAX_TIMEOUT) {
                     body_t *hello = malloc(sizeof(body_t));
                     if (hello == NULL){
-                        perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                        perrorbis(errno, "malloc");
                         continue;
                     }
 
                     rc = tlv_hello_long(&hello->content, id, p->id);
                     if (rc < 0){
-                        perrorbis(STDERR_FILENO, errno, "tlv_hello_long", STDERR_F, STDERR_B);
+                        perrorbis(errno, "tlv_hello_long");
                         free(hello);
                         continue;
                     }
@@ -192,7 +192,7 @@ int hello_neighbours(struct timeval *tv) {
                     tv->tv_sec = MAX_TIMEOUT - delta;
                 }
             } else if (list_add(&to_delete, p) == 0){
-                perrorbis(STDERR_FILENO, errno, "list_add", STDERR_F, STDERR_B);
+                perrorbis(errno, "list_add");
             }
         }
     }
@@ -207,7 +207,7 @@ int hello_neighbours(struct timeval *tv) {
             fprintf(stderr, "%s%s%s:%d Tried to add to potentials a neighbour that was already in.\n%s",
                 STDERR_B, STDERR_F, __FILE__, __LINE__, RESET);
         else if (rc == 0){
-            perrorbis(STDERR_FILENO, ENOMEM, "hashset_add", STDERR_F, STDERR_B);
+            perrorbis(ENOMEM, "hashset_add");
             free(p->addr);
             free(p);
             return -1;
@@ -229,7 +229,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
     time_t now = time(0);
     int rc;
     if (now == -1){
-        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
+        perrorbis(errno, "time");
         return -1;
     }
     size_t i;
@@ -238,7 +238,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
     hashmap_t *ns = hashmap_init(18);
     if (!ns) {
-        perrorbis(STDERR_FILENO, ENOMEM, "hashmap_init", STDERR_F, STDERR_B);
+        perrorbis(ENOMEM, "hashmap_init");
         return -1;
     }
 
@@ -248,7 +248,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
             dinfo = malloc(sizeof(data_info_t));
             if (!dinfo) {
-                perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                perrorbis(errno, "malloc");
                 continue;
             }
             memset(dinfo, 0, sizeof(data_info_t));
@@ -262,7 +262,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
                 fprintf(stderr, "%s%sTried to add a data_info in the flooding_map but it was already in at line %d in %s.\n%s",
                     STDERR_B, STDERR_F, __LINE__, __FILE__, RESET);
             else if (rc == 0){
-                perrorbis(STDERR_FILENO, ENOMEM, "hashmap_add", STDERR_F, STDERR_B);
+                perrorbis(ENOMEM, "hashmap_add");
                 free(dinfo);
             }
 
@@ -280,7 +280,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
         fprintf(stderr, "%s%sTried to add a map in the flooding_map but it was already in at line %d in %s.\n%s",
             STDERR_B, STDERR_F, __LINE__, __FILE__, RESET);
     else if (rc == 0)
-        perrorbis(STDERR_FILENO, ENOMEM, "hashmap_add", STDERR_F, STDERR_B);
+        perrorbis(ENOMEM, "hashmap_add");
     if (rc != 1)
         hashmap_destroy(ns, 1);
 
@@ -289,7 +289,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
         fprintf(stderr, "%s%s%s:%d Tried to add a data in data_map but it was already in.\n%s",
             STDERR_B, STDERR_F, __FILE__, __LINE__, RESET);
     else if (rc == 0)
-        perrorbis(STDERR_FILENO, ENOMEM, "hashset_add", STDERR_F, STDERR_B);
+        perrorbis(ENOMEM, "hashset_add");
 
     return 0;
 }
@@ -299,7 +299,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     int rc;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     if (now == -1){
-        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
+        perrorbis(errno, "time");
         return -1;
     }
     list_t *l;
@@ -345,7 +345,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 rc = tlv_goaway(&body->content, GO_AWAY_HELLO,
                                        "You did not answer to data for too long.", 40);
                 if (rc < 0){
-                    perrorbis(STDERR_FILENO, errno, "malloc", STDERR_B, STDERR_F);
+                    perrorbis(errno, "malloc");
                     free(body);
                     continue;
                 }
@@ -371,14 +371,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
                 rc = hashset_add(potential_neighbours, dinfo->neighbour);
                 if (rc == 0){
-                    perrorbis(STDERR_FILENO, ENOMEM, "hashset_add", STDERR_F, STDERR_B);
+                    perrorbis(ENOMEM, "hashset_add");
                 } else if (rc == 2){
                     fprintf(stderr, "%s%s%s:%d Tried to add a potential neighbour that was already one.\n%s",
                         STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
                 }
 
                 if (!list_add(&to_delete, dinfo->neighbour)){
-                    perrorbis(STDERR_FILENO, errno, "list_add", STDERR_B, STDERR_F);
+                    perrorbis(errno, "list_add");
                 }
                 continue;
             }
@@ -386,14 +386,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
             if (now >= dinfo->time) {
                 body = malloc(sizeof(body_t));
                 if (!body){
-                    perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                    perrorbis(errno, "malloc");
                     continue;
                 }
 
                 body->content = voidndup(data, size);
                 if (!body->content) {
                     free(body);
-                    perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                    perrorbis(errno, "malloc");
                     continue;
                 }
 
@@ -431,7 +431,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     if (map->size == 0 && !list_add(msg_done, voidndup(dataid, 12)))
-        perrorbis(STDERR_FILENO, errno, "list_add", STDERR_B, STDERR_F);
+        perrorbis(errno, "list_add");
 
     return tv;
 }
@@ -524,7 +524,7 @@ int send_neighbour_to(neighbour_t *p) {
             a = (neighbour_t*)l->val;
             body = malloc(sizeof(body_t));
             if (!body){
-                perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                perrorbis(errno, "malloc");
                 continue;
             }
 
@@ -533,7 +533,7 @@ int send_neighbour_to(neighbour_t *p) {
                                       a->addr->sin6_port);
             if (rc < 0){
                 free(body);
-                perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
+                perrorbis(errno, "malloc");
                 continue;
             }
             body->size = rc;
@@ -559,7 +559,7 @@ void neighbour_flooding(short force) {
     size_t i;
     time_t now = time(0);
     if (now == -1){
-        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
+        perrorbis(errno, "time");
         return;
     }
 

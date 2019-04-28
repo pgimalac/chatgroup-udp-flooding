@@ -42,7 +42,7 @@ int init() {
     return 0;
 }
 
-void handle_reception () {
+int handle_reception () {
     int rc;
     u_int8_t c[4096] = { 0 };
     size_t len = 4096;
@@ -51,9 +51,9 @@ void handle_reception () {
     rc = recv_message(sock, &addr, c, &len);
     if (rc < 0) {
         if (errno == EAGAIN)
-            return;
+            return - 1;
         perror("receive message");
-        return;
+        return -2;
     }
 
     neighbour_t *n = hashset_get(neighbours,
@@ -77,7 +77,7 @@ void handle_reception () {
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
         fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", LOGFD_F, LOGFD_B, __FILE__, __LINE__, rc, RESET);
-        return;
+        return -3;
     }
 
     dprintf(logfd, "%s%sReceived message : magic %d, version %d, size %d\n%s", LOGFD_F, LOGFD_B, msg->magic, msg->version, msg->body_length, RESET);
@@ -90,6 +90,7 @@ void handle_reception () {
         handle_tlv(msg->body, n);
     }
     free_message(msg);
+    return 0;
 }
 
 void handle_input() {
@@ -118,7 +119,17 @@ void handle_input() {
 
 int main(int argc, char **argv) {
     int rc;
-
+/*    cprint(0, "0\n");
+    cprint(1, "1\n");
+    cprint(2, "2\n");
+    cprint(0, "un int %d\n", 123456789);
+    cprint(0, "un unsigned int %u\n", 123456789);
+    cprint(0, "un long %ld\n", 1234567891011);
+    cprint(0, "un unsigned long %lu\n", 1234567891011);
+    cprint(0, "un long hexa %lx\n", 1234567891011);
+    cprint(0, "une %s string\n", "jolie");
+    exit(0);
+*/
     rc = init();
     if (rc != 0) return rc;
     dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
@@ -149,13 +160,15 @@ int main(int argc, char **argv) {
 
     printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
 
-    int size, i;
+    int size;
     message_t *msg;
     struct timeval tv = { 0 };
 
+    size_t number_recv = 1, i;
+
     while (1) {
         size = hello_neighbours(&tv);
-        if (size < 8) {
+        if (size < MAX_NB_NEIGHBOUR) {
             hello_potential_neighbours(&tv);
         }
 
@@ -186,15 +199,18 @@ int main(int argc, char **argv) {
         if (rc == 0)
             continue;
 
-        if (FD_ISSET(0, &readfds)) {
+        if (FD_ISSET(0, &readfds))
             handle_input();
-            FD_SET(sock, &readfds);
-        }
 
-        for (i = 0; i < 3; i++) {
-            if (FD_ISSET(sock, &readfds)) {
-                handle_reception();
-            }
+        if (FD_ISSET(sock, &readfds)) {
+            for (i = 0; i < number_recv; i++)
+                if (handle_reception() == -1){
+                    if (number_recv > neighbours->size + 1)
+                        number_recv--;
+                    break;
+                }
+            if (i == number_recv && number_recv < 2 * neighbours->size)
+                number_recv++;
         }
     }
 

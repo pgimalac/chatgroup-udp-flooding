@@ -34,6 +34,12 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]);
 
 void print_bytes(const char *buf, size_t len);
 
-void perrorbis(int fd, int, char *str, char *B, char *F);
+void perrorbis(int err, char *str);
+
+void cprint(int fd, char *str, ...);
+
+int min(int, int);
+
+int max(int a, int b);
 
 #endif
