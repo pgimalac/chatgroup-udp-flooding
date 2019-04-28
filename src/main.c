@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
 
     printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
 
-    int size;
+    int size, i;
     message_t *msg;
     struct timeval tv = { 0 };
 
@@ -172,7 +172,9 @@ int main(int argc, char **argv) {
         dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
 
         fd_set readfds;
+        fd_set done;
         FD_ZERO(&readfds);
+        FD_ZERO(&done);
         FD_SET(sock, &readfds);
         FD_SET(0, &readfds);
 
@@ -185,10 +187,15 @@ int main(int argc, char **argv) {
         if (rc == 0)
             continue;
 
-        if (FD_ISSET(sock, &readfds)) {
-            handle_reception();
-        } else if (FD_ISSET(0, &readfds)) {
+        if (FD_ISSET(0, &readfds)) {
             handle_input();
+            FD_SET(sock, &readfds);
+        }
+
+        for (i = 0; i < 3; i++) {
+            if (FD_ISSET(sock, &readfds)) {
+                handle_reception();
+            }
         }
     }
 

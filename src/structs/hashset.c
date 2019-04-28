@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "interface.h"
 #include "utils.h"
 
 #define HASHSET_INITIAL_CAPACITY 16
@@ -37,6 +38,13 @@ short hashset_isempty(hashset_t *t){
 static short resize(hashset_t *h, int capacity){
     list_t** t = calloc(capacity, sizeof(list_t*));
     if (!t) return 0;
+
+    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
 
     for (size_t i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
         for (list_t* l = h->tab[i]; l != NULL; l = l->next)

@@ -16,7 +16,7 @@
 char pseudo[PSEUDO_LENGTH + 1];
 
 const int pseudo_length = 25;
-const char *pseudos[25] = {
+const char *pseudos[28] = {
                 "Raskolnikov",
                 "Mlle Swann",
                 "Joshep  K.",
@@ -41,7 +41,10 @@ const char *pseudos[25] = {
                 "Zarathustra",
                 "Deep Thought",
                 "Alcèste",
-                "Arthur Dent"
+                "Arthur Dent",
+                "Tyler Durden",
+                "John Wayne",
+                "HAL"
 };
 
 // =========== COMMANDS part ===========

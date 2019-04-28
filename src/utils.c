@@ -96,7 +96,6 @@ int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
 }
 
 int push_tlv(body_t *tlv, neighbour_t *dst) {
-    printf("%p\n", dst);
     msg_queue_t *p;
 
     p = queue;

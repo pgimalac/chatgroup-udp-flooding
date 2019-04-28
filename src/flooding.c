@@ -225,7 +225,8 @@ int flooding_add_message(const u_int8_t *data, int size) {
     neighbour_t *p;
     data_info_t *dinfo;
     datime_t *datime;
-    int now = time(0), rc;
+    time_t now = time(0);
+    int rc;
     if (now == -1){
         perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
         return -1;
@@ -309,14 +310,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     hashmap_t *map;
 
     datime = hashmap_get(data_map, dataid);
-    if (!datime){
+    if (!datime) {
         fprintf(stderr, "%s%s%s:%d Data_map did not contained a dataid it was supposed to contain.\n%s",
             STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
         return -1;
     }
 
+    datime->last = now;
     data = datime->data;
-
     size = data[1] + 2;
 
     map = hashmap_get(flooding_map, dataid);
@@ -478,7 +479,6 @@ int clean_old_data() {
     size_t i;
     list_t *l, *to_delete = 0;
     datime_t *datime;
-    u_int8_t *tmp;
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
@@ -491,13 +491,21 @@ int clean_old_data() {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        tmp = datime->data;
-        hashmap_remove(data_map, datime->data + 2, 1, 1);
-        free(tmp);
+        hashmap_remove(data_map, datime->data + 2, 0, 0);
+        free(datime->data);
+        free(datime);
     }
 
-    if (i != 0)
+    if (i) {
+        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
+
         dprintf(logfd, "%s%s%lu old data removed.\n%s", LOGFD_B, LOGFD_F, i, RESET);
+    }
 
     return 0;
 }

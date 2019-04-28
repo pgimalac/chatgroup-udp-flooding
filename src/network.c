@@ -9,6 +9,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <fcntl.h>
 
 #include "network.h"
 #include "tlv.h"
@@ -159,6 +160,18 @@ int start_server(int port) {
     s = socket(PF_INET6, SOCK_DGRAM, 0);
     if (s < 0 ) {
         perror("socket");
+        return -1;
+    }
+
+    rc = fcntl(s, F_GETFL);
+    if (rc < 0) {
+        perror("fnctl");
+        return -1;
+    }
+
+    rc = fcntl(s, F_SETFL, rc | O_NONBLOCK);
+    if (rc < 0) {
+        perror("fnctl");
         return -1;
     }
 

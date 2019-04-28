@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "interface.h"
 #include "list.h"
 #include "hashmap.h"
 #include "utils.h"
@@ -24,6 +25,14 @@ static short resize (hashmap_t *map, int capacity) {
     map_elem *e;
     list_t **tab = calloc(capacity, sizeof(list_t *));
     if (!tab) return 0;
+
+    fprintf(stderr, "%s%s=====RESIZE HASHMAP=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE HASHMAP=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE HASHMAP=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE HASHMAP=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE HASHMAP=====%s\n", STDERR_B, STDERR_F, RESET);
+    fprintf(stderr, "%s%s=====RESIZE HASHMAP=====%s\n", STDERR_B, STDERR_F, RESET);
+
 
     for (size_t i = 0; i < map->capacity; i++)
         for (list_t *l = map->tab[i]; l; ) {
