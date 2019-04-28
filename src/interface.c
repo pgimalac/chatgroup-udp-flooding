@@ -23,6 +23,11 @@ const char *pseudos[25] = {
                 "Humbert Humbert",
                 "Jacopo Belbo",
                 "Méphistophélès",
+                "Hamlet",
+                "King Lear",
+                "Zarathustra",
+                "Deep Thought",
+                "Alcèste",
                 "Cthulhu",
                 "Samsaget Gamgie",
                 "Thomas Anderson",
@@ -35,13 +40,8 @@ const char *pseudos[25] = {
                 "Doctor House",
                 "Ragnar Lodbrok",
                 "Hannibal",
-                "Sherlock",
-                "Hamlet",
-                "King Lear",
-                "Zarathustra",
-                "Deep Thought",
-                "Alcèste",
                 "Arthur Dent"
+                "Sherlock",
 };
 
 // =========== COMMANDS part ===========

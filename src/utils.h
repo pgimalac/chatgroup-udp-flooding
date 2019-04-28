@@ -6,7 +6,7 @@
 
 #include "types.h"
 
-#define logfd 2
+#define logfd 1
 
 /**
  * Generic usefull functions
