@@ -497,7 +497,9 @@ int clean_old_data() {
         datime = list_pop(&to_delete);
         if (!hashmap_remove(data_map, datime->data + 2, 0, 0)){
             fprintf(stderr, "HASHMAP REMOVE COULD NOT REMOVE datime\n");
+            continue;
         }
+        printf("============ REMOVED %p %p ================\n", datime, datime->data);
         free(datime->data);
         free(datime);
     }
