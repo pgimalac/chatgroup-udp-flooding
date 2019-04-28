@@ -486,7 +486,7 @@ int clean_old_data() {
             datime = ((map_elem*)l->val)->value;
             key = ((map_elem*)l->val)->key;
             if (memcmp(datime->data + 2, key, 12))
-                fprintf(stderr, "THE KEY IS NOT EQUAL TO THE OBJECT ! WEIRD\n");
+                fprintf(stderr, "%s%s%s:%d THE KEY IS NOT EQUAL TO THE OBJECT ! WEIRD%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
             if (time(0) - datime->last > CLEAN_TIMEOUT) {
                 list_add(&to_delete, datime);
             }
@@ -496,22 +496,14 @@ int clean_old_data() {
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
         if (!hashmap_remove(data_map, datime->data + 2, 0, 0)){
-            fprintf(stderr, "HASHMAP REMOVE COULD NOT REMOVE datime\n");
-            continue;
+            fprintf(stderr, "%s%s%s:%d HASHMAP REMOVE COULD NOT REMOVE datime%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
         }
-        printf("============ REMOVED %p %p ================\n", datime, datime->data);
+
         free(datime->data);
         free(datime);
     }
 
     if (i) {
-        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
-        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
-        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
-        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
-        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
-        fprintf(stderr, "%s%s<<<< OLD DATA >>>>>%s\n", STDERR_B, STDERR_F, RESET);
-
         dprintf(logfd, "%s%s%lu old data removed.\n%s", LOGFD_B, LOGFD_F, i, RESET);
     }
 
