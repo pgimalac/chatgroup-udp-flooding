@@ -143,6 +143,7 @@ void hello_potential_neighbours(struct timeval *tv) {
 
         hashset_remove_neighbour(potential_neighbours, n);
         free(n->addr);
+        free(n->tutor_id);
         free(n);
     }
 }
@@ -495,7 +496,7 @@ int clean_old_data() {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        if (!hashmap_remove(data_map, datime->data + 2, 0, 0)){
+        if (!hashmap_remove(data_map, datime->data + 2, 1, 0)){
             fprintf(stderr, "%s%s%s:%d HASHMAP REMOVE COULD NOT REMOVE datime%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
         }
 
