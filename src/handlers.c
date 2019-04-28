@@ -22,7 +22,7 @@ static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     time_t now = time(0), is_long = tlv[1] == 16;
     if (now == -1){
-        perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
+        perrorbis(errno, "time");
         return;
     }
 
@@ -86,6 +86,11 @@ static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
     p = hashset_get(potential_neighbours, ip, port);
     if (p) {
         dprintf(logfd, "%s%sNeighbour (%s, %u) already known.\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(port), RESET);
+        return;
+    }
+
+    if (max(neighbours->size, potential_neighbours->size) >= MAX_NB_NEIGHBOUR){
+        dprintf(logfd, "%s%sAlready too much neighbours so (%s, %u) wasn't added in the potentials.\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(port), RESET);
         return;
     }
 

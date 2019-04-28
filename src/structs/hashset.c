@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <assert.h>
 
 #include "interface.h"
 #include "utils.h"
@@ -113,6 +114,7 @@ neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_ad
     if (h != NULL && hashset_contains(h, ip, port)) {
         int i = hash_neighbour_data(ip, port) % h->capacity;
         neighbour_t *n = hashset_list_remove(&h->tab[i], ip, port);
+        assert(n != NULL);
         h->size--;
         if (h->size < HASHSET_RATIO_LOWER_LIMIT * h->capacity &&
             h->size > HASHSET_INITIAL_CAPACITY)

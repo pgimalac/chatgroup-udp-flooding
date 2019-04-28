@@ -1,9 +1,12 @@
+#define _GNU_SOURCE
+
 #include <time.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "utils.h"
 #include "interface.h"
@@ -261,6 +264,144 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
     memcpy(buffer + 16, &n->addr->sin6_port, 2);
 }
 
-void perrorbis(int fd, int err, char *str, char *B, char *F){
-    dprintf(fd, "%s%s%s: %s\n%s", B, F, str, strerror(err), RESET);
+void cprint(int fd, char *str, ...){
+    char *B, *F;
+    if (fd == 0){
+        B = LOGFD_B; F = LOGFD_F;
+        fd = logfd;
+    } else if (fd == STDOUT_FILENO){
+        B = STDOUT_B; F = STDOUT_F;
+    } else if (fd == STDERR_FILENO){
+        B = STDERR_B; F = STDERR_F;
+    } else {
+        B = ""; F = "";
+    }
+    write(fd, B, strlen(B));
+    write(fd, F, strlen(F));
+
+    va_list ap;
+    va_start(ap, str);
+
+    size_t len = 0, tmp;
+    char *strbis = str, *strter;
+    while (*strbis){
+        strter = strchrnul(strbis, '%');
+        len += strter - strbis;
+        printf("texte en dur:%lu\n", strter - strbis);
+        if (*strter == '\0')
+            break;
+        strter++;
+        assert (strter[0] != '\0');
+        switch (strter[0]) {
+            case 's':
+                tmp = strlen(va_arg(ap, char*));
+                printf("s:%lu\n", tmp);
+                len += tmp;
+                break;
+            case 'd':
+                tmp = snprintf(NULL, 0, "%d", va_arg(ap, int));
+                printf("d:%lu\n", tmp);
+                len += tmp;
+                break;
+            case 'u':
+                tmp = snprintf(NULL, 0, "%u", va_arg(ap, unsigned int));
+                printf("u:%lu\n", tmp);
+                len += tmp;
+                break;
+            case 'l':
+                strter ++;
+                assert(strter[0] != '\0');
+                switch (strter[0]){
+                    case 'x':
+                        tmp = snprintf(NULL, 0, "%lx", va_arg(ap, long));
+                        printf("lx:%lu\n", tmp);
+                        len += tmp;
+                        break;
+                    case 'u':
+                        tmp = snprintf(NULL, 0, "%lu", va_arg(ap, unsigned long));
+                        printf("lu:%lu\n", tmp);
+                        len += tmp;
+                        break;
+                    case 'd':
+                        tmp = snprintf(NULL, 0, "%ld", va_arg(ap, long));
+                        printf("ld:%lu\n", tmp);
+                        len += tmp;
+                        break;
+                    default:
+                        assert(0);
+                }
+                break;
+            case '%':
+                tmp = 1;
+                printf("%%:%lu\n", tmp);
+                len += tmp;
+                break;
+            default:
+                assert(0);
+        }
+        strter++;
+        strbis = strter;
+    }
+    va_end(ap);
+
+    char *buffer = alloca(len + 1), *bufbis = buffer;
+    buffer[len] = '\0';
+    printf("%lu\n", len);
+    strbis = str;
+
+    va_start(ap, str);
+    while (*strbis){
+        strter = strchr(strbis, '%');
+        strncpy(bufbis, strbis, strter - strbis);
+        if (strter == NULL)
+            break;
+        bufbis += strter - strbis;
+        switch (strter[0]) {
+            case 's':
+                bufbis += sprintf(bufbis, "%s", va_arg(ap, char*));
+                break;
+            case 'd':
+                bufbis += sprintf(bufbis, "%d", va_arg(ap, int));
+                break;
+            case 'u':
+                bufbis += sprintf(bufbis, "%u", va_arg(ap, unsigned int));
+                break;
+            case 'l':
+                strter ++;
+                switch (strter[0]){
+                    case 'x':
+                        bufbis += sprintf(bufbis, "%lx", va_arg(ap, long));
+                        break;
+                    case 'u':
+                        bufbis += sprintf(bufbis, "%lu", va_arg(ap, unsigned long));
+                        break;
+                    case 'd':
+                        bufbis += sprintf(bufbis, "%ld", va_arg(ap, long));
+                        break;
+                }
+                break;
+            case '%':
+                bufbis[0] = '%';
+                bufbis++;
+                break;
+        }
+        strter++;
+        strbis = strter;
+    }
+    va_end(ap);
+
+    write(fd, buffer, len);
+    write(fd, RESET, strlen(RESET));
+}
+
+void perrorbis(int err, char *str){
+    cprint(STDERR_FILENO, "%s: %s\n", str, strerror(err));
+}
+
+int min(int a, int b){
+    return a < b ? a : b;
+}
+
+int max(int a, int b){
+    return a < b ? b : a;
 }
