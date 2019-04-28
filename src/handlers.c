@@ -113,7 +113,11 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             buff[size] = '\0';
             printf("%s%s%s\n%s", STDOUT_B, STDOUT_F, buff, RESET);
         } else if (tlv[14] == DATA_FRAG) {
-            // TODO: size check
+            if (size < 9) {
+                dprintf(logfd, "%s%sData fragment was corrupted (too short).\n%s",
+                        LOGFD_F, LOGFD_B, tlv[14], RESET);
+            }
+
             char fragid[12] = { 0 };
             memcpy(fragid, tlv + 2, 8);
             memcpy(fragid + 8, tlv + 15, 4);
