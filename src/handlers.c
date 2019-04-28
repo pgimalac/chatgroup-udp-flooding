@@ -20,8 +20,7 @@ static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
 }
 
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
-    time_t now = time(0);
-    int is_long = tlv[1] == 16;
+    time_t now = time(0), is_long = tlv[1] == 16;
     if (now == -1){
         perrorbis(STDERR_FILENO, errno, "time", STDERR_B, STDERR_F);
         return;

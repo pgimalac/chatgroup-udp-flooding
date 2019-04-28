@@ -126,7 +126,7 @@ void hello_potential_neighbours(struct timeval *tv) {
 
         if (n->tutor_id) {
             neighbour_t *m = hashset_get(neighbours, n->tutor_id, *(u_int16_t*)(n->tutor_id + 16));
-            char msg[256];
+            char msg[256] = { 0 };
             if (m) {
                 hello = malloc(sizeof(body_t));
                 assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
@@ -479,10 +479,14 @@ int clean_old_data() {
     size_t i;
     list_t *l, *to_delete = 0;
     datime_t *datime;
+    u_int8_t *key;
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
             datime = ((map_elem*)l->val)->value;
+            key = ((map_elem*)l->val)->key;
+            if (memcmp(datime->data + 2, key, 12))
+                fprintf(stderr, "THE KEY IS NOT EQUAL TO THE OBJECT ! WEIRD\n");
             if (time(0) - datime->last > CLEAN_TIMEOUT) {
                 list_add(&to_delete, datime);
             }
@@ -491,7 +495,9 @@ int clean_old_data() {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        hashmap_remove(data_map, datime->data + 2, 0, 0);
+        if (!hashmap_remove(data_map, datime->data + 2, 0, 0)){
+            fprintf(stderr, "HASHMAP REMOVE COULD NOT REMOVE datime\n");
+        }
         free(datime->data);
         free(datime);
     }
@@ -535,6 +541,7 @@ int send_neighbour_to(neighbour_t *p) {
                 perrorbis(STDERR_FILENO, errno, "malloc", STDERR_F, STDERR_B);
                 continue;
             }
+            body->size = rc;
 
             rc = push_tlv(body, p);
             if (rc < 0) {

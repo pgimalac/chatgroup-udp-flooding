@@ -47,8 +47,6 @@ void handle_reception () {
     u_int8_t c[4096] = { 0 };
     size_t len = 4096;
     struct sockaddr_in6 addr = { 0 };
-    message_t *msg = 0;
-    neighbour_t *n = 0;
 
     rc = recv_message(sock, &addr, c, &len);
     if (rc < 0) {
@@ -58,7 +56,7 @@ void handle_reception () {
         return;
     }
 
-    n = hashset_get(neighbours,
+    neighbour_t *n = hashset_get(neighbours,
                     addr.sin6_addr.s6_addr,
                     addr.sin6_port);
 
@@ -74,9 +72,11 @@ void handle_reception () {
         dprintf(logfd, "%s%sAdd to potential neighbours.\n%s", LOGFD_F, LOGFD_B, RESET);
     }
 
-    msg = bytes_to_message(c, len, n);
-    if (!msg){
-        fprintf(stderr, "%s%sError decripting the message : %d\n%s", LOGFD_F, LOGFD_B, rc, RESET);
+    message_t *msg = malloc(sizeof(message_t));
+    memset(msg, 0, sizeof(message_t));
+    rc = bytes_to_message(c, len, n, msg);
+    if (rc != 0){
+        fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", LOGFD_F, LOGFD_B, __FILE__, __LINE__, rc, RESET);
         return;
     }
 
@@ -89,7 +89,6 @@ void handle_reception () {
     } else {
         handle_tlv(msg->body, n);
     }
-
     free_message(msg);
 }
 

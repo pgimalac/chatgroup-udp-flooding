@@ -39,7 +39,7 @@ int start_server(int port);
 
 int recv_message(int sock, struct sockaddr_in6 *peer_addr, u_int8_t *buf, size_t *buflen);
 
-message_t *bytes_to_message(const u_int8_t *buf, size_t buflen, neighbour_t*);
+int bytes_to_message(const u_int8_t *buf, size_t buflen, neighbour_t*, message_t*);
 
 void quit_handler(int sig);
 
