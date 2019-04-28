@@ -39,7 +39,7 @@ void frag_data(char *buffer, u_int16_t size) {
 
     dprintf(logfd, "Fragment message of total size %u bytes.\n", size);
 
-    for (i = 0; i <= n / 2; i++) {
+    for (i = 0; i <= n; i++) {
         offset = content;
         memset(offset, 0, 256);
         memcpy(offset, &nonce_frag, sizeof(nonce_frag));
