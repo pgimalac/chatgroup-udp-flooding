@@ -39,13 +39,6 @@ static short resize(hashset_t *h, int capacity){
     list_t** t = calloc(capacity, sizeof(list_t*));
     if (!t) return 0;
 
-    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
-    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
-    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
-    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
-    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
-    fprintf(stderr, "%s%s=====RESIZE=====%s\n", STDERR_B, STDERR_F, RESET);
-
     for (size_t i = 0; i < h->capacity; list_destroy(h->tab[i], 0), i++)
         for (list_t* l = h->tab[i]; l != NULL; l = l->next)
             list_add(&t[hash_neighbour_data(GET_IP(l->val), GET_PORT(l->val)) % capacity], l->val);

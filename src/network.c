@@ -98,27 +98,30 @@ static int check_message_size(const u_int8_t* buffer, int buflen){
     return body_num;
 }
 
-message_t *bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n) {
+int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message_t *msg) {
+    if (msg == NULL) return -8;
     int rc = check_message_size(src, buflen);
-    if (rc < 0) return 0;
+    if (rc < 0) return rc;
 
     u_int16_t size;
     memcpy(&size, src + 2, sizeof(size));
     size = ntohs(size);
 
     if (size == 0)
-        return 0;
+        return -9;
 
-    message_t *msg = create_message(src[0], src[1], size, 0, n);
-    if (!msg)
-        return 0;
+    msg->magic = src[0];
+    msg->version = src[1];
+    msg->body_length = size;
+    msg->body = 0;
+    msg->dst = n;
 
     size_t i = 4;
     body_t *body, *bptr;
 
     while (i < buflen) {
         body = malloc(sizeof(body_t));
-        if (!body){ // todo : better error handling
+        if (!body){
             perror("malloc");
             break;
         }
@@ -130,7 +133,7 @@ message_t *bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n) 
 
         body->content = voidndup(src + i, body->size);
 
-        if (!body->content){ // todo : better error handling
+        if (!body->content){
             perror("malloc");
             free(body);
             body = 0;
@@ -139,18 +142,21 @@ message_t *bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n) 
 
         i += body->size;
 
-        // TODO: find something better
         if (!msg->body) msg->body = body;
         else bptr->next = body;
         bptr = body;
     }
 
     if (i < buflen){ // loop exit with break
-        free_message(msg);
-        return 0;
+        for (body = msg->body; body; body = bptr){
+            bptr = body->next;
+            free(body->content);
+            free(body);
+        }
+        return -10;
     }
 
-    return msg;
+    return 0;
 }
 
 int start_server(int port) {
@@ -224,7 +230,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     }
 
     memset(n, 0, sizeof(neighbour_t));
-    n->pmtu = 500;
+    n->pmtu = 1024;
     n->short_hello_count = 0;
     n->addr = addr;
     n->last_neighbour_send = time(0);
