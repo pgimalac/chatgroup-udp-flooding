@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
     if (rc != 0) return rc;
     dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
 
-    // signal(SIGINT, quit_handler);
+    signal(SIGINT, quit_handler);
 
     unsigned short port = 0;
     if (argc > 1){
