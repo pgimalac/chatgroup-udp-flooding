@@ -15,6 +15,8 @@ int message_flooding(struct timeval *tv);
 
 int clean_old_data();
 
+int clean_old_frags();
+
 void neighbour_flooding(short);
 
 #endif

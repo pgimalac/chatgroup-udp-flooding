@@ -26,8 +26,9 @@
 
 #define NEIGHBOUR_TIMEOUT 120
 
-#define CLEAN_TIMEOUT 120
+#define CLEAN_TIMEOUT 30
 
+#define FRAG_TIMEOUT 40
 
 void frag_data(char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
@@ -38,7 +39,7 @@ void frag_data(char *buffer, u_int16_t size) {
 
     dprintf(logfd, "Fragment message of total size %u bytes.\n", size);
 
-    for (i = 0; i <= n; i++) {
+    for (i = 0; i <= n / 2; i++) {
         offset = content;
         memset(offset, 0, 256);
         memcpy(offset, &nonce_frag, sizeof(nonce_frag));
@@ -527,7 +528,7 @@ int clean_old_data() {
 
             // never remove messages fragments
             // without removing all associated fragments
-            if (datime->data[0] == 4 && datime->data[15] == DATA_FRAG)
+            if (datime->data[0] == 4 && datime->data[14] == DATA_FRAG)
                 continue;
 
             if (time(0) - datime->last > CLEAN_TIMEOUT) {
@@ -538,7 +539,7 @@ int clean_old_data() {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        if (!hashmap_remove(data_map, datime->data + 2, 0, 0)){
+        if (!hashmap_remove(data_map, datime->data + 2, 1, 0)){
             fprintf(stderr, "%s%s%s:%d HASHMAP REMOVE COULD NOT REMOVE datime%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
         }
 
@@ -550,7 +551,80 @@ int clean_old_data() {
         dprintf(logfd, "%s%s%lu old data removed.\n%s", LOGFD_B, LOGFD_F, i, RESET);
     }
 
-    return 0;
+    return i;
+}
+
+int clean_data_from_frags(frag_t *frag) {
+    size_t i;
+    list_t *l, *to_delete = 0;
+    datime_t *datime;
+    u_int8_t *key;
+
+    for (i = 0; i < data_map->capacity; i++) {
+        for (l = data_map->tab[i]; l; l = l->next) {
+            datime = ((map_elem*)l->val)->value;
+            key = ((map_elem*)l->val)->key;
+
+            // here we consider only data
+            if (datime->data[0] != 4 || datime->data[14] != DATA_FRAG)
+                continue;
+
+            // not the right sender_id
+            if (memcmp(frag->id, key, 8))
+                continue;
+
+            // not right fragment nonce
+            if (memcmp(frag->id + 8, datime->data + 15, 4))
+                continue;
+
+            list_add(&to_delete, datime);
+        }
+    }
+
+    for (i = 0; to_delete; i++) {
+        datime = list_pop(&to_delete);
+        if (!hashmap_remove(data_map, datime->data + 2, 1, 0)){
+            fprintf(stderr, "%s%s%s:%d HASHMAP REMOVE COULD NOT REMOVE datime%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+        }
+
+        free(datime->data);
+        free(datime);
+    }
+
+    return i;
+}
+
+int clean_old_frags() {
+    size_t i, count = 0;
+    list_t *l, *to_delete = 0;
+    frag_t *frag;
+    time_t now = time(0);
+
+    for (i = 0; i < fragmentation_map->capacity; i++) {
+        for (l = fragmentation_map->tab[i]; l; l = l->next) {
+            count++;
+            frag = ((map_elem*)l->val)->value;
+            if (now - frag->last > FRAG_TIMEOUT) {
+                list_add(&to_delete, frag);
+            }
+        }
+    }
+
+    i = 0;
+    while (to_delete) {
+        frag = list_pop(&to_delete);
+        i += clean_data_from_frags(frag);
+        hashmap_remove(fragmentation_map, frag->id, 1, 0);
+        free(frag->id);
+        free(frag->buffer);
+        free(frag);
+    }
+
+    if (i) {
+        dprintf(logfd, "%s%s%lu old message fragments removed.\n%s", LOGFD_B, LOGFD_F, i, RESET);
+    }
+
+    return i;
 }
 
 int send_neighbour_to(neighbour_t *p) {

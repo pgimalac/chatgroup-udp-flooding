@@ -112,7 +112,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             memcpy(buff, tlv + 15, size);
             buff[size] = '\0';
             printf("%s%s%s\n%s", STDOUT_B, STDOUT_F, buff, RESET);
-        } else if (tlv[14] == 220) {
+        } else if (tlv[14] == DATA_FRAG) {
             // TODO: size check
             char fragid[12] = { 0 };
             memcpy(fragid, tlv + 2, 8);

@@ -77,7 +77,7 @@ void handle_reception () {
     memset(msg, 0, sizeof(message_t));
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
-        fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", LOGFD_F, LOGFD_B, __FILE__, __LINE__, rc, RESET);
+        fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", STDERR_F, STDERR_B, __FILE__, __LINE__, rc, RESET);
         return;
     }
 
@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
         }
 
         clean_old_data();
+        clean_old_frags();
         dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
 
         fd_set readfds;
