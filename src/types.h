@@ -1,7 +1,7 @@
 #ifndef __H_TYPES
 #define __H_TYPES
 
-#include <sys/types.h>
+#include <stdlib.h>
 #include "structs/hashmap.h"
 
 /**
@@ -50,7 +50,7 @@ message_t *pull_message();
 
 message_t *create_message(u_int8_t, u_int8_t, u_int16_t, body_t*, neighbour_t*);
 
-hashmap_t *flooding_map, *data_map;
+hashmap_t *flooding_map, *data_map, *fragmentation_map;
 
 typedef struct data_info {
     neighbour_t *neighbour;
@@ -62,5 +62,14 @@ typedef struct datime {
     u_int8_t *data;
     time_t last;
 } datime_t;
+
+typedef struct frag {
+    u_int8_t *id;
+    char *buffer;
+    u_int8_t type;
+    u_int16_t size;
+    u_int16_t recv;
+    time_t last;
+} frag_t;
 
 #endif

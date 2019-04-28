@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-void send_data(char *buffer, int size);
+void send_data(char *buffer, u_int16_t size);
 
 void hello_potential_neighbours(struct timeval *tv);
 

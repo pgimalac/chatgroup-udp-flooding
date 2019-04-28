@@ -38,6 +38,7 @@ int init() {
 
     flooding_map = hashmap_init(12);
     data_map = hashmap_init(12);
+    fragmentation_map = hashmap_init(12);
 
     return 0;
 }
@@ -94,9 +95,9 @@ void handle_reception () {
 
 void handle_input() {
     int rc;
-    char buffer[512] = { 0 };
+    char buffer[4096] = { 0 };
 
-    rc = read(0, buffer, 511);
+    rc = read(0, buffer, 4096);
     if (rc < 0) {
         perror("read stdin");
         return;

@@ -107,12 +107,50 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
 
     if (!map && !hashmap_get(data_map, tlv + 2)) {
-        dprintf(logfd, "%s%sNew message received.\n%s", LOGFD_F, LOGFD_B, RESET);
-
         if (tlv[14] == 0) {
+            dprintf(logfd, "%s%sNew message received.\n%s", LOGFD_F, LOGFD_B, RESET);
             memcpy(buff, tlv + 15, size);
             buff[size] = '\0';
             printf("%s%s%s\n%s", STDOUT_B, STDOUT_F, buff, RESET);
+        } else if (tlv[14] == 220) {
+            // TODO: size check
+            char fragid[12] = { 0 };
+            memcpy(fragid, tlv + 2, 8);
+            memcpy(fragid + 8, tlv + 15, 4);
+            frag_t *frag = hashmap_get(fragmentation_map, fragid);
+            if (!frag) {
+                frag = malloc(sizeof(frag_t));
+                frag->id = voidndup(fragid, 12);
+
+                memcpy(&frag->type, tlv + 19, 1);
+                memcpy(&frag->size, tlv + 20, 2);
+                frag->size = ntohs(frag->size);
+
+                dprintf(logfd, "New fragment of total size %u\n", frag->size);
+                frag->recv = 0;
+
+                frag->buffer = malloc(frag->size);
+                hashmap_add(fragmentation_map, fragid, frag);
+            }
+
+            uint16_t fragpos, fragsize;
+            memcpy(&fragpos, tlv + 22, 2);
+            fragpos = ntohs(fragpos);
+            fragsize = tlv[1] - 22;
+
+            frag->recv += fragsize;
+            frag->last = time(0);
+            memcpy(frag->buffer + fragpos, tlv + 24, fragsize);
+
+            if (frag->recv == frag->size) {
+                dprintf(logfd, "%s%sNew long message received.\n%s",
+                        LOGFD_F, LOGFD_B, RESET);
+                // TODO: check data type
+                write(1, frag->buffer, frag->size);
+                free(frag->buffer);
+                free(frag->id);
+                hashmap_remove(fragmentation_map, fragid, 1, 1);
+            }
         }
 
         rc = flooding_add_message(tlv, tlv[1] + 2);

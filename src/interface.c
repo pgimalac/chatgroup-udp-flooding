@@ -8,6 +8,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "types.h"
 #include "interface.h"
@@ -55,7 +58,8 @@ static const char *usages[] = {
     "random",
     "print",
     "juliusz",
-    "neighbour"
+    "neighbour",
+    "transfert <path to file>",
     "quit",
 };
 
@@ -120,8 +124,39 @@ static void neighbour(char *buffer){
     neighbour_flooding(1);
 }
 
-static void quit(char *buffer){
+static void quit(char *buffer) {
     quit_handler(0);
+}
+
+#define MAX_BUF_SIZE ((1 << 16) - 1)
+static void transfert(char *path) {
+    int fd, rc;
+    char buffer[MAX_BUF_SIZE], *pathbis;
+
+    pathbis = path + strspn(path, forbiden);
+    rc = strlen(pathbis);
+
+    while (rc > 0 && strchr(forbiden, pathbis[rc - 1]) != NULL)
+        rc--;
+
+    pathbis[rc] = 0;
+    printf("Send file %s on network.\n", pathbis);
+    fd = open(pathbis, O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return;
+    }
+
+    rc = read(fd, buffer, MAX_BUF_SIZE);
+    if (rc < 0) {
+        perror("read");
+        return;
+    }
+
+    close(fd);
+
+    dprintf(logfd, "Transfering file %u.\n", rc);
+    send_data(buffer, rc);
 }
 
 static void unknown(char *buffer){
@@ -145,6 +180,7 @@ static const char *names[] =
      "juliusz",
      "neighbour",
      "quit",
+     "transfert",
      NULL
     };
 
@@ -158,6 +194,7 @@ static void (*interface[])(char*) =
      juliusz,
      neighbour,
      quit,
+     transfert,
      NULL
     };
 
