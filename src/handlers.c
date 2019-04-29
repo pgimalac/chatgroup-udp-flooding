@@ -103,7 +103,6 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
     body_t *body;
-    char buff[243];
     u_int8_t buffer[18];
 
     cprint(0, "Data received of type %u.\n", tlv[14]);
@@ -114,9 +113,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     if (!map && !hashmap_get(data_map, tlv + 2)) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
-            memcpy(buff, tlv + 15, size);
-            buff[size] = '\0';
-            cprint(STDOUT_FILENO, "%s\n", buff);
+            cprint(STDOUT_FILENO, "%*s\n", size, tlv + 15);
         } else if (tlv[14] == DATA_FRAG) {
             if (size < 9)
                 cprint(0, "Data fragment was corrupted (too short).\n");
@@ -152,7 +149,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             if (frag->recv == frag->size) {
                 cprint(0, "New long message received.\n");
                 // TODO: check data type
-                write(STDOUT_FILENO, frag->buffer, frag->size);
+                cprint(STDOUT_FILENO, "%*s\n", frag->size, frag->buffer);
                 free(frag->buffer);
                 free(frag->id);
                 hashmap_remove(fragmentation_map, fragid, 1, 1);

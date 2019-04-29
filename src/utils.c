@@ -318,6 +318,12 @@ void cprint(int fd, char *str, ...){
                         assert(0);
                 }
                 break;
+            case '*':
+                strter++;
+                assert(strter[0] == 's');
+                len += va_arg(ap, unsigned int);
+                va_arg(ap, char*);
+                break;
             case '%':
                 len += 1;
                 break;
@@ -364,6 +370,12 @@ void cprint(int fd, char *str, ...){
                         bufbis += sprintf(bufbis, "%ld", va_arg(ap, long));
                         break;
                 }
+                break;
+            case '*':
+                strter++;
+                size_t tmp = va_arg(ap, unsigned int);
+                memcpy(bufbis, va_arg(ap, char*), tmp);
+                bufbis += tmp;
                 break;
             case '%':
                 bufbis[0] = '%';

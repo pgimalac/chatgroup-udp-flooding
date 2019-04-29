@@ -37,7 +37,7 @@ void frag_data(char *buffer, u_int16_t size) {
     char content[256], *offset;
     u_int32_t nonce_frag = random_uint32();
 
-    dprintf(logfd, "Fragment message of total size %u bytes.\n", size);
+    cprint(0, "Fragment message of total size %u bytes.\n", size);
 
     for (i = 0; i <= n; i++) {
         offset = content;

@@ -1,13 +1,13 @@
-* Minimum project [75%]
+* Minimum project [100%]
 ** DONE Go away on quit
    handlers on sigterm/kill... + quit command
 ** DONE find the data bug
-** TODO better error handling
+** DONE better error handling
    for every function call check what is returned,...
    maybe do a function to free some memory that could be called when needed
 ** DONE send a warning (like juliusz does)
-*** TODO MARTIAN neighbours
-*** TODO not my id
+*** DONE MARTIAN neighbours
+*** DONE not my id
 * Bonus [3/13]
 ** TODO commands to print own id, ip, port
 ** DONE command to change id
@@ -31,7 +31,7 @@
    ff12:b456:dad4:cee1:4589:71de:a2ec:e66
    port 1212
 ** TODO Fragmentation [0/3]
-*** TODO Alexandre/Tristan-protocol
+*** DONE Alexandre/Tristan-protocol
 *** TODO image, videos, etc... send & reception
 *** TODO file transfert
 ** TODO TCP-Friendly
