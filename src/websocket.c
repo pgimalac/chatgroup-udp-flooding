@@ -128,28 +128,29 @@ int handle_http () {
             return 1;
         }
 
-        end = memchr(ptr, '\n', len - (ptr - buffer));
+        end = memchr(ptr, '\r', len - (ptr - buffer));
         if (!end) {
             write(s, INVALID, strlen(INVALID));
             close(s);
             return 1;
         }
 
+        printf("0:%x 9:%x a:%x z:%x A:%x Z:%x\n", '0', '9', 'a', 'z', 'A', 'Z');
         keylen = end - ptr - 19;
-        key = calloc(keylen + MSWSL, 1);
+        key = alloca(keylen + MSWSL);
         memcpy(key, ptr + 19, keylen);
 
         printf("\n\n");
-        write(1, key, keylen);
+        write(STDOUT_FILENO, key, keylen);
         printf("\n\n");
 
         printf("keylen %lu, magic %lu, %lu\n", keylen, MSWSL, keylen + MSWSL);
-        print_bytes(key, keylen + MSWSL);
+        print_bytes((char*)key, keylen);
         memcpy(key + keylen, MAGICSTRINGWS, MSWSL);
-        print_bytes(key, keylen + MSWSL);
+        print_bytes((char*)key, keylen + MSWSL);
 
         printf("\n\n");
-        rc = write(1, key, keylen + MSWSL);
+        rc = write(STDOUT_FILENO, key, keylen + MSWSL);
         if (rc < 0) {
             perror("write");
         }
@@ -164,7 +165,6 @@ int handle_http () {
         write(s, h64, keylen);
         write(s, "\n\r\n\r\n", 5);
 
-        free(key);
         free(h64);
 
         close(s);
