@@ -34,7 +34,9 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]);
 
 void print_bytes(const char *buf, size_t len);
 
-void perrorbis(int err, char *str);
+void perrorbis(int err, const char *str);
+
+void cperror(const char *str);
 
 void cprint(int fd, char *str, ...);
 

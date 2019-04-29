@@ -152,13 +152,13 @@ static void transfert(char *path) {
     cprint(STDOUT_FILENO, "Send file %s on network.\n", pathbis);
     fd = open(pathbis, O_RDONLY);
     if (fd < 0) {
-        perrorbis(errno, "open");
+        cperror("open");
         return;
     }
 
     rc = read(fd, buffer, MAX_BUF_SIZE);
     if (rc < 0) {
-        perrorbis(errno, "read");
+        cperror("read");
         return;
     }
 

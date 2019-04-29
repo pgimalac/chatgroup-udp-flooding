@@ -391,8 +391,15 @@ void cprint(int fd, char *str, ...){
     write(fd, RESET, strlen(RESET));
 }
 
-void perrorbis(int err, char *str){
-    cprint(STDERR_FILENO, "%s: %s\n", str, strerror(err));
+void perrorbis(int err, const char *str){
+    if (str && *str)
+        cprint(STDERR_FILENO, "%s: %s\n", str, strerror(err));
+    else
+        cprint(STDERR_FILENO, "%s\n", strerror(err));
+}
+
+void cperror(const char *str){
+    perrorbis(errno, str);
 }
 
 int min(int a, int b){

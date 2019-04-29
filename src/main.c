@@ -27,12 +27,12 @@ int init() {
     int rc;
     rc = init_random();
     if (rc < 0) {
-        perrorbis(errno, "init random");
+        cperror("init random");
         return 1;
     }
     rc = init_network();
     if (rc < 0) {
-        perrorbis(errno, "init network");
+        cperror("init network");
         return 2;
     }
 
@@ -53,7 +53,7 @@ int handle_reception () {
     if (rc < 0) {
         if (errno == EAGAIN)
             return - 1;
-        perrorbis(errno, "receive message");
+        cperror("receive message");
         return -2;
     }
 
@@ -102,7 +102,7 @@ void handle_input() {
 
     rc = read(0, buffer, 4096);
     if (rc < 0) {
-        perrorbis(errno, "read stdin");
+        cperror("read stdin");
         return;
     }
 
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 
         rc = select(sock + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
-            perrorbis(errno, "select");
+            cperror("select");
             continue;
         }
 

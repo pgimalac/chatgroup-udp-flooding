@@ -123,7 +123,7 @@ int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message
     while (i < buflen) {
         body = malloc(sizeof(body_t));
         if (!body){
-            perrorbis(errno, "malloc");
+            cperror("malloc");
             break;
         }
 
@@ -135,7 +135,7 @@ int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message
         body->content = voidndup(src + i, body->size);
 
         if (!body->content){
-            perrorbis(errno, "malloc");
+            cperror("malloc");
             free(body);
             body = 0;
             break;
@@ -166,19 +166,19 @@ int start_server(int port) {
 
     s = socket(PF_INET6, SOCK_DGRAM, 0);
     if (s < 0 ) {
-        perrorbis(errno, "socket");
+        cperror("socket");
         return -1;
     }
 
     rc = fcntl(s, F_GETFL);
     if (rc < 0) {
-        perrorbis(errno, "fnctl");
+        cperror("fnctl");
         return -1;
     }
 
     rc = fcntl(s, F_SETFL, rc | O_NONBLOCK);
     if (rc < 0) {
-        perrorbis(errno, "fnctl");
+        cperror("fnctl");
         return -1;
     }
 
@@ -186,7 +186,7 @@ int start_server(int port) {
     local_addr.sin6_port = htons(port);
     rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
     if (rc < 0) {
-        perrorbis(errno, "bind");
+        cperror("bind");
         return -2;
     }
 
@@ -200,7 +200,7 @@ int start_server(int port) {
     int one = 1;
     rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
     if (rc < 0) {
-        perrorbis(errno, "setsockopt");
+        cperror("setsockopt");
         return -3;
     }
 
@@ -241,7 +241,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     if (tutor) {
         n->tutor_id = malloc(18);
         if (!n->tutor_id) {
-            perrorbis(errno, "malloc");
+            cperror("malloc");
             free(n);
             return 0;
         }

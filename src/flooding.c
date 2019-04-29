@@ -83,7 +83,7 @@ void send_data(char *buffer, u_int16_t size){
 
     if (rc < 0){
         if (rc == -1)
-            perrorbis(errno, "tlv_data");
+            cperror("tlv_data");
         else if (rc == -2)
             cprint(0, "Message too long but supposed to be cut...\n");
         return;
@@ -92,7 +92,7 @@ void send_data(char *buffer, u_int16_t size){
     data.size = rc;
 
     if (flooding_add_message(data.content, data.size) != 0)
-        perrorbis(errno, "tlv_data");
+        cperror("tlv_data");
 
     free(data.content);
 }
@@ -102,7 +102,7 @@ void hello_potential_neighbours(struct timeval *tv) {
     size_t i;
     time_t max, delta, now = time(0);
     if (now == -1){
-        perrorbis(errno, "time");
+        cperror("time");
         return;
     }
     list_t *l;
@@ -123,7 +123,7 @@ void hello_potential_neighbours(struct timeval *tv) {
                 cprint(0, "He did not answer to short hello for too long.\n");
 
                 if (list_add(&to_delete, p) == 0){
-                    perrorbis(errno, "list_add");
+                    cperror("list_add");
                 }
                 continue;
             }
@@ -134,13 +134,13 @@ void hello_potential_neighbours(struct timeval *tv) {
             if (delta >= max) {
                 hello = malloc(sizeof(body_t));
                 if (hello == NULL){
-                    perrorbis(errno, "malloc");
+                    cperror("malloc");
                     continue;
                 }
 
                 rc = tlv_hello_short(&hello->content, id);
                 if (rc < 0){
-                    perrorbis(errno, "tlv_hello_short");
+                    cperror("tlv_hello_short");
                     free(hello);
                     continue;
                 }
@@ -191,7 +191,7 @@ int hello_neighbours(struct timeval *tv) {
     size_t i, size = 0;
     time_t now = time(0), delta;
     if (now == -1){
-        perrorbis(errno, "time");
+        cperror("time");
         return -1;
     }
     list_t *l, *to_delete = 0;
@@ -207,13 +207,13 @@ int hello_neighbours(struct timeval *tv) {
                 if (delta >= MAX_TIMEOUT) {
                     body_t *hello = malloc(sizeof(body_t));
                     if (hello == NULL){
-                        perrorbis(errno, "malloc");
+                        cperror("malloc");
                         continue;
                     }
 
                     rc = tlv_hello_long(&hello->content, id, p->id);
                     if (rc < 0){
-                        perrorbis(errno, "tlv_hello_long");
+                        cperror("tlv_hello_long");
                         free(hello);
                         continue;
                     }
@@ -229,7 +229,7 @@ int hello_neighbours(struct timeval *tv) {
                     tv->tv_sec = MAX_TIMEOUT - delta;
                 }
             } else if (list_add(&to_delete, p) == 0){
-                perrorbis(errno, "list_add");
+                cperror("list_add");
             }
         }
     }
@@ -266,7 +266,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
     time_t now = time(0);
     int rc;
     if (now == -1){
-        perrorbis(errno, "time");
+        cperror("time");
         return -1;
     }
     size_t i;
@@ -285,7 +285,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
             dinfo = malloc(sizeof(data_info_t));
             if (!dinfo) {
-                perrorbis(errno, "malloc");
+                cperror("malloc");
                 continue;
             }
             memset(dinfo, 0, sizeof(data_info_t));
@@ -336,7 +336,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     int rc;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     if (now == -1){
-        perrorbis(errno, "time");
+        cperror("time");
         return -1;
     }
     list_t *l;
@@ -382,7 +382,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 rc = tlv_goaway(&body->content, GO_AWAY_HELLO,
                                        "You did not answer to data for too long.", 40);
                 if (rc < 0){
-                    perrorbis(errno, "malloc");
+                    cperror("malloc");
                     free(body);
                     continue;
                 }
@@ -415,7 +415,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 }
 
                 if (!list_add(&to_delete, dinfo->neighbour)){
-                    perrorbis(errno, "list_add");
+                    cperror("list_add");
                 }
                 continue;
             }
@@ -423,14 +423,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
             if (now >= dinfo->time) {
                 body = malloc(sizeof(body_t));
                 if (!body){
-                    perrorbis(errno, "malloc");
+                    cperror("malloc");
                     continue;
                 }
 
                 body->content = voidndup(data, size);
                 if (!body->content) {
                     free(body);
-                    perrorbis(errno, "malloc");
+                    cperror("malloc");
                     continue;
                 }
 
@@ -467,7 +467,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     if (map->size == 0 && !list_add(msg_done, voidndup(dataid, 12)))
-        perrorbis(errno, "list_add");
+        cperror("list_add");
 
     return tv;
 }
@@ -632,7 +632,7 @@ int send_neighbour_to(neighbour_t *p) {
             a = (neighbour_t*)l->val;
             body = malloc(sizeof(body_t));
             if (!body){
-                perrorbis(errno, "malloc");
+                cperror("malloc");
                 continue;
             }
 
@@ -641,7 +641,7 @@ int send_neighbour_to(neighbour_t *p) {
                                       a->addr->sin6_port);
             if (rc < 0){
                 free(body);
-                perrorbis(errno, "malloc");
+                cperror("malloc");
                 continue;
             }
             body->size = rc;
@@ -665,7 +665,7 @@ void neighbour_flooding(short force) {
     size_t i;
     time_t now = time(0);
     if (now == -1){
-        perrorbis(errno, "time");
+        cperror("time");
         return;
     }
 
