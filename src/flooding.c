@@ -48,15 +48,14 @@ void send_data(char *buffer, int size){
         if (rc == -1)
             perrorbis(errno, "tlv_data");
         else if (rc == -2)
-            dprintf(logfd, "%s%sMessage too long but supposed to be cut...\n%s", LOGFD_F, LOGFD_B, RESET);
+            cprint(0, "Message too long but supposed to be cut...\n");
         return;
     }
 
     data.size = rc;
 
-    if (flooding_add_message(data.content, data.size) != 0){
+    if (flooding_add_message(data.content, data.size) != 0)
         perrorbis(errno, "tlv_data");
-    }
     free(data.content);
 }
 
@@ -81,9 +80,9 @@ void hello_potential_neighbours(struct timeval *tv) {
 
             if (p->short_hello_count >= NBSH) {
                 assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-                dprintf(logfd, "%s%sRemove (%s, %u) from potential neighbour list.\n%s", LOGFD_F, LOGFD_B,
-                       ipstr, ntohs(p->addr->sin6_port), RESET);
-                dprintf(logfd, "%s%sHe did not answer to short hello for too long.\n%s", LOGFD_F, LOGFD_B, RESET);
+                cprint(0, "Remove (%s, %u) from potential neighbour list.\n",
+                       ipstr, ntohs(p->addr->sin6_port));
+                cprint(0, "He did not answer to short hello for too long.\n");
 
                 if (list_add(&to_delete, p) == 0){
                     perrorbis(errno, "list_add");
@@ -111,7 +110,7 @@ void hello_potential_neighbours(struct timeval *tv) {
 
                 rc = push_tlv(hello, p);
                 if (rc < 0) {
-                    fprintf(stderr, "%s%sCould not insert short hello into message queue\n%s", STDERR_F, STDERR_B, RESET);
+                    cprint(STDERR_FILENO, "Could not insert short hello into message queue\n");
                     free(hello->content);
                     free(hello);
                 }
@@ -134,7 +133,7 @@ void hello_potential_neighbours(struct timeval *tv) {
 
                 sprintf(msg, "(%s, %u) is a Martian.",
                         ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
-                dprintf(logfd, "%s%s%s\n%s", LOGFD_B, LOGFD_F, msg, RESET);
+                cprint(0, "%s\n", msg);
 
                 hello->size = tlv_warning(&hello->content, msg, strlen(msg));
                 push_tlv(hello, m);
@@ -184,7 +183,7 @@ int hello_neighbours(struct timeval *tv) {
 
                     rc = push_tlv(hello, p);
                     if (rc < 0) {
-                        fprintf(stderr, "%s%sCould not insert long hello into message queue\n%s", STDERR_F, STDERR_B, RESET);
+                        cprint(STDERR_FILENO, "Could not insert long hello into message queue\n");
                         free(hello->content);
                         free(hello);
                     }
@@ -200,12 +199,12 @@ int hello_neighbours(struct timeval *tv) {
     while (to_delete) {
         p = (neighbour_t*)list_pop(&to_delete);
         if (!hashset_remove(neighbours, p->addr->sin6_addr.s6_addr, p->addr->sin6_port))
-            fprintf(stderr, "%s%s%s:%d Tried to remove a neighbour that wasn't actually one.\n%s",
-                STDERR_B, STDERR_F, __FILE__, __LINE__, RESET);
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a neighbour that wasn't actually one.\n",
+                __FILE__, __LINE__);
         rc = hashset_add(potential_neighbours, p);
         if (rc == 2)
-            fprintf(stderr, "%s%s%s:%d Tried to add to potentials a neighbour that was already in.\n%s",
-                STDERR_B, STDERR_F, __FILE__, __LINE__, RESET);
+            cprint(STDERR_FILENO, "%s:%d Tried to add to potentials a neighbour that was already in.\n",
+                __FILE__, __LINE__);
         else if (rc == 0){
             perrorbis(ENOMEM, "hashset_add");
             free(p->addr);
@@ -214,9 +213,9 @@ int hello_neighbours(struct timeval *tv) {
         }
 
         assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-        dprintf(logfd, "%s%sRemove (%s, %u) from neighbour list and add to potential neighbours.\n%s",
-            LOGFD_F, LOGFD_B, ipstr, ntohs(p->addr->sin6_port), RESET);
-        dprintf(logfd, "%s%sHe did not send long hello for too long \n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
+            ipstr, ntohs(p->addr->sin6_port));
+        cprint(0, "He did not send long hello for too long \n");
     }
 
     return size;
@@ -259,8 +258,8 @@ int flooding_add_message(const u_int8_t *data, int size) {
             bytes_from_neighbour(p, buffer);
             rc = hashmap_add(ns, buffer, dinfo);
             if (rc == 2)
-                fprintf(stderr, "%s%sTried to add a data_info in the flooding_map but it was already in at line %d in %s.\n%s",
-                    STDERR_B, STDERR_F, __LINE__, __FILE__, RESET);
+                cprint(STDERR_FILENO, "Tried to add a data_info in the flooding_map but it was already in at line %d in %s.\n",
+                    __LINE__, __FILE__);
             else if (rc == 0){
                 perrorbis(ENOMEM, "hashmap_add");
                 free(dinfo);
@@ -277,8 +276,8 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
     rc = hashmap_add(flooding_map, key, ns);
     if (rc == 2)
-        fprintf(stderr, "%s%sTried to add a map in the flooding_map but it was already in at line %d in %s.\n%s",
-            STDERR_B, STDERR_F, __LINE__, __FILE__, RESET);
+        cprint(STDERR_FILENO, "%s:%d Tried to add a map in the flooding_map but it was already in.\n",
+            __FILE__, __LINE__);
     else if (rc == 0)
         perrorbis(ENOMEM, "hashmap_add");
     if (rc != 1)
@@ -286,8 +285,8 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
     rc = hashmap_add(data_map, key, datime);
     if (rc == 2)
-        fprintf(stderr, "%s%s%s:%d Tried to add a data in data_map but it was already in.\n%s",
-            STDERR_B, STDERR_F, __FILE__, __LINE__, RESET);
+        cprint(STDERR_FILENO, "%s:%d Tried to add a data in data_map but it was already in.\n",
+            __FILE__, __LINE__);
     else if (rc == 0)
         perrorbis(ENOMEM, "hashset_add");
 
@@ -312,8 +311,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
     datime = hashmap_get(data_map, dataid);
     if (!datime) {
-        fprintf(stderr, "%s%s%s:%d Data_map did not contained a dataid it was supposed to contain.\n%s",
-            STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+        cprint(STDERR_FILENO, "%s:%d Data_map did not contained a dataid it was supposed to contain.\n",
+            __FILE__, __LINE__);
         return -1;
     }
 
@@ -323,8 +322,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
     map = hashmap_get(flooding_map, dataid);
     if (!map){
-        fprintf(stderr, "%s%s%s:%d Flooding_map did not contained a dataid it was supposed to contain.\n%s",
-            STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+        cprint(STDERR_FILENO, "%s:%d Flooding_map did not contained a dataid it was supposed to contain.\n",
+            __FILE__, __LINE__);
         return -2;
     }
 
@@ -352,29 +351,29 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 body->size = rc;
                 rc = push_tlv(body, dinfo->neighbour);
                 if (rc < 0) {
-                    fprintf(stderr, "%s%sCould not insert go away into message queue\n%s", STDERR_F, STDERR_B, RESET);
+                    cprint(STDERR_FILENO, "Could not insert go away into message queue\n");
                     free(body->content);
                     free(body);
                 }
 
                 assert (inet_ntop(AF_INET6, &dinfo->neighbour->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-                dprintf(logfd, "%s%sRemove (%s, %u) from neighbour list and add to potential neighbours.\n%s",
-                    LOGFD_F, LOGFD_B, ipstr, ntohs(dinfo->neighbour->addr->sin6_port), RESET);
-                dprintf(logfd, "%s%sHe did not answer to data for too long.\n%s", LOGFD_F, LOGFD_B, RESET);
+                cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
+                    ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
+                cprint(0, "He did not answer to data for too long.\n");
 
                 if (hashset_remove(neighbours,
                                dinfo->neighbour->addr->sin6_addr.s6_addr,
                                dinfo->neighbour->addr->sin6_port) == NULL){
-                    fprintf(stderr, "%s%s%s:%d Tried to remove a neighbour that wasn't one.\n%s",
-                        STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+                    cprint(STDERR_FILENO, "%s:%d Tried to remove a neighbour that wasn't one.\n",
+                        __FILE__, __LINE__);
                 }
 
                 rc = hashset_add(potential_neighbours, dinfo->neighbour);
                 if (rc == 0){
                     perrorbis(ENOMEM, "hashset_add");
                 } else if (rc == 2){
-                    fprintf(stderr, "%s%s%s:%d Tried to add a potential neighbour that was already one.\n%s",
-                        STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+                    cprint(STDERR_FILENO, "%s:%d Tried to add a potential neighbour that was already one.\n",
+                        __FILE__, __LINE__);
                 }
 
                 if (!list_add(&to_delete, dinfo->neighbour)){
@@ -400,8 +399,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 body->size = size;
                 rc = push_tlv(body, dinfo->neighbour);
                 if (rc < 0) {
-                    fprintf(stderr, "%s%s%s:%d Could not insert data into message queue\n%s",
-                        STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+                    cprint(STDERR_FILENO, "%s:%d Could not insert data into message queue\n",
+                        __FILE__, __LINE__);
                     free(body->content);
                     free(body);
                 }
@@ -419,15 +418,14 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     neighbour_t *obj;
     while ((obj = list_pop(&to_delete)) != NULL){
         assert (inet_ntop(AF_INET6, &obj->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-        dprintf(logfd, "%s%sRemove (%s, %u) from map.\n%s", LOGFD_F, LOGFD_B,
-                ipstr, ntohs(obj->addr->sin6_port), RESET);
+        cprint(0, "Remove (%s, %u) from map.\n", ipstr, ntohs(obj->addr->sin6_port));
 
         u_int8_t buf[18];
         bytes_from_neighbour(obj, buf);
         rc = hashmap_remove(map, buf, 1, 1);
         if (rc == 0)
-            fprintf(stderr, "%s%s%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n%s",
-                STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n",
+                __FILE__, __LINE__);
     }
 
     if (map->size == 0 && !list_add(msg_done, voidndup(dataid, 12)))
@@ -463,12 +461,12 @@ int message_flooding(struct timeval *tv) {
         if (map)
             hashmap_destroy(map, 1);
         else
-            fprintf(stderr, "%s%s%s:%d Tried to get a dataid from flooding map but it wasn't in.\n%s",
-                STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+            cprint(STDERR_FILENO, "%s:%d Tried to get a dataid from flooding map but it wasn't in.\n",
+                __FILE__, __LINE__);
 
         if (hashmap_remove(flooding_map, dataid, 1, 0) == 0)
-            fprintf(stderr, "%s%s%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n%s",
-                STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n",
+                __FILE__, __LINE__);
 
         free(dataid);
     }
@@ -487,7 +485,8 @@ int clean_old_data() {
             datime = ((map_elem*)l->val)->value;
             key = ((map_elem*)l->val)->key;
             if (memcmp(datime->data + 2, key, 12))
-                fprintf(stderr, "%s%s%s:%d THE KEY IS NOT EQUAL TO THE OBJECT ! WEIRD%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+                cprint(STDERR_FILENO, "%s:%d THE KEY IS NOT EQUAL TO THE OBJECT ! WEIRD\n",
+                    __FILE__, __LINE__);
             if (time(0) - datime->last > CLEAN_TIMEOUT) {
                 list_add(&to_delete, datime);
             }
@@ -497,7 +496,8 @@ int clean_old_data() {
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
         if (!hashmap_remove(data_map, datime->data + 2, 1, 0)){
-            fprintf(stderr, "%s%s%s:%d HASHMAP REMOVE COULD NOT REMOVE datime%s\n", STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+            cprint(STDERR_FILENO, "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n",
+                __FILE__, __LINE__);
         }
 
         free(datime->data);
@@ -505,7 +505,7 @@ int clean_old_data() {
     }
 
     if (i) {
-        dprintf(logfd, "%s%s%lu old data removed.\n%s", LOGFD_B, LOGFD_F, i, RESET);
+        cprint(0, "%lu old data removed.\n", i);
     }
 
     return 0;
@@ -540,8 +540,7 @@ int send_neighbour_to(neighbour_t *p) {
 
             rc = push_tlv(body, p);
             if (rc < 0) {
-                fprintf(stderr, "%s%s%s:%d Could not insert data into message queue\n%s",
-                    STDERR_F, STDERR_B, __FILE__, __LINE__, RESET);
+                cprint(STDERR_FILENO, "%s:%d Could not insert data into message queue\n", __FILE__, __LINE__);
                 free(body->content);
                 free(body);
             }
@@ -549,8 +548,7 @@ int send_neighbour_to(neighbour_t *p) {
     }
 
     assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    dprintf(logfd, "%s%sSend neighbours to (%s, %u).\n%s", LOGFD_F, LOGFD_B,
-            ipstr, ntohs(p->addr->sin6_port), RESET);
+    cprint(0, "Send neighbours to (%s, %u).\n", ipstr, ntohs(p->addr->sin6_port));
 
     return 0;
 }

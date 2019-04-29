@@ -281,59 +281,44 @@ void cprint(int fd, char *str, ...){
     va_list ap;
     va_start(ap, str);
 
-    size_t len = 0, tmp;
+    size_t len = 0;
     char *strbis = str, *strter;
     while (*strbis){
         strter = strchrnul(strbis, '%');
         len += strter - strbis;
-        printf("texte en dur:%lu\n", strter - strbis);
         if (*strter == '\0')
             break;
         strter++;
         assert (strter[0] != '\0');
         switch (strter[0]) {
             case 's':
-                tmp = strlen(va_arg(ap, char*));
-                printf("s:%lu\n", tmp);
-                len += tmp;
+                len += strlen(va_arg(ap, char*));
                 break;
             case 'd':
-                tmp = snprintf(NULL, 0, "%d", va_arg(ap, int));
-                printf("d:%lu\n", tmp);
-                len += tmp;
+                len += snprintf(NULL, 0, "%d", va_arg(ap, int));
                 break;
             case 'u':
-                tmp = snprintf(NULL, 0, "%u", va_arg(ap, unsigned int));
-                printf("u:%lu\n", tmp);
-                len += tmp;
+                len += snprintf(NULL, 0, "%u", va_arg(ap, unsigned int));
                 break;
             case 'l':
                 strter ++;
                 assert(strter[0] != '\0');
                 switch (strter[0]){
                     case 'x':
-                        tmp = snprintf(NULL, 0, "%lx", va_arg(ap, long));
-                        printf("lx:%lu\n", tmp);
-                        len += tmp;
+                        len += snprintf(NULL, 0, "%lx", va_arg(ap, long));
                         break;
                     case 'u':
-                        tmp = snprintf(NULL, 0, "%lu", va_arg(ap, unsigned long));
-                        printf("lu:%lu\n", tmp);
-                        len += tmp;
+                        len += snprintf(NULL, 0, "%lu", va_arg(ap, unsigned long));
                         break;
                     case 'd':
-                        tmp = snprintf(NULL, 0, "%ld", va_arg(ap, long));
-                        printf("ld:%lu\n", tmp);
-                        len += tmp;
+                        len += snprintf(NULL, 0, "%ld", va_arg(ap, long));
                         break;
                     default:
                         assert(0);
                 }
                 break;
             case '%':
-                tmp = 1;
-                printf("%%:%lu\n", tmp);
-                len += tmp;
+                len += 1;
                 break;
             default:
                 assert(0);
@@ -345,16 +330,16 @@ void cprint(int fd, char *str, ...){
 
     char *buffer = alloca(len + 1), *bufbis = buffer;
     buffer[len] = '\0';
-    printf("%lu\n", len);
     strbis = str;
 
     va_start(ap, str);
     while (*strbis){
-        strter = strchr(strbis, '%');
+        strter = strchrnul(strbis, '%');
         strncpy(bufbis, strbis, strter - strbis);
-        if (strter == NULL)
+        if (*strter == 0)
             break;
         bufbis += strter - strbis;
+        strter++;
         switch (strter[0]) {
             case 's':
                 bufbis += sprintf(bufbis, "%s", va_arg(ap, char*));

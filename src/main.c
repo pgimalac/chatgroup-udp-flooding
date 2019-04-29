@@ -27,12 +27,12 @@ int init() {
     int rc;
     rc = init_random();
     if (rc < 0) {
-        perror("init random");
+        perrorbis(errno, "init random");
         return 1;
     }
     rc = init_network();
     if (rc < 0) {
-        perror("init network");
+        perrorbis(errno, "init network");
         return 2;
     }
 
@@ -52,7 +52,7 @@ int handle_reception () {
     if (rc < 0) {
         if (errno == EAGAIN)
             return - 1;
-        perror("receive message");
+        perrorbis(errno, "receive message");
         return -2;
     }
 
@@ -69,23 +69,23 @@ int handle_reception () {
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
                           addr.sin6_port, 0);
-        dprintf(logfd, "%s%sAdd to potential neighbours.\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "Add to potential neighbours.\n");
     }
 
     message_t *msg = malloc(sizeof(message_t));
     memset(msg, 0, sizeof(message_t));
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
-        fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", LOGFD_F, LOGFD_B, __FILE__, __LINE__, rc, RESET);
+        cprint(STDERR_FILENO, "%s:%d bytes_to_message error : %d\n", __FILE__, __LINE__, rc);
         return -3;
     }
 
-    dprintf(logfd, "%s%sReceived message : magic %d, version %d, size %d\n%s", LOGFD_F, LOGFD_B, msg->magic, msg->version, msg->body_length, RESET);
+    cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
 
     if (msg->magic != MAGIC) {
-        fprintf(stderr, "%s%sInvalid magic value\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(STDERR_FILENO, "Invalid magic value\n");
     } else if (msg->version != VERSION) {
-        fprintf(stderr, "%s%sInvalid version\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(STDERR_FILENO, "Invalid version\n");
     } else {
         handle_tlv(msg->body, n);
     }
@@ -99,7 +99,7 @@ void handle_input() {
 
     rc = read(0, buffer, 511);
     if (rc < 0) {
-        perror("read stdin");
+        perrorbis(errno, "read stdin");
         return;
     }
 
@@ -119,20 +119,10 @@ void handle_input() {
 
 int main(int argc, char **argv) {
     int rc;
-/*    cprint(0, "0\n");
-    cprint(1, "1\n");
-    cprint(2, "2\n");
-    cprint(0, "un int %d\n", 123456789);
-    cprint(0, "un unsigned int %u\n", 123456789);
-    cprint(0, "un long %ld\n", 1234567891011);
-    cprint(0, "un unsigned long %lu\n", 1234567891011);
-    cprint(0, "un long hexa %lx\n", 1234567891011);
-    cprint(0, "une %s string\n", "jolie");
-    exit(0);
-*/
+
     rc = init();
     if (rc != 0) return rc;
-    dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
+    cprint(0, "local id: %lx\n", id);
 
     signal(SIGINT, quit_handler);
 
@@ -150,15 +140,15 @@ int main(int argc, char **argv) {
     else
         setRandomPseudo();
 
-    printf("%s%sWelcome %s.\n%s", STDOUT_F, STDOUT_B, getPseudo(), RESET);
+    cprint(STDOUT_FILENO, "Welcome %s.\n", getPseudo());
 
     sock = start_server(port);
     if (sock < 0) {
-        fprintf(stderr, "%s%scoudn't create socket\n%s", STDERR_F, STDERR_B, RESET);
+        cprint(STDERR_FILENO, "coudn't create socket\n");
         return 1;
     }
 
-    printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
+    cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
     int size;
     message_t *msg;
@@ -181,7 +171,7 @@ int main(int argc, char **argv) {
         }
 
         clean_old_data();
-        dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
+        cprint(0, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
 
         fd_set readfds;
         fd_set done;
@@ -192,7 +182,7 @@ int main(int argc, char **argv) {
 
         rc = select(sock + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
-            perror("select");
+            perrorbis(errno, "select");
             continue;
         }
 
@@ -214,7 +204,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("%s%sBye !\n%s", STDOUT_F, STDOUT_B, RESET);
+    cprint(STDOUT_FILENO, "Bye !\n");
 
     return 0;
 }

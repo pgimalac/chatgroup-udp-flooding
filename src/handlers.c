@@ -12,11 +12,11 @@
 #include "interface.h"
 
 static void handle_pad1(const u_int8_t *tlv, neighbour_t *n) {
-    dprintf(logfd, "%s%sPad1 received\n%s", LOGFD_F, LOGFD_B, RESET);
+    cprint(0, "Pad1 received\n");
 }
 
 static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
-    dprintf(logfd, "%s%sPadn of length %u received\n%s", LOGFD_F, LOGFD_B, tlv[1], RESET);
+    cprint(0, "Padn of length %u received\n", tlv[1]);
 }
 
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
@@ -34,22 +34,22 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
 
     char ipstr[INET6_ADDRSTRLEN];
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    dprintf(logfd, "%s%sReceive %s hello from (%s, %u).\n%s", LOGFD_F, LOGFD_B,
-           is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port), RESET);
+    cprint(0, "Receive %s hello from (%s, %u).\n",
+           is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
 
     n->id = src_id;
 
     if (is_long && dest_id != id) {
-        dprintf(logfd, "%s%s%lx is not my id.\n%s", LOGFD_F, LOGFD_B, dest_id, RESET);
+        cprint(0, "%lx is not my id.\n", dest_id);
         return;
     }
 
     if (n->status == NEIGHBOUR_SYM && src_id != n->id) {
-        dprintf(logfd, "%s%sHe has now id %lx.\n%s", LOGFD_B, LOGFD_F, src_id, RESET);
+        cprint(0, "He has now id %lx.\n", src_id);
     }
 
     if (n->status == NEIGHBOUR_POT) {
-        dprintf(logfd, "%s%sRemove from potential %lx and add to symetrical.\n%s", LOGFD_F, LOGFD_B, src_id, RESET);
+        cprint(0, "Remove from potential %lx and add to symetrical.\n", src_id);
         n->last_hello_send = 0;
 
         hashset_add(neighbours, n);
@@ -72,30 +72,30 @@ static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
     memcpy(&port, tlv + sizeof(struct in6_addr) + 2, sizeof(port));
 
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    dprintf(logfd, "%s%sReceive potential neighbour from (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(n->addr->sin6_port), RESET);
+    cprint(0, "Receive potential neighbour from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
     assert (inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN) != NULL);
-    dprintf(logfd, "%s%sNew potential neighbour (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(port), RESET);
+    cprint(0, "New potential neighbour (%s, %u).\n", ipstr, ntohs(port));
 
     p = hashset_get(neighbours, ip, port);
     if (p) {
-        dprintf(logfd, "%s%sNeighbour (%s, %u) already known.\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(port), RESET);
+        cprint(0, "Neighbour (%s, %u) already known.\n", ipstr, ntohs(port));
         return;
     }
 
     p = hashset_get(potential_neighbours, ip, port);
     if (p) {
-        dprintf(logfd, "%s%sNeighbour (%s, %u) already known.\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(port), RESET);
+        cprint(0, "Neighbour (%s, %u) already known.\n", ipstr, ntohs(port));
         return;
     }
 
     if (max(neighbours->size, potential_neighbours->size) >= MAX_NB_NEIGHBOUR){
-        dprintf(logfd, "%s%sAlready too much neighbours so (%s, %u) wasn't added in the potentials.\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(port), RESET);
+        cprint(0, "Already too much neighbours so (%s, %u) wasn't added in the potentials.\n", ipstr, ntohs(port));
         return;
     }
 
     if (!new_neighbour(ip, port, n))
-        fprintf(stderr, "%s%sAn error occured while adding peer to potential neighbours.\n%s", STDERR_F, STDERR_B, RESET);
+        cprint(STDERR_FILENO, "An error occured while adding peer to potential neighbours.\n");
 }
 
 static void handle_data(const u_int8_t *tlv, neighbour_t *n){
@@ -106,23 +106,23 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     char buff[243];
     u_int8_t buffer[18];
 
-    dprintf(logfd, "%s%sData received.\nData type %u.\n%s", LOGFD_F, LOGFD_B, tlv[14], RESET);
+    cprint(0, "Data received of type %u.\n", tlv[14]);
 
     map = hashmap_get(flooding_map, tlv + 2);
 
 
     if (!map && !hashmap_get(data_map, tlv + 2)) {
-        dprintf(logfd, "%s%sNew message received.\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "New message received.\n");
 
         if (tlv[14] == 0) {
             memcpy(buff, tlv + 15, size);
             buff[size] = '\0';
-            printf("%s%s%s\n%s", STDOUT_B, STDOUT_F, buff, RESET);
+            cprint(STDOUT_FILENO, "%s\n", buff);
         }
 
         rc = flooding_add_message(tlv, tlv[1] + 2);
         if (rc < 0) {
-            fprintf(stderr, "%s%sProblem while adding data to flooding map.\n%s", LOGFD_F, LOGFD_B, RESET);
+            cprint(STDERR_FILENO, "Problem while adding data to flooding map.\n");
             return;
         }
 
@@ -147,11 +147,11 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     datime_t *datime;
 
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    dprintf(logfd, "%s%sAck from (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(n->addr->sin6_port), RESET);
+    cprint(0, "Ack from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
     hashmap_t *map = hashmap_get(flooding_map, (void*)(tlv + 2));
     if (!map) {
-        dprintf(logfd, "%s%sNot necessary ack\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "Not necessary ack\n");
         return;
     }
 
@@ -165,20 +165,20 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
 static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
     char *msg = 0, ipstr[INET6_ADDRSTRLEN];
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    dprintf(logfd, "%s%sGo away from (%s, %u).\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(n->addr->sin6_port), RESET);
+    cprint(0, "Go away from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
     switch(tlv[2]) {
     case GO_AWAY_UNKNOWN:
-        dprintf(logfd, "%s%sAsk you to go away for an unknown reason.\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "Ask you to go away for an unknown reason.\n");
         break;
     case GO_AWAY_LEAVE:
-        dprintf(logfd, "%s%sLeaving the network.\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "Leaving the network.\n");
         break;
     case GO_AWAY_HELLO:
-        dprintf(logfd, "%s%sYou did not send long hello or data for too long.\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "You did not send long hello or data for too long.\n");
         break;
     case GO_AWAY_BROKEN:
-        dprintf(logfd, "%s%sYou broke the protocol.\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "You broke the protocol.\n");
         break;
     }
 
@@ -186,33 +186,33 @@ static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
         msg = malloc(tlv[1]);
         memcpy(msg, tlv + 3, tlv[1] - 1);
         msg[(int)tlv[1]] = 0;
-        dprintf(logfd, "%s%sGo away message: %s\n%s", LOGFD_F, LOGFD_B, msg, RESET);
+        cprint(0, "Go away message: %s\n", msg);
         free(msg);
     }
 
     if (hashset_remove(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port)) {
-        dprintf(logfd, "%s%sRemove %lx from friends.\n%s", LOGFD_F, LOGFD_B, n->id, RESET);
+        cprint(0, "Remove %lx from friends.\n", n->id);
     }
 
-    dprintf(logfd, "%s%sAdd (%s, %u) to potential friends\n%s", LOGFD_F, LOGFD_B, ipstr, ntohs(n->addr->sin6_port), RESET);
+    cprint(0, "Add (%s, %u) to potential friends\n", ipstr, ntohs(n->addr->sin6_port));
     hashset_add(potential_neighbours, n);
 }
 
 static void handle_warning(const u_int8_t *tlv, neighbour_t *n){
     if (tlv[1] == 0) {
-        dprintf(logfd, "%s%sReceive empty hello\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(0, "Receive empty hello\n");
         return;
     }
 
     char *msg = malloc(tlv[1] + 1);
     memcpy(msg, tlv + 2, tlv[1]);
     msg[(int)tlv[1]] = 0;
-    dprintf(logfd, "%s%sWarning: %s\n%s", LOGFD_F, LOGFD_B, msg, RESET);
+    cprint(0, "Warning: %s\n", msg);
     free(msg);
 }
 
 static void handle_unknown(const u_int8_t *tlv, neighbour_t *n){
-    dprintf(logfd, "%s%sUnknown tlv type received %u\n%s", LOGFD_F, LOGFD_B, tlv[0], RESET);
+    cprint(0, "Unknown tlv type received %u\n", tlv[0]);
 }
 
 static void (*handlers[NUMBER_TLV_TYPE + 1])(const u_int8_t*, neighbour_t*) = {
@@ -236,5 +236,5 @@ void handle_tlv(const body_t *tlv, neighbour_t *n) {
             handlers[(int)tlv->content[0]](tlv->content, n);
         }
     } while ((tlv = tlv->next) != NULL);
-    dprintf(logfd, "%s%s\n%s", LOGFD_B, LOGFD_F, RESET);
+    cprint(0, "\n");
 }
