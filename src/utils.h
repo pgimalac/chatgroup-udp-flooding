@@ -12,6 +12,8 @@
  * Generic usefull functions
  */
 
+pid_t httppid;
+
 void* voidndup(const void*, int);
 
 int init_random();

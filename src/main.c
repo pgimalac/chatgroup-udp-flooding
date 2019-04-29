@@ -17,6 +17,7 @@
 #include "interface.h"
 #include "tlv.h"
 #include "flooding.h"
+#include "websocket.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
@@ -122,22 +123,9 @@ void handle_input() {
 
 int main(int argc, char **argv) {
     int rc;
-/*    cprint(0, "0\n");
-    cprint(1, "1\n");
-    cprint(2, "2\n");
-    cprint(0, "un int %d\n", 123456789);
-    cprint(0, "un unsigned int %u\n", 123456789);
-    cprint(0, "un long %ld\n", 1234567891011);
-    cprint(0, "un unsigned long %lu\n", 1234567891011);
-    cprint(0, "un long hexa %lx\n", 1234567891011);
-    cprint(0, "une %s string\n", "jolie");
-    exit(0);
-*/
     rc = init();
     if (rc != 0) return rc;
     dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
-
-    signal(SIGINT, quit_handler);
 
     unsigned short port = 0;
     if (argc > 1){
@@ -161,6 +149,21 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    websock = create_tcpserver(HTTPPORT);
+    if (websock < 0) {
+        fprintf(stderr, "Error while creating web server.\n");
+        return 1;
+    }
+
+    httppid = fork();
+    if (httppid == 0) {
+        printf("Web interface on http://localhost:%d.\n", HTTPPORT);
+        handle_http();
+        fprintf(stderr, "The server has crashed\n");
+        return 1;
+    }
+
+    signal(SIGINT, quit_handler);
     printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
 
     int size;
@@ -213,6 +216,7 @@ int main(int argc, char **argv) {
                         number_recv--;
                     break;
                 }
+
             if (i == number_recv && number_recv < 2 * neighbours->size)
                 number_recv++;
         }

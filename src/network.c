@@ -10,7 +10,9 @@
 #include <assert.h>
 #include <time.h>
 #include <fcntl.h>
+#include <signal.h>
 
+#include "utils.h"
 #include "network.h"
 #include "tlv.h"
 #include "interface.h"
@@ -484,6 +486,10 @@ void quit_handler (int sig) {
     }
 
     free(goaway.content);
+    rc = kill(httppid, SIGINT);
+    if (rc < 0) {
+        perror("kill");
+    }
 
     printf("Bye !\n");
     exit(sig);
