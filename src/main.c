@@ -31,11 +31,14 @@ int init() {
         perror("init random");
         return 1;
     }
+
     rc = init_network();
     if (rc < 0) {
         perror("init network");
         return 2;
     }
+
+    httpport = (rand() % 50) + 8000;
 
     flooding_map = hashmap_init(12);
     data_map = hashmap_init(12);
@@ -149,19 +152,13 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    websock = create_tcpserver(HTTPPORT);
+    websock = create_tcpserver(httpport);
     if (websock < 0) {
         fprintf(stderr, "Error while creating web server.\n");
         return 1;
     }
 
-    httppid = fork();
-    if (httppid == 0) {
-        printf("Web interface on http://localhost:%d.\n", HTTPPORT);
-        handle_http();
-        fprintf(stderr, "The server has crashed\n");
-        return 1;
-    }
+    printf("Web interface on http://localhost:%d.\n", httpport);
 
     signal(SIGINT, quit_handler);
     printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
@@ -195,9 +192,10 @@ int main(int argc, char **argv) {
         FD_ZERO(&readfds);
         FD_ZERO(&done);
         FD_SET(sock, &readfds);
+        FD_SET(websock, &readfds);
         FD_SET(0, &readfds);
 
-        rc = select(sock + 1, &readfds, 0, 0, &tv);
+        rc = select((sock > websock ? sock : websock) + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
             perror("select");
             continue;
@@ -208,6 +206,10 @@ int main(int argc, char **argv) {
 
         if (FD_ISSET(0, &readfds))
             handle_input();
+
+        if (FD_ISSET(websock, &readfds)) {
+            handle_http();
+        }
 
         if (FD_ISSET(sock, &readfds)) {
             for (i = 0; i < number_recv; i++)

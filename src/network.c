@@ -16,6 +16,7 @@
 #include "network.h"
 #include "tlv.h"
 #include "interface.h"
+#include "websocket.h"
 
 // user address
 struct sockaddr_in6 local_addr;
@@ -486,10 +487,9 @@ void quit_handler (int sig) {
     }
 
     free(goaway.content);
-    rc = kill(httppid, SIGINT);
-    if (rc < 0) {
-        perror("kill");
-    }
+
+    close(sock);
+    close(websock);
 
     printf("Bye !\n");
     exit(sig);
