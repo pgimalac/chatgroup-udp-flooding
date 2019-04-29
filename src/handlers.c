@@ -112,12 +112,51 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
 
     if (!map && !hashmap_get(data_map, tlv + 2)) {
-        cprint(0, "New message received.\n");
-
         if (tlv[14] == 0) {
+            cprint(0, "New message received.\n");
             memcpy(buff, tlv + 15, size);
             buff[size] = '\0';
             cprint(STDOUT_FILENO, "%s\n", buff);
+        } else if (tlv[14] == DATA_FRAG) {
+            if (size < 9)
+                cprint(0, "Data fragment was corrupted (too short).\n");
+
+            char fragid[12] = { 0 };
+            memcpy(fragid, tlv + 2, 8);
+            memcpy(fragid + 8, tlv + 15, 4);
+            frag_t *frag = hashmap_get(fragmentation_map, fragid);
+            if (!frag) {
+                frag = malloc(sizeof(frag_t));
+                frag->id = voidndup(fragid, 12);
+
+                memcpy(&frag->type, tlv + 19, 1);
+                memcpy(&frag->size, tlv + 20, 2);
+                frag->size = ntohs(frag->size);
+
+                cprint(0, "New fragment of total size %u\n", frag->size);
+                frag->recv = 0;
+
+                frag->buffer = malloc(frag->size);
+                hashmap_add(fragmentation_map, fragid, frag);
+            }
+
+            uint16_t fragpos, fragsize;
+            memcpy(&fragpos, tlv + 22, 2);
+            fragpos = ntohs(fragpos);
+            fragsize = tlv[1] - 22;
+
+            frag->recv += fragsize;
+            frag->last = time(0);
+            memcpy(frag->buffer + fragpos, tlv + 24, fragsize);
+
+            if (frag->recv == frag->size) {
+                cprint(0, "New long message received.\n");
+                // TODO: check data type
+                write(STDOUT_FILENO, frag->buffer, frag->size);
+                free(frag->buffer);
+                free(frag->id);
+                hashmap_remove(fragmentation_map, fragid, 1, 1);
+            }
         }
 
         rc = flooding_add_message(tlv, tlv[1] + 2);

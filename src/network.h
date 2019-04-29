@@ -19,6 +19,8 @@
 // the sum of all tlv is greater than the size of the buffer
 #define SUMLONG -5
 
+#define DEF_PMTU 1024
+
 int sock;
 chat_id_t id;
 hashset_t *neighbours, *potential_neighbours;

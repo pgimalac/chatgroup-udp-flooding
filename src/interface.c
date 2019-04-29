@@ -8,6 +8,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "types.h"
 #include "interface.h"
@@ -58,6 +62,7 @@ static const char *usages[] = {
     "neighbour"
     "clear",
     "chid",
+    "transfert <path to file>",
     "quit"
 };
 
@@ -132,7 +137,38 @@ static void chid(char *buffer) {
     cprint(STDOUT_FILENO, "New id: %lx.\n", id);
 }
 
-static void quit(char *buffer){
+#define MAX_BUF_SIZE ((1 << 16) - 1)
+static void transfert(char *path) {
+    int fd, rc;
+    char buffer[MAX_BUF_SIZE], *pathbis;
+
+    pathbis = path + strspn(path, forbiden);
+    rc = strlen(pathbis);
+
+    while (rc > 0 && strchr(forbiden, pathbis[rc - 1]) != NULL)
+        rc--;
+
+    pathbis[rc] = 0;
+    cprint(STDOUT_FILENO, "Send file %s on network.\n", pathbis);
+    fd = open(pathbis, O_RDONLY);
+    if (fd < 0) {
+        perrorbis(errno, "open");
+        return;
+    }
+
+    rc = read(fd, buffer, MAX_BUF_SIZE);
+    if (rc < 0) {
+        perrorbis(errno, "read");
+        return;
+    }
+
+    close(fd);
+
+    cprint(0, "Transfering file %u.\n", rc);
+    send_data(buffer, rc);
+}
+
+static void quit(char *buffer) {
     quit_handler(0);
 }
 
@@ -152,6 +188,7 @@ static const char *names[] =
      "neighbour",
      "clear",
      "chid",
+     "transfert",
      "quit",
      NULL
     };
@@ -166,6 +203,7 @@ static void (*interface[])(char*) =
      neighbour,
      clear,
      chid,
+     transfert,
      quit,
      NULL
     };

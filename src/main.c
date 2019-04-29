@@ -38,6 +38,7 @@ int init() {
 
     flooding_map = hashmap_init(12);
     data_map = hashmap_init(12);
+    fragmentation_map = hashmap_init(12);
 
     return 0;
 }
@@ -77,6 +78,7 @@ int handle_reception () {
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
         cprint(STDERR_FILENO, "%s:%d bytes_to_message error : %d\n", __FILE__, __LINE__, rc);
+        free(msg);
         return -3;
     }
 
@@ -89,15 +91,16 @@ int handle_reception () {
     } else {
         handle_tlv(msg->body, n);
     }
+
     free_message(msg);
     return 0;
 }
 
 void handle_input() {
     int rc;
-    char buffer[512] = { 0 };
+    char buffer[4096] = { 0 };
 
-    rc = read(0, buffer, 511);
+    rc = read(0, buffer, 4096);
     if (rc < 0) {
         perrorbis(errno, "read stdin");
         return;
@@ -171,6 +174,7 @@ int main(int argc, char **argv) {
         }
 
         clean_old_data();
+        clean_old_frags();
         cprint(0, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
 
         fd_set readfds;

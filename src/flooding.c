@@ -26,16 +26,53 @@
 
 #define NEIGHBOUR_TIMEOUT 120
 
-#define CLEAN_TIMEOUT 120
+#define CLEAN_TIMEOUT 30
 
-void send_data(char *buffer, int size){
+#define FRAG_TIMEOUT 40
+
+void frag_data(char *buffer, u_int16_t size) {
+    uint16_t i = 0, n = size / 233, count = 0, len;
+    uint16_t nsize = htons(size), pos;
+    body_t data = { 0 };
+    char content[256], *offset;
+    u_int32_t nonce_frag = random_uint32();
+
+    dprintf(logfd, "Fragment message of total size %u bytes.\n", size);
+
+    for (i = 0; i <= n; i++) {
+        offset = content;
+        memset(offset, 0, 256);
+        memcpy(offset, &nonce_frag, sizeof(nonce_frag));
+        offset += sizeof(nonce_frag);
+
+        *offset++ = 0; // data type
+
+        memcpy(offset, &nsize, 2); // size
+        offset += 2;
+
+        pos = htons(count);
+        memcpy(offset, &pos, 2); // position
+        offset += 2;
+
+        len = size - count < 233 ? size - count : 233;
+        memcpy(offset, buffer + count, len);
+        offset += len;
+
+        data.size = tlv_data(&data.content, id, random_uint32(), 220, content, len + 9);
+        flooding_add_message(data.content, data.size);
+        free(data.content);
+        count += len;
+    }
+}
+
+void send_data(char *buffer, u_int16_t size){
     if (buffer == 0 || size <= 0) return;
 
     const char *pseudo = getPseudo();
     int pseudolen = strlen(pseudo);
-    if (size + pseudolen > 240){
-        size = 240 - pseudolen;
-        buffer[size] = '\0';
+    if (size + pseudolen > 240) {
+        frag_data(buffer, size);
+        return;
     }
 
     char tmp[243] = { 0 };
@@ -56,6 +93,7 @@ void send_data(char *buffer, int size){
 
     if (flooding_add_message(data.content, data.size) != 0)
         perrorbis(errno, "tlv_data");
+
     free(data.content);
 }
 
@@ -478,18 +516,18 @@ int clean_old_data() {
     size_t i;
     list_t *l, *to_delete = 0;
     datime_t *datime;
-    u_int8_t *key;
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
             datime = ((map_elem*)l->val)->value;
-            key = ((map_elem*)l->val)->key;
-            if (memcmp(datime->data + 2, key, 12))
-                cprint(STDERR_FILENO, "%s:%d THE KEY IS NOT EQUAL TO THE OBJECT ! WEIRD\n",
-                    __FILE__, __LINE__);
-            if (time(0) - datime->last > CLEAN_TIMEOUT) {
+
+            // never remove messages fragments
+            // without removing all associated fragments
+            if (datime->data[0] == 4 && datime->data[14] == DATA_FRAG)
+                continue;
+
+            if (time(0) - datime->last > CLEAN_TIMEOUT)
                 list_add(&to_delete, datime);
-            }
         }
     }
 
@@ -504,11 +542,81 @@ int clean_old_data() {
         free(datime);
     }
 
-    if (i) {
+    if (i)
         cprint(0, "%lu old data removed.\n", i);
+
+    return i;
+}
+
+int clean_data_from_frags(frag_t *frag) {
+    size_t i;
+    list_t *l, *to_delete = 0;
+    datime_t *datime;
+    u_int8_t *key;
+
+    for (i = 0; i < data_map->capacity; i++) {
+        for (l = data_map->tab[i]; l; l = l->next) {
+            datime = ((map_elem*)l->val)->value;
+            key = ((map_elem*)l->val)->key;
+
+            // here we consider only data
+            if (datime->data[0] != 4 || datime->data[14] != DATA_FRAG)
+                continue;
+
+            // not the right sender_id
+            if (memcmp(frag->id, key, 8))
+                continue;
+
+            // not right fragment nonce
+            if (memcmp(frag->id + 8, datime->data + 15, 4))
+                continue;
+
+            list_add(&to_delete, datime);
+        }
     }
 
-    return 0;
+    for (i = 0; to_delete; i++) {
+        datime = list_pop(&to_delete);
+        if (!hashmap_remove(data_map, datime->data + 2, 1, 0))
+            cprint(STDERR_FILENO, "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n", __FILE__, __LINE__);
+
+        free(datime->data);
+        free(datime);
+    }
+
+    return i;
+}
+
+int clean_old_frags() {
+    size_t i, count = 0;
+    list_t *l, *to_delete = 0;
+    frag_t *frag;
+    time_t now = time(0);
+
+    for (i = 0; i < fragmentation_map->capacity; i++) {
+        for (l = fragmentation_map->tab[i]; l; l = l->next) {
+            count++;
+            frag = ((map_elem*)l->val)->value;
+            if (now - frag->last > FRAG_TIMEOUT) {
+                list_add(&to_delete, frag);
+            }
+        }
+    }
+
+    i = 0;
+    while (to_delete) {
+        frag = list_pop(&to_delete);
+        i += clean_data_from_frags(frag);
+        hashmap_remove(fragmentation_map, frag->id, 1, 0);
+        free(frag->id);
+        free(frag->buffer);
+        free(frag);
+    }
+
+    if (i)
+        cprint(0, "%lu old message fragments removed.\n", i);
+
+    return i;
 }
 
 int send_neighbour_to(neighbour_t *p) {

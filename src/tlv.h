@@ -18,6 +18,7 @@
 #define BODY_WARNING 7
 
 #define DATA_KNOWN 0
+#define DATA_FRAG 220
 
 #define NUMBER_TLV_TYPE 8
 

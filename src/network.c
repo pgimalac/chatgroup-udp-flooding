@@ -231,7 +231,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     }
 
     memset(n, 0, sizeof(neighbour_t));
-    n->pmtu = 1024;
+    n->pmtu = DEF_PMTU;
     n->short_hello_count = 0;
     n->addr = addr;
     n->last_neighbour_send = time(0);
@@ -331,7 +331,8 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     map = hashmap_get(flooding_map, tlv + 2);
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
-    dinfo->time = now + (rand() % ((1 << (++dinfo->send_count + 1)))) + 1;
+    ++dinfo->send_count;
+    dinfo->time = now + (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
     delta = dinfo->time - now;
 
     datime = hashmap_get(data_map, tlv + 2);
@@ -467,8 +468,8 @@ void quit_handler (int sig) {
 
     goaway.size = tlv_goaway(&goaway.content, GO_AWAY_LEAVE, "Bye !", 5);
 
-    msg.magic = 93;
-    msg.version = 2;
+    msg.magic = MAGIC;
+    msg.version = VERSION;
     msg.body_length = goaway.size;
     msg.body = &goaway;
 

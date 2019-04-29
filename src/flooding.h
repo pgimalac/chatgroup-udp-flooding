@@ -5,7 +5,7 @@
 
 #define MAX_NB_NEIGHBOUR 100
 
-void send_data(char *buffer, int size);
+void send_data(char *buffer, u_int16_t size);
 
 void hello_potential_neighbours(struct timeval *tv);
 
@@ -16,6 +16,8 @@ int flooding_add_message(const u_int8_t *data, int size);
 int message_flooding(struct timeval *tv);
 
 int clean_old_data();
+
+int clean_old_frags();
 
 void neighbour_flooding(short);
 
