@@ -165,19 +165,23 @@ void hello_potential_neighbours(struct timeval *tv) {
             char msg[256] = { 0 };
             if (m) {
                 hello = malloc(sizeof(body_t));
-                assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
-                              ipstr, INET6_ADDRSTRLEN) != NULL);
+                if (hello){
+                    assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
+                                  ipstr, INET6_ADDRSTRLEN) != NULL);
 
-                sprintf(msg, "(%s, %u) is a Martian.",
-                        ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
-                cprint(0, "%s\n", msg);
+                    sprintf(msg, "(%s, %u) is a Martian.",
+                            ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
+                    cprint(0, "%s\n", msg);
 
-                hello->size = tlv_warning(&hello->content, msg, strlen(msg));
-                push_tlv(hello, m);
+                    hello->size = tlv_warning(&hello->content, msg, strlen(msg));
+                    push_tlv(hello, m);
+                } else
+                    cperror("malloc");
             }
         }
 
-        hashset_remove_neighbour(potential_neighbours, n);
+        if (!hashset_remove_neighbour(potential_neighbours, n))
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a potential neighbour but it wasn't in the potential neighbour set.");
         free(n->addr);
         free(n->tutor_id);
         free(n);
