@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#include <endian.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <assert.h>
@@ -246,6 +245,7 @@ int hello_neighbours(struct timeval *tv) {
         else if (rc == 0){
             perrorbis(ENOMEM, "hashset_add");
             free(p->addr);
+            free(p->tutor_id);
             free(p);
             return -1;
         }

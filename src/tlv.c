@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <endian.h>
 #include <stdio.h>
 
 int tlv_pad(u_int8_t **buffer){
@@ -38,7 +37,7 @@ int tlv_hello_short(u_int8_t **buffer, chat_id_t source){
     (*buffer)[0] = BODY_HELLO;
     (*buffer)[1] = sizeof(source);
 
-    memmove(HEADER_OFFSET + *buffer, &source, sizeof(source));
+    memcpy(HEADER_OFFSET + *buffer, &source, sizeof(source));
 
     return size;
 }
@@ -52,8 +51,8 @@ int tlv_hello_long(u_int8_t **buffer, chat_id_t source, chat_id_t dest){
     u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_HELLO;
     (*buffer)[1] = sizeof(source) + sizeof(dest);
-    memmove(offset, &source, sizeof(source));
-    memmove(offset + sizeof(source), &dest, sizeof(dest));
+    memcpy(offset, &source, sizeof(source));
+    memcpy(offset + sizeof(source), &dest, sizeof(dest));
 
     return size;
 }
@@ -68,8 +67,8 @@ int tlv_neighbour(u_int8_t **buffer, const struct in6_addr *addr, u_int16_t port
     u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_NEIGHBOUR;
     (*buffer)[1] = sizeof(struct in6_addr) + sizeof(port);
-    memmove(offset, addr, sizeof(struct in6_addr));
-    memmove(offset + sizeof(struct in6_addr), &port, sizeof(port));
+    memcpy(offset, addr, sizeof(struct in6_addr));
+    memcpy(offset + sizeof(struct in6_addr), &port, sizeof(port));
 
     return size;
 }
@@ -89,12 +88,12 @@ int tlv_data(u_int8_t **buffer,
     u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_DATA;
     (*buffer)[1] = (u_int8_t) true_size;
-    memmove(offset, &sender, sizeof(sender));
+    memcpy(offset, &sender, sizeof(sender));
     offset += sizeof(sender);
-    memmove(offset, &nonce, sizeof(nonce));
+    memcpy(offset, &nonce, sizeof(nonce));
     offset += sizeof(nonce);
     *offset = type;
-    memmove(offset + 1, data, datalen);
+    memcpy(offset + 1, data, datalen);
 
     return size;
 }
@@ -108,8 +107,8 @@ int tlv_ack(u_int8_t **buffer, u_int64_t sender, nonce_t nonce){
     u_int8_t *offset = *buffer + HEADER_OFFSET;
     (*buffer)[0] = BODY_ACK;
     (*buffer)[1] = sizeof(sender) + sizeof(nonce);
-    memmove(offset, &sender, sizeof(sender));
-    memmove(offset + sizeof(sender), &nonce, sizeof(nonce));
+    memcpy(offset, &sender, sizeof(sender));
+    memcpy(offset + sizeof(sender), &nonce, sizeof(nonce));
 
     return size;
 }
@@ -127,7 +126,7 @@ int tlv_goaway(u_int8_t **buffer, u_int8_t code,
     (*buffer)[0] = BODY_GO_AWAY;
     (*buffer)[1] = messagelen + sizeof(code);
     (*buffer)[2] = code;
-    memmove(*buffer + 3, message, messagelen);
+    memcpy(*buffer + 3, message, messagelen);
 
     return size;
 }
@@ -140,7 +139,7 @@ int tlv_warning(u_int8_t **buffer, const char *message, u_int8_t messagelen){
 
     (*buffer)[0] = BODY_WARNING;
     (*buffer)[1] = messagelen;
-    memmove(*buffer + HEADER_OFFSET, message, messagelen);
+    memcpy(*buffer + HEADER_OFFSET, message, messagelen);
 
     return size;
 }

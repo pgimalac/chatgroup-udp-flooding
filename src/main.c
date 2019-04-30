@@ -50,9 +50,9 @@ int handle_reception () {
     struct sockaddr_in6 addr = { 0 };
 
     rc = recv_message(sock, &addr, c, &len);
-    if (rc < 0) {
+    if (rc != 0) {
         if (errno == EAGAIN)
-            return - 1;
+            return -1;
         cperror("receive message");
         return -2;
     }
@@ -70,14 +70,23 @@ int handle_reception () {
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
                           addr.sin6_port, 0);
+        if (!n){
+            cprint(0, "An error occured while trying to create a new neighbour.");
+            return -4;
+        }
         cprint(0, "Add to potential neighbours.\n");
     }
 
     message_t *msg = malloc(sizeof(message_t));
+    if (!msg){
+        cperror("malloc");
+        return -5;
+    }
     memset(msg, 0, sizeof(message_t));
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
         cprint(STDERR_FILENO, "%s:%d bytes_to_message error : %d\n", __FILE__, __LINE__, rc);
+        print_bytes(c, len);
         free(msg);
         return -3;
     }

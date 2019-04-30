@@ -20,7 +20,8 @@ static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
 }
 
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
-    time_t now = time(0), is_long = tlv[1] == 16;
+    time_t now = time(0);
+    int rc, is_long = tlv[1] == 16;
     if (now == -1){
         cperror("time");
         return;
@@ -52,8 +53,20 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
         cprint(0, "Remove from potential %lx and add to symetrical.\n", src_id);
         n->last_hello_send = 0;
 
-        hashset_add(neighbours, n);
-        hashset_remove(potential_neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port);
+        rc = hashset_add(neighbours, n);
+        if (rc == 2)
+            cprint(STDERR_FILENO, "%s:%d Tried to add to potentials a neighbour that was already in.\n",
+                __FILE__, __LINE__);
+        else if (rc == 0){
+            perrorbis(ENOMEM, "hashset_add");
+            free(n->addr);
+            free(n->tutor_id);
+            free(n);
+            return;
+        }
+        if (!hashset_remove(potential_neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port))
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a neighbour that wasn't one.\n",
+                __FILE__, __LINE__);
         n->status = NEIGHBOUR_SYM;
     }
 
@@ -109,8 +122,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     map = hashmap_get(flooding_map, tlv + 2);
 
-
-    if (!map && !hashmap_get(data_map, tlv + 2)) {
+    if (!map && !(map = hashmap_get(data_map, tlv + 2))) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
             cprint(STDOUT_FILENO, "%*s\n", size, tlv + 15);
@@ -124,7 +136,16 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             frag_t *frag = hashmap_get(fragmentation_map, fragid);
             if (!frag) {
                 frag = malloc(sizeof(frag_t));
+                if (!frag){
+                    cperror("malloc");
+                    return;
+                }
                 frag->id = voidndup(fragid, 12);
+                if (!frag->id){
+                    cperror("malloc");
+                    free(frag);
+                    return;
+                }
 
                 memcpy(&frag->type, tlv + 19, 1);
                 memcpy(&frag->size, tlv + 20, 2);
@@ -134,7 +155,23 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                 frag->recv = 0;
 
                 frag->buffer = malloc(frag->size);
-                hashmap_add(fragmentation_map, fragid, frag);
+                if (!frag->buffer){
+                    free(frag->id);
+                    free(frag);
+                    return;
+                }
+                rc = hashmap_add(fragmentation_map, fragid, frag);
+                if (rc == 2)
+                    cprint(STDERR_FILENO, "%s:%d Tried to add to fragmentation_map an id that was already in.\n",
+                        __FILE__, __LINE__);
+                else if (rc == 0)
+                    perrorbis(ENOMEM, "hashset_add");
+                if (rc != 1){
+                    free(frag->id);
+                    free(frag->buffer);
+                    free(frag);
+                    return;
+                }
             }
 
             uint16_t fragpos, fragsize;
@@ -143,7 +180,11 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             fragsize = tlv[1] - 22;
 
             frag->recv += fragsize;
-            frag->last = time(0);
+            time_t tmp = time(0);
+            if (tmp == -1)
+                cperror("time");
+            else
+                frag->last = tmp;
             memcpy(frag->buffer + fragpos, tlv + 24, fragsize);
 
             if (frag->recv == frag->size) {
@@ -152,7 +193,9 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                 cprint(STDOUT_FILENO, "%*s\n", frag->size, frag->buffer);
                 free(frag->buffer);
                 free(frag->id);
-                hashmap_remove(fragmentation_map, fragid, 1, 1);
+                if (!hashmap_remove(fragmentation_map, fragid, 1, 1))
+                    cprint(STDERR_FILENO, "%s:%d Tried to remove an id from fragmentation_map that wasn't in.\n",
+                        __FILE__, __LINE__);
             }
         }
 
@@ -173,8 +216,10 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     push_tlv(body, n);
 
-    bytes_from_neighbour(n, buffer);
-    hashmap_remove(map, buffer, 1, 1);
+    if (map){
+        bytes_from_neighbour(n, buffer);
+        hashmap_remove(map, buffer, 1, 1);
+    }
 }
 
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
@@ -192,14 +237,24 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     }
 
     datime = hashmap_get(data_map, tlv + 2);
-    datime->last = time(0);
+    if (!datime)
+        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
+    else {
+        time_t tmp = time(0);
+        if (tmp == -1){
+            cperror("time");
+            return;
+        }
+        datime->last = tmp;
+    }
 
     bytes_from_neighbour(n, buffer);
-    hashmap_remove(map, buffer, 1, 1);
+    if (!hashmap_remove(map, buffer, 1, 1))
+        cprint(0, "Not necessary ack\n");
 }
 
 static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
-    char *msg = 0, ipstr[INET6_ADDRSTRLEN];
+    char ipstr[INET6_ADDRSTRLEN];
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
     cprint(0, "Go away from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
@@ -218,20 +273,22 @@ static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
         break;
     }
 
-    if (tlv[1] > 0 && msg) {
-        msg = malloc(tlv[1]);
-        memcpy(msg, tlv + 3, tlv[1] - 1);
-        msg[(int)tlv[1]] = 0;
-        cprint(0, "Go away message: %s\n", msg);
-        free(msg);
-    }
+    if (tlv[1] > 0)
+        cprint(0, "Go away message: %*s\n", tlv[1] - 1, tlv + 3);
 
-    if (hashset_remove(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port)) {
+    if (hashset_remove(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port))
         cprint(0, "Remove %lx from friends.\n", n->id);
-    }
+    else
+        cprint(0, "Received a goaway from someone that wasn't a friend.\n");
 
-    cprint(0, "Add (%s, %u) to potential friends\n", ipstr, ntohs(n->addr->sin6_port));
-    hashset_add(potential_neighbours, n);
+    int rc = hashset_add(potential_neighbours, n);
+    if (rc == 2)
+        cprint(STDERR_FILENO, "%s:%d Tried to add a neighbour to potentials but it was already in.\n",
+            __FILE__, __LINE__);
+    else if (rc == 0)
+        perrorbis(ENOMEM, "hashset_add");
+    else
+        cprint(0, "Add (%s, %u) to potential friends\n", ipstr, ntohs(n->addr->sin6_port));
 }
 
 static void handle_warning(const u_int8_t *tlv, neighbour_t *n){
@@ -240,11 +297,7 @@ static void handle_warning(const u_int8_t *tlv, neighbour_t *n){
         return;
     }
 
-    char *msg = malloc(tlv[1] + 1);
-    memcpy(msg, tlv + 2, tlv[1]);
-    msg[(int)tlv[1]] = 0;
-    cprint(0, "Warning: %s\n", msg);
-    free(msg);
+    cprint(0, "Warning: %*s\n", tlv[1], tlv + 2);
 }
 
 static void handle_unknown(const u_int8_t *tlv, neighbour_t *n){
@@ -269,7 +322,7 @@ void handle_tlv(const body_t *tlv, neighbour_t *n) {
             handlers[NUMBER_TLV_TYPE](tlv->content, n);
         } else if (n->status == NEIGHBOUR_SYM ||
                    (n->status == NEIGHBOUR_POT && tlv->content[0] == BODY_HELLO)) {
-            handlers[(int)tlv->content[0]](tlv->content, n);
+            handlers[tlv->content[0]](tlv->content, n);
         }
     } while ((tlv = tlv->next) != NULL);
     cprint(0, "\n");

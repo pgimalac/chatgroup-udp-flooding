@@ -249,7 +249,7 @@ char *strappv(char** str){
     return buff;
 }
 
-void print_bytes(const char *buffer, size_t len) {
+void print_bytes(const unsigned char *buffer, size_t len) {
     if (!buffer) return;
 
     for (size_t i = 0; i < len; i++) {
@@ -265,6 +265,8 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
 }
 
 void cprint(int fd, char *str, ...){
+    if (fd < 0) return;
+
     char *B, *F;
     if (fd == 0){
         B = LOGFD_B; F = LOGFD_F;

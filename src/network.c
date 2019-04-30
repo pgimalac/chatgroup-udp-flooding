@@ -32,7 +32,7 @@ int init_network() {
     }
     potential_neighbours = hashset_init();
     if (potential_neighbours == NULL){
-        free(neighbours);
+        hashset_destroy(neighbours);
         return -1;
     }
     return 0;
@@ -48,7 +48,8 @@ size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
         nb++;
 
     iov = calloc(nb, sizeof(struct iovec));
-    if (!iov) return 0;
+    if (!iov)
+        return 0;
     *iov_dest = iov;
 
     iov[0].iov_base = msg;
@@ -69,9 +70,14 @@ static int check_message_size(const u_int8_t* buffer, int buflen){
     if (buflen < 4)
         return BUFSH;
 
-    u_int16_t body_length = be16toh(*(u_int16_t*)(buffer + 2));
-    if (body_length + 4 > buflen)
+    u_int16_t body_length;
+    memcpy(&body_length, buffer + 2, sizeof(body_length));
+    body_length = ntohs(body_length);
+
+    if (body_length + 4 > buflen){
+        cprint(STDERR_FILENO, "body_length %d, buflen %d\n", body_length, buflen);
         return BUFINC;
+    }
     buflen = body_length + 4;
 
     int i = 4, body_num = 0, rc;
@@ -162,7 +168,7 @@ int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message
 
 int start_server(int port) {
     int rc, s;
-    memset(&local_addr, 0, sizeof(struct sockaddr_in6));
+    memset(&local_addr, 0, sizeof(local_addr));
 
     s = socket(PF_INET6, SOCK_DGRAM, 0);
     if (s < 0 ) {
@@ -218,14 +224,18 @@ neighbour_t *
 new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
               unsigned int port, const neighbour_t *tutor) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
-    if (addr == NULL) return 0;
+    if (addr == NULL){
+        cperror("malloc");
+        return 0;
+    }
     memset(addr, 0, sizeof(struct sockaddr_in6));
     addr->sin6_family = AF_INET6;
     addr->sin6_port = port;
-    memmove(addr->sin6_addr.s6_addr, ip, sizeof(struct in6_addr));
+    memcpy(addr->sin6_addr.s6_addr, ip, sizeof(struct in6_addr));
 
     neighbour_t *n = malloc(sizeof(neighbour_t));
     if (n == NULL){
+        cperror("malloc");
         free(addr);
         return 0;
     }
@@ -235,21 +245,29 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     n->short_hello_count = 0;
     n->addr = addr;
     n->last_neighbour_send = time(0);
+    if (n->last_neighbour_send == -1){
+        cperror("time");
+        n->last_neighbour_send = 0;
+    }
     n->status = NEIGHBOUR_POT;
     n->tutor_id = 0;
 
     if (tutor) {
         n->tutor_id = malloc(18);
-        if (!n->tutor_id) {
-            cperror("malloc");
-            free(n);
-            return 0;
-        }
+        /* doesn't matter if tutor_id is null, at worst we don't send a warning */
 
-        bytes_from_neighbour(tutor, n->tutor_id);
+        if (n->tutor_id)
+            bytes_from_neighbour(tutor, n->tutor_id);
     }
 
-    hashset_add(potential_neighbours, n);
+    int rc = hashset_add(potential_neighbours, n);
+    if (rc == 2){
+        cprint(0, "Tried to add a neighbour to potentials but it was already in.\n");
+        free(n->tutor_id);
+        free(n->addr);
+        free(n);
+    } else if (rc == 0)
+        perrorbis(ENOMEM, "hashset_add");
     return hashset_get(potential_neighbours, ip, port);
 }
 
@@ -265,6 +283,8 @@ int add_neighbour(const char *hostname, const char *service) {
 
     rc = getaddrinfo (hostname, service, &hints, &r);
     if (rc != 0){
+        cprint(0, "getaddrinfo: %s\n", gai_strerror(rc));
+        perrorbis(rc, "getaddrinfo: %s\n");
         return rc;
     }
 
@@ -318,7 +338,11 @@ static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *
 
 static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     cprint(0, "* Containing neighbour.\n");
-    dst->last_neighbour_send = time(0);
+    time_t tmp = time(0);
+    if (tmp == -1)
+        cperror("time");
+    else
+        dst->last_neighbour_send = tmp;
 }
 
 static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
@@ -327,22 +351,34 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     datime_t *datime;
     u_int8_t buffer[18];
     time_t now = time(0), delta;
+    if (now == -1)
+        cperror("time");
+
+    cprint(0, "* Containing data.\n");
 
     map = hashmap_get(flooding_map, tlv + 2);
+    if (!map){
+        cprint(STDERR_FILENO, "%s:%d Tried to get an element from flooding_map but it wasn't in.\n",
+            __FILE__, __LINE__);
+        return;
+    }
+
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
     ++dinfo->send_count;
-    dinfo->time = now + (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
-    delta = dinfo->time - now;
 
-    datime = hashmap_get(data_map, tlv + 2);
-    datime->last = now;
+    if (now != -1){
+        dinfo->time = now + (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
+        delta = dinfo->time - now;
+        datime = hashmap_get(data_map, tlv + 2);
+        if (!datime)
+            cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
+        else
+            datime->last = now;
 
-    if (delta < tv->tv_sec) {
-        tv->tv_sec = delta;
+        if (delta < tv->tv_sec)
+            tv->tv_sec = delta;
     }
-
-    cprint(0, "* Containing data.\n");
 }
 
 static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
@@ -394,13 +430,14 @@ int send_message(int sock, message_t *msg, struct timeval *tv) {
     hdr.msg_name = msg->dst->addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in6);
     hdr.msg_iovlen = message_to_iovec(msg, &hdr.msg_iov);
-    if (!hdr.msg_iov) return -1;
+    if (!hdr.msg_iov || hdr.msg_iovlen == 0)
+        return errno;
 
     rc = sendmsg(sock, &hdr, MSG_NOSIGNAL);
+    int err = errno;
     free(hdr.msg_iov);
-    // free might change errno but prevents a memory leak
-    // find a way to avoid using free here ?
-    if (rc < 0) return -2;
+    msg->body_length = htons(msg->body_length);
+    if (rc < 0) return err;
 
     return 0;
 }
@@ -429,7 +466,7 @@ int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buf
     hdr.msg_controllen = sizeof(u.cmsgbuf);
 
     rc = recvmsg(sock, &hdr, 0);
-    if (rc < 0) return -1;
+    if (rc < 0) return errno;
     *buflen = rc;
 
     cmsg = CMSG_FIRSTHDR(&hdr);
@@ -466,25 +503,29 @@ void quit_handler (int sig) {
 
     cprint(0, "Send go away leave to neighbours before quit.\n");
 
-    goaway.size = tlv_goaway(&goaway.content, GO_AWAY_LEAVE, "Bye !", 5);
+    rc = tlv_goaway(&goaway.content, GO_AWAY_LEAVE, "Bye !", 5);
+    if (rc >= 0){
+        goaway.size = rc;
 
-    msg.magic = MAGIC;
-    msg.version = VERSION;
-    msg.body_length = goaway.size;
-    msg.body = &goaway;
+        msg.magic = MAGIC;
+        msg.version = VERSION;
+        msg.body_length = goaway.size;
+        msg.body = &goaway;
 
-    for (i = 0; i < neighbours->capacity; i++) {
-        for (l = neighbours->tab[i]; l; l = l->next) {
-            msg.dst = (neighbour_t*)l->val;
-            rc = send_message(sock, &msg, &tv);
-            if (rc < 0) {
-                assert (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-                cprint(STDERR_FILENO, "Failed to send goaway to (%s, %u).\n", ipstr, ntohs(msg.dst->addr->sin6_port));
+        for (i = 0; i < neighbours->capacity; i++) {
+            for (l = neighbours->tab[i]; l; l = l->next) {
+                msg.dst = (neighbour_t*)l->val;
+                rc = send_message(sock, &msg, &tv);
+                if (rc != 0) {
+                    perrorbis(rc, "send_message");
+                    assert (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+                    cprint(STDERR_FILENO, "Failed to send goaway to (%s, %u).\n", ipstr, ntohs(msg.dst->addr->sin6_port));
+                }
             }
         }
-    }
 
-    free(goaway.content);
+        free(goaway.content);
+    }
 
     cprint(STDOUT_FILENO, "Bye.\n");
     exit(sig);

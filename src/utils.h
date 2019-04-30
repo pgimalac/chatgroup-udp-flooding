@@ -32,7 +32,7 @@ char *strappv(char** str);
 
 void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]);
 
-void print_bytes(const char *buf, size_t len);
+void print_bytes(const unsigned char *buf, size_t len);
 
 void perrorbis(int err, const char *str);
 
