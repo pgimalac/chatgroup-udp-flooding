@@ -24,21 +24,34 @@
 #define COMMAND '/'
 
 int init() {
-    int rc;
-    rc = init_random();
-    if (rc < 0) {
-        cperror("init random");
-        return 1;
+    init_random();
+
+    id = random_uint64();
+    neighbours = hashset_init();
+    if (neighbours == NULL){
+        return -1;
     }
-    rc = init_network();
-    if (rc < 0) {
-        cperror("init network");
-        return 2;
+    potential_neighbours = hashset_init();
+    if (potential_neighbours == NULL){
+        hashset_destroy(neighbours);
+        return -1;
     }
 
     flooding_map = hashmap_init(12);
+    if (flooding_map == NULL){
+        hashmap_destroy(flooding_map, 0);
+        return -1;
+    }
     data_map = hashmap_init(12);
+    if (data_map == NULL){
+        hashmap_destroy(data_map, 0);
+        return -1;
+    }
     fragmentation_map = hashmap_init(12);
+    if (fragmentation_map == NULL){
+        hashmap_destroy(fragmentation_map, 0);
+        return -1;
+    }
 
     return 0;
 }

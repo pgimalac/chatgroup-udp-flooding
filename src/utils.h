@@ -14,7 +14,7 @@
 
 void* voidndup(const void*, int);
 
-int init_random();
+void init_random();
 
 u_int64_t random_uint64();
 

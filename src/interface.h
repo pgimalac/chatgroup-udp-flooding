@@ -1,6 +1,8 @@
 #ifndef __H_INTERFACE
 #define __H_INTERFACE
 
+#include <stdlib.h>
+
 #define PSEUDO_LENGTH 50
 #define forbiden " \n\t\r"
 
@@ -43,5 +45,7 @@ const char* getPseudo();
 void setRandomPseudo();
 
 void handle_command(char*);
+
+void print_message(const u_int8_t*, int);
 
 #endif

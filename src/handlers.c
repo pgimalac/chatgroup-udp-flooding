@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "types.h"
 #include "network.h"
@@ -21,11 +22,8 @@ static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
 
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     time_t now = time(0);
+    assert(now != -1);
     int rc, is_long = tlv[1] == 16;
-    if (now == -1){
-        cperror("time");
-        return;
-    }
 
     chat_id_t src_id = 0, dest_id = 0;
     memcpy(&src_id, tlv + 2, sizeof(src_id));
@@ -125,7 +123,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     if (!map && !hashmap_contains(data_map, (void*)(tlv + 2))) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
-            cprint(STDOUT_FILENO, "%*s\n", size, tlv + 15);
+            print_message(tlv + 15, size);
         } else if (tlv[14] == DATA_FRAG) {
             if (size < 9)
                 cprint(0, "Data fragment was corrupted (too short).\n");
@@ -180,17 +178,14 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             fragsize = tlv[1] - 22;
 
             frag->recv += fragsize;
-            time_t tmp = time(0);
-            if (tmp == -1)
-                cperror("time");
-            else
-                frag->last = tmp;
+            frag->last = time(0);
+            assert(frag->last != -1);
             memcpy(frag->buffer + fragpos, tlv + 24, fragsize);
 
             if (frag->recv == frag->size) {
                 cprint(0, "New long message received.\n");
                 // TODO: check data type
-                cprint(STDOUT_FILENO, "%*s\n", frag->size, frag->buffer);
+                print_message(frag->buffer, frag->size);
                 free(frag->buffer);
                 free(frag->id);
                 if (!hashmap_remove(fragmentation_map, fragid, 1, 1))
@@ -209,7 +204,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     }
 
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
-    nonce_t nonce = *(chat_id_t*)(tlv + 10);
+    nonce_t nonce = *(nonce_t*)(tlv + 10);
     body = malloc(sizeof(body_t));
     if (!body)
         return;
@@ -249,12 +244,8 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     if (!datime)
         cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
     else {
-        time_t tmp = time(0);
-        if (tmp == -1){
-            cperror("time");
-            return;
-        }
-        datime->last = tmp;
+        datime->last = time(0);
+        assert(datime->last != -1);
     }
 
     bytes_from_neighbour(n, buffer);

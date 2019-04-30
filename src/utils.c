@@ -21,12 +21,10 @@ void* voidndup(const void *o, int n){
     return cpy;
 }
 
-int init_random() {
+void init_random() {
     int seed = time(0);
-    if (seed == -1) return -1;
-
+    assert(seed != -1);
     srand(seed);
-    return 0;
 }
 
 u_int64_t random_uint64 () {
@@ -284,6 +282,7 @@ void cprint(int fd, char *str, ...){
     va_list ap;
     va_start(ap, str);
 
+    unsigned int help;
     size_t len = 0;
     char *strbis = str, *strter;
     while (*strbis){
@@ -322,9 +321,13 @@ void cprint(int fd, char *str, ...){
                 break;
             case '*':
                 strter++;
-                assert(strter[0] == 's');
-                len += va_arg(ap, unsigned int);
-                va_arg(ap, char*);
+                assert(strter[0] == 's' || strter[0] == 'd');
+                help = va_arg(ap, unsigned int);
+                if (strter[0] == 's'){
+                    len += help;
+                    va_arg(ap, char*);
+                } else
+                    len += min(help, snprintf(NULL, 0, "%d", va_arg(ap, int)));
                 break;
             case '%':
                 len += 1;
@@ -375,9 +378,19 @@ void cprint(int fd, char *str, ...){
                 break;
             case '*':
                 strter++;
-                size_t tmp = va_arg(ap, unsigned int);
-                memcpy(bufbis, va_arg(ap, char*), tmp);
-                bufbis += tmp;
+                unsigned int tmp = va_arg(ap, unsigned int);
+                if (strter[0] == 's'){
+                    memcpy(bufbis, va_arg(ap, char*), tmp);
+                    bufbis += tmp;
+                } else {
+                    int num = va_arg(ap, int);
+                    unsigned int size = snprintf(NULL, 0, "%d", num);
+                    if (size < tmp){
+                        memset(bufbis, '0', tmp - size);
+                        bufbis += tmp - size;
+                    }
+                    bufbis += sprintf(bufbis, "%d", num);
+                }
                 break;
             case '%':
                 bufbis[0] = '%';

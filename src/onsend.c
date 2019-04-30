@@ -28,6 +28,7 @@ static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
 
 static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     dst->last_hello_send = time(0);
+    assert(dst->last_hello_send != -1);
     if (tlv[1] == 8) {
         dst->short_hello_count++;
         cprint(0, "* Containing short hello.\n");
@@ -38,11 +39,8 @@ static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *
 
 static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     cprint(0, "* Containing neighbour.\n");
-    time_t tmp = time(0);
-    if (tmp == -1)
-        cperror("time");
-    else
-        dst->last_neighbour_send = tmp;
+    dst->last_neighbour_send = time(0);
+    assert(dst->last_neighbour_send != -1);
 }
 
 static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
@@ -51,8 +49,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     datime_t *datime;
     u_int8_t buffer[18];
     time_t now = time(0), delta;
-    if (now == -1)
-        cperror("time");
+    assert(now != -1);
 
     cprint(0, "* Containing data.\n");
 

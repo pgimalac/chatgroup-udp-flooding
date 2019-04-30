@@ -25,20 +25,6 @@ struct sockaddr_in6 local_addr;
  *
  */
 
-int init_network() {
-    id = random_uint64();
-    neighbours = hashset_init();
-    if (neighbours == NULL){
-        return -1;
-    }
-    potential_neighbours = hashset_init();
-    if (potential_neighbours == NULL){
-        hashset_destroy(neighbours);
-        return -1;
-    }
-    return 0;
-}
-
 size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     body_t *p;
     ssize_t i;
@@ -204,10 +190,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     n->short_hello_count = 0;
     n->addr = addr;
     n->last_neighbour_send = time(0);
-    if (n->last_neighbour_send == -1){
-        cperror("time");
-        n->last_neighbour_send = 0;
-    }
+    assert (n->last_neighbour_send != -1);
     n->status = NEIGHBOUR_POT;
     n->tutor_id = 0;
 

@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -100,10 +101,7 @@ void hello_potential_neighbours(struct timeval *tv) {
     int rc;
     size_t i;
     time_t max, delta, now = time(0);
-    if (now == -1){
-        cperror("time");
-        return;
-    }
+    assert(now != -1);
     list_t *l;
     neighbour_t *p;
     body_t *hello;
@@ -193,10 +191,8 @@ int hello_neighbours(struct timeval *tv) {
     int rc;
     size_t i, size = 0;
     time_t now = time(0), delta;
-    if (now == -1){
-        cperror("time");
-        return -1;
-    }
+    assert(now != -1);
+
     list_t *l, *to_delete = 0;
     char ipstr[INET6_ADDRSTRLEN];
     tv->tv_sec = MAX_TIMEOUT;
@@ -268,11 +264,9 @@ int flooding_add_message(const u_int8_t *data, int size) {
     data_info_t *dinfo;
     datime_t *datime;
     time_t now = time(0);
+    assert(now != -1);
     int rc;
-    if (now == -1){
-        cperror("time");
-        return -1;
-    }
+
     size_t i;
     list_t *l;
     u_int8_t buffer[18], key[12];
@@ -339,10 +333,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     size_t i, size;
     int rc;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
-    if (now == -1){
-        cperror("time");
-        return -1;
-    }
+    assert(now != -1);
+
     list_t *l;
     data_info_t *dinfo;
     datime_t *datime;
@@ -668,10 +660,7 @@ int send_neighbour_to(neighbour_t *p) {
 void neighbour_flooding(short force) {
     size_t i;
     time_t now = time(0);
-    if (now == -1){
-        cperror("time");
-        return;
-    }
+    assert(now != -1);
 
     list_t *l;
     neighbour_t *p;

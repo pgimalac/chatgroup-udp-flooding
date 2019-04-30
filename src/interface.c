@@ -4,14 +4,15 @@
 #include <network.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
+#include <time.h>
 
 #include "types.h"
 #include "interface.h"
@@ -23,7 +24,7 @@ const int pseudo_length = 25;
 const char *pseudos[28] = {
                 "Raskolnikov",
                 "Mlle Swann",
-                "Joshep  K.",
+                "Joshep K.",
                 "Humbert Humbert",
                 "Jacopo Belbo",
                 "Méphistophélès",
@@ -256,4 +257,12 @@ void setRandomPseudo(){
     int index = rand() % pseudo_length;
     strcpy(pseudo, pseudos[index]);
     cprint(STDOUT_FILENO, "Nickname set to \"%s\"\n", pseudo);
+}
+
+// OTHER
+
+void print_message(const u_int8_t* msg, int size){
+    time_t now = time(0);
+    struct tm *t = localtime(&now);
+    cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);
 }
