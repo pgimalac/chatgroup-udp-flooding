@@ -64,6 +64,7 @@ static const char *usages[] = {
     "clear",
     "chid",
     "transfert <path to file>",
+    "help",
     "quit"
 };
 
@@ -169,6 +170,12 @@ static void transfert(char *path) {
     send_data(buffer, rc);
 }
 
+static void help(char *buffer){
+    cprint(STDOUT_FILENO, "Possible commands are:\n");
+    for (const char **usage = usages; *usage; usage++)
+        cprint(STDOUT_FILENO, "    %s\n", *usage);
+}
+
 static void quit(char *buffer) {
     quit_handler(0);
 }
@@ -190,6 +197,7 @@ static const char *names[] =
      "clear",
      "chid",
      "transfert",
+     "help",
      "quit",
      NULL
     };
@@ -205,6 +213,7 @@ static void (*interface[])(char*) =
      clear,
      chid,
      transfert,
+     help,
      quit,
      NULL
     };
