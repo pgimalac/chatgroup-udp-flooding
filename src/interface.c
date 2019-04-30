@@ -115,7 +115,6 @@ static void print(char *buffer){
                     potential_neighbours->size == 1 ? "" : "s");
         hashset_iter(potential_neighbours, __print);
     }
-    cprint(STDOUT_FILENO, "\n");
 }
 
 static void juliusz(char *buffer){
@@ -275,3 +274,4 @@ void print_message(const u_int8_t* msg, int size){
     struct tm *t = localtime(&now);
     cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);
 }
+

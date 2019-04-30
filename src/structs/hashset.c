@@ -83,7 +83,7 @@ short hashset_add(hashset_t *h, neighbour_t* n){
 }
 
 static void* hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
-    if (l == NULL)
+    if (l == NULL || *l == NULL)
         return NULL;
 
     if (GET_PORT((*l)->val) == port && memcmp(GET_IP((*l)->val), ip, sizeof(struct in6_addr)) == 0)

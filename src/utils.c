@@ -327,7 +327,7 @@ void cprint(int fd, char *str, ...){
                     len += help;
                     va_arg(ap, char*);
                 } else
-                    len += min(help, snprintf(NULL, 0, "%d", va_arg(ap, int)));
+                    len += max(help, snprintf(NULL, 0, "%d", va_arg(ap, int)));
                 break;
             case '%':
                 len += 1;
