@@ -71,7 +71,7 @@ int handle_reception () {
         n = new_neighbour(addr.sin6_addr.s6_addr,
                           addr.sin6_port, 0);
         if (!n){
-            cprint(0, "An error occured while trying to create a new neighbour.");
+            cprint(0, "An error occured while trying to create a new neighbour.\n");
             return -4;
         }
         cprint(0, "Add to potential neighbours.\n");
@@ -85,8 +85,8 @@ int handle_reception () {
     memset(msg, 0, sizeof(message_t));
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
-        cprint(STDERR_FILENO, "%s:%d bytes_to_message error : %d\n", __FILE__, __LINE__, rc);
-        print_bytes(c, len);
+        cprint(0, "Received an invalid message.\n");
+        handle_invalid_message(rc, n);
         free(msg);
         return -3;
     }

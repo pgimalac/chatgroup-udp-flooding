@@ -102,7 +102,7 @@ void *hashmap_get(hashmap_t *map, const void *key) {
 }
 
 static short map_list_remove (list_t **lst, const void *key, size_t keylen, short k, short v) {
-    if (!lst || !*lst)
+    if (lst == NULL || *lst == NULL)
         return 0;
 
     list_t* tmp;
@@ -134,8 +134,15 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
 short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if (!map) return 0;
 
-    int hash = hash_key(key, map->keylen) % map->capacity;
-    if(map_list_remove(&map->tab[hash], key, map->keylen, k, v)) {
+    int hash = hash_key(
+        key,
+        map->keylen) %
+        map->capacity;
+    if(map_list_remove(
+        &map->tab[hash],
+        key,
+        map->keylen,
+        k, v)) {
         map->size--;
         return 1;
     }

@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "tlv.h"
 #include "types.h"
 #include "network.h"
@@ -68,4 +70,41 @@ int check_tlv_size(const u_int8_t *tlv){
     if (tlv[0] < NUMBER_TLV_TYPE)
         return checkers[tlv[0]](tlv);
     return checkers[NUMBER_TLV_TYPE](tlv);
+}
+
+int check_message_size(const u_int8_t* buffer, int buflen){
+    if (buflen < 4)
+        return BUFSH;
+
+    u_int16_t body_length;
+    memcpy(&body_length, buffer + 2, sizeof(body_length));
+    body_length = ntohs(body_length);
+
+    if (body_length + 4 > buflen)
+        return BUFINC;
+    buflen = body_length + 4;
+
+    int i = 4, body_num = 0, rc;
+    while (i < buflen){
+        i++;
+        if (buffer[i - 1] != BODY_PAD1){
+            if (i >= buflen)
+                return TLVSH;
+            i += 1 + (u_int8_t)buffer[i];
+        }
+        body_num ++;
+    }
+
+    if (i != buflen)
+        return SUMLONG;
+
+    i = 4;
+    while (i < buflen){
+        rc = check_tlv_size(buffer + i);
+        if (rc < 0)
+            return rc;
+        i += rc;
+    }
+
+    return body_num;
 }

@@ -8,8 +8,6 @@
 #include "utils.h"
 #include "structs/hashset.h"
 
-// the given buffer is NULL
-#define BUFNULL -1
 // the given buffer is too short
 #define BUFSH -2
 // the given size of the buffer is incoherent with the size of the message

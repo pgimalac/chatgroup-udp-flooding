@@ -122,7 +122,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     map = hashmap_get(flooding_map, tlv + 2);
 
-    if (!map && !(map = hashmap_get(data_map, tlv + 2))) {
+    if (!map && !hashmap_contains(data_map, (void*)(tlv + 2))) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
             cprint(STDOUT_FILENO, "%*s\n", size, tlv + 15);
@@ -211,7 +211,16 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
     nonce_t nonce = *(chat_id_t*)(tlv + 10);
     body = malloc(sizeof(body_t));
-    body->size = tlv_ack(&body->content, sender, nonce);
+    if (!body)
+        return;
+    rc = tlv_ack(&body->content, sender, nonce);
+    if (rc < 0){
+        perrorbis(ENOMEM, "tlv_ack");
+        free(body);
+        return;
+    }
+
+    body->size = rc;
     body->next = NULL;
 
     push_tlv(body, n);
@@ -260,20 +269,20 @@ static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
 
     switch(tlv[2]) {
     case GO_AWAY_UNKNOWN:
-        cprint(0, "Ask you to go away for an unknown reason.\n");
+        cprint(0, "Asked you to go away for an unknown reason.\n");
         break;
     case GO_AWAY_LEAVE:
-        cprint(0, "Leaving the network.\n");
+        cprint(0, "He left the network.\n");
         break;
     case GO_AWAY_HELLO:
-        cprint(0, "You did not send long hello or data for too long.\n");
+        cprint(STDERR_FILENO, "You did not send long hello or data for too long.\n");
         break;
     case GO_AWAY_BROKEN:
-        cprint(0, "You broke the protocol.\n");
+        cprint(STDERR_FILENO, "You broke the protocol.\n");
         break;
     }
 
-    if (tlv[1] > 0)
+    if (tlv[1] > 1)
         cprint(0, "Go away message: %*s\n", tlv[1] - 1, tlv + 3);
 
     if (hashset_remove(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port))
@@ -293,7 +302,7 @@ static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
 
 static void handle_warning(const u_int8_t *tlv, neighbour_t *n){
     if (tlv[1] == 0) {
-        cprint(0, "Receive empty hello\n");
+        cprint(0, "Receive empty warning.\n");
         return;
     }
 
@@ -315,6 +324,100 @@ static void (*handlers[NUMBER_TLV_TYPE + 1])(const u_int8_t*, neighbour_t*) = {
     handle_warning,
     handle_unknown
 };
+
+void handle_invalid_message(int rc, neighbour_t *n){
+    if (!hashset_contains(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port))
+        return;
+    if (rc == 0 || rc == -8 || rc == -10){ // our mistake
+        if (rc == -8)
+            cprint(STDERR_FILENO, "Call bytes_to_message with a NULL argument.\n");
+        else if (rc == -10)
+            cprint(STDERR_FILENO, "Memory error when reading a received message.\n");
+        else
+            cprint(STDERR_FILENO, "handle_invalid_message was called with an error code of 0.\n");
+        return;
+    }
+    int size;
+    body_t *msg = malloc(sizeof(body_t));
+    char *string = NULL;
+    memset(msg, 0, sizeof(body_t));
+    if (rc == -9){ // warning
+        string = "You sent an empty message.";
+
+        size = tlv_warning(&msg->content, string, strlen(string));
+        if (size < 0){
+            free(msg);
+            return;
+        }
+        msg->size = size;
+    } else if (rc == BUFSH || rc == BUFINC || rc == SUMLONG ||
+                PADNO0 || HELLOSIZEINC || NEIGSIZEINC ||
+                DATASIZEINC || ACKSIZEINC || GOAWSIZEINC) { // goaway
+        switch (rc) {
+            case BUFSH:
+                string = "You sent me less than four bytes.";
+                break;
+            case BUFINC:
+                string = "You sent me a message whose size is longer than the number of received bytes.";
+                break;
+            case SUMLONG:
+                string = "You sent a message in which the sum of the sizes of the tlv is greater than the size in the message.";
+                break;
+            case PADNO0:
+                string = "You sent a pad which wasn't filled by zero-bytes.";
+                break;
+            case HELLOSIZEINC:
+                string = "You sent a hello whose size was neither 8 nor 16.";
+                break;
+            case NEIGSIZEINC:
+                string = "You sent a neighbour whose size wasn't 18.";
+                break;
+            case DATASIZEINC:
+                string = "You sent a data whose size was less than 13.";
+                break;
+            case ACKSIZEINC:
+                string = "You sent an ack whose size was less not 12.";
+                break;
+            case GOAWSIZEINC:
+                string = "You sent a goaway whose size was 0.";
+                break;
+            default:
+                assert(0);
+        }
+
+        char ipstr[INET6_ADDRSTRLEN];
+        size = tlv_goaway(&msg->content, GO_AWAY_BROKEN, string, strlen(string));
+        if (size < 0){
+            free(msg);
+            return;
+        }
+        msg->size = size;
+        assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
+            ipstr, ntohs(n->addr->sin6_port));
+
+        if (hashset_remove(neighbours,
+                       n->addr->sin6_addr.s6_addr,
+                       n->addr->sin6_port) == NULL){
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a neighbour that wasn't one.\n",
+                __FILE__, __LINE__);
+        }
+
+        rc = hashset_add(potential_neighbours, n);
+        if (rc == 0)
+            perrorbis(ENOMEM, "hashset_add");
+        else if (rc == 2){
+            cprint(STDERR_FILENO, "%s:%d Tried to add a potential neighbour that was already one.\n",
+                __FILE__, __LINE__);
+        }
+    } else {
+        cprint(STDERR_FILENO, "Weird error code given to handle_invalid_message.\n");
+        free(msg);
+        return;
+    }
+    cprint(STDERR_FILENO, "Sent: %s\n", string);
+    push_tlv(msg, n);
+}
 
 void handle_tlv(const body_t *tlv, neighbour_t *n) {
     do {

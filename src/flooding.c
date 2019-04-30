@@ -181,7 +181,7 @@ void hello_potential_neighbours(struct timeval *tv) {
         }
 
         if (!hashset_remove_neighbour(potential_neighbours, n))
-            cprint(STDERR_FILENO, "%s:%d Tried to remove a potential neighbour but it wasn't in the potential neighbour set.");
+            cprint(STDERR_FILENO, "%s:%d Tried to remove a potential neighbour but it wasn't in the potential neighbour set.\n");
         free(n->addr);
         free(n->tutor_id);
         free(n);
@@ -500,14 +500,14 @@ int message_flooding(struct timeval *tv) {
 
     while((dataid = list_pop(&msg_done)) != NULL) {
         map = hashmap_get(flooding_map, dataid);
-        if (map)
+        if (map){
+            if (hashmap_remove(flooding_map, dataid, 1, 0) == 0)
+                cprint(STDERR_FILENO, "%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n",
+                    __FILE__, __LINE__);
             hashmap_destroy(map, 1);
+        }
         else
             cprint(STDERR_FILENO, "%s:%d Tried to get a dataid from flooding map but it wasn't in.\n",
-                __FILE__, __LINE__);
-
-        if (hashmap_remove(flooding_map, dataid, 1, 0) == 0)
-            cprint(STDERR_FILENO, "%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n",
                 __FILE__, __LINE__);
 
         free(dataid);
