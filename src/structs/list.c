@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "list.h"
 
@@ -38,6 +39,25 @@ void* list_remove(list_t** l, int i){
     }
     return 0;
 }
+
+void *list_eremove(list_t **l, void *elem) {
+    list_t *tmp;
+
+    while (*l) {
+        if ((*l)->val == elem) {
+            tmp = *l;
+            *l = (*l)->next;
+
+            free(tmp->val);
+            free(tmp);
+            return 0;
+        }
+        l = &(*l)->next;
+    }
+
+    return 0;
+}
+
 
 short list_filter(list_t **l, int(*pred)(void*)) {
     if (*l == 0) return -1;

@@ -39,6 +39,8 @@ int init() {
     }
 
     httpport = (rand() % 50) + 8000;
+    clientsockets = 0;
+    webmessage_map = hashmap_init(sizeof(int));
 
     flooding_map = hashmap_init(12);
     data_map = hashmap_init(12);
@@ -121,7 +123,16 @@ void handle_input() {
         rc--;
 
     if (bufferbis[0] == COMMAND) handle_command(bufferbis + 1);
-    else send_data(bufferbis, rc);
+    else {
+        const char *pseudo = getPseudo();
+        int len = rc + strlen(pseudo) + 3;
+
+        char *tmp = malloc(len);
+        snprintf(tmp, len, "%s: %s", pseudo, buffer);
+        send_data(tmp, len);
+        print_web((uint8_t*)tmp, len);
+        free(tmp);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -188,16 +199,25 @@ int main(int argc, char **argv) {
         dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
 
         fd_set readfds;
-        fd_set done;
+        list_t *l, *to_delete = 0;
+        void *val;
+        int s, max = sock > websock ? sock : websock;
+
         FD_ZERO(&readfds);
-        FD_ZERO(&done);
         FD_SET(sock, &readfds);
         FD_SET(websock, &readfds);
         FD_SET(0, &readfds);
 
-        rc = select((sock > websock ? sock : websock) + 1, &readfds, 0, 0, &tv);
+        for (l = clientsockets; l; l = l->next) {
+            s = *((int*)l->val);
+            FD_SET(s, &readfds);
+            if (s > max) max = s;
+        }
+
+        rc = select(max + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
             perror("select");
+            exit(1);
             continue;
         }
 
@@ -209,6 +229,21 @@ int main(int argc, char **argv) {
 
         if (FD_ISSET(websock, &readfds)) {
             handle_http();
+        }
+
+        for (l = clientsockets; l; l = l->next) {
+            s = *((int*)l->val);
+            if (FD_ISSET(s, &readfds)) {
+                rc = handle_ws(s);
+                if (rc < 0) {
+                    list_add(&to_delete, l->val);
+                }
+            }
+        }
+
+        while (to_delete) {
+            val = list_pop(&to_delete);
+            list_eremove(&clientsockets, val);
         }
 
         if (FD_ISSET(sock, &readfds)) {

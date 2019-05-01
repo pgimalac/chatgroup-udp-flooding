@@ -8,7 +8,7 @@
 ** DONE send a warning (like juliusz does)
 *** TODO MARTIAN neighbours
 *** TODO not my id
-* Bonus [3/13]
+* Bonus [4/13]
 ** TODO commands to print own id, ip, port
 ** DONE command to change id
 ** TODO Error managment
@@ -30,9 +30,9 @@
 ** TODO Multicast
    ff12:b456:dad4:cee1:4589:71de:a2ec:e66
    port 1212
-** TODO Fragmentation [0/3]
-*** TODO Alexandre/Tristan-protocol
-*** TODO image, videos, etc... send & reception
+** DONE Fragmentation [2/3]
+*** DONE Alexandre/Tristan-protocol
+*** DONE image, videos, etc... send & reception
 *** TODO file transfert
 ** TODO TCP-Friendly
 ** TODO Firewalls & NAT

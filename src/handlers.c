@@ -10,6 +10,7 @@
 #include "tlv.h"
 #include "flooding.h"
 #include "interface.h"
+#include "websocket.h"
 
 static void handle_pad1(const u_int8_t *tlv, neighbour_t *n) {
     dprintf(logfd, "%s%sPad1 received\n%s", LOGFD_F, LOGFD_B, RESET);
@@ -117,6 +118,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             memcpy(buff, tlv + 15, size);
             buff[size] = '\0';
             printf("%s%s%s\n%s", STDOUT_B, STDOUT_F, buff, RESET);
+            print_web(tlv + 15, size);
         } else if (tlv[14] == DATA_FRAG) {
             if (size < 9) {
                 dprintf(logfd, "%s%sData fragment was corrupted (too short).\n%s",

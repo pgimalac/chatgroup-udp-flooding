@@ -15,6 +15,7 @@
 #include "types.h"
 #include "interface.h"
 #include "flooding.h"
+#include "websocket.h"
 
 char pseudo[PSEUDO_LENGTH + 1];
 

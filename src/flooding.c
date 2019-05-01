@@ -68,18 +68,13 @@ void frag_data(char *buffer, u_int16_t size) {
 void send_data(char *buffer, u_int16_t size){
     if (buffer == 0 || size <= 0) return;
 
-    const char *pseudo = getPseudo();
-    int pseudolen = strlen(pseudo);
-    if (size + pseudolen > 240) {
+    if (size > 255) {
         frag_data(buffer, size);
         return;
     }
 
-    char tmp[243] = { 0 };
-    snprintf(tmp, 243, "%s: %s", pseudo, buffer);
-
     body_t data = { 0 };
-    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, tmp, pseudolen + 2 + size);
+    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, buffer, size);
 
     if (rc < 0){
         if (rc == -1)
