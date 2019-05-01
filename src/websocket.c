@@ -173,6 +173,16 @@ int handle_http () {
     return 0;
 }
 
+#define FINBIT (1 << 7)
+#define MSKBIT (1 << 7)
+
+#define OPCONT 0x00
+#define OPTXT 0x01
+#define OPBIN 0x02
+#define OPCLOSE 0x08
+#define OPPING 0x09
+#define OPPONG 0x0a
+
 typedef struct fragws {
     uint8_t opcode;
     uint8_t offset;
@@ -199,7 +209,7 @@ int handle_ws(int s) {
         return -1;
     }
 
-    fin = (opcode >> 7) & 1;
+    fin = opcode & FINBIT;
     opcode &= 0x0f;
 
     memset(len, 0, 8);
@@ -215,11 +225,11 @@ int handle_ws(int s) {
         return -1;
     }
 
-    mask = (len[0] >> 7) & 1;
+    mask = len[0] & MSKBIT;
     memset(maskkey, 0, 4);
 
     printf("web message received fin = %d, opcode = %02hhx, mask = %d\n",
-           fin, opcode, mask);
+           fin ? 1 : 0, opcode, mask ? 1 : 0);
 
     switch (len[0] & 0x7f) {
     case 126:
@@ -263,7 +273,14 @@ int handle_ws(int s) {
 
     frag = hashmap_get(webmessage_map, &s);
     if (!frag) {
-        assert(opcode != 0);
+        if (opcode == OPCONT) {
+            fprintf(stderr, "continue frame but there is nothing to continue\n");
+            close(s);
+            free(payload);
+            free(decoded);
+            return -1;
+        }
+
         frag = malloc(sizeof(fragws_t));
         frag->opcode = opcode;
         frag->offset = 0;
@@ -281,17 +298,18 @@ int handle_ws(int s) {
 
     if (fin) {
         switch (frag->opcode) {
-        case 0x01: //text
+        case OPTXT: //text
             write(1, frag->buffer, frag->buflen);
             printf("\n");
 
             send_data((char*)frag->buffer, frag->buflen);
+            print_web((uint8_t*)frag->buffer, frag->buflen);
             break;
 
-        case 0x02: //bin
+        case OPBIN: //bin
             break;
 
-        case 0x08: // close
+        case OPCLOSE: // close
             // send close
             if (frag->buflen) {
                 uint16_t code = ntohs(*((uint16_t*)frag->buffer));
@@ -308,15 +326,15 @@ int handle_ws(int s) {
             close(s);
             break;
 
-        case 0x09: //ping
+        case OPPING: //ping
             break;
 
-        case 0x0A: //pong
+        case OPPONG: //pong
             break;
         }
     }
 
-    if (fin || opcode == 0x08) {
+    if (fin || opcode == OPCLOSE) {
         free(frag->buffer);
         hashmap_remove(webmessage_map, &s, 1, 1);
     }
@@ -334,8 +352,8 @@ int send_ping (int s) {
     uint64_t payload = random_uint64();
 
     memset(frame, 0, 1024);
-    frame[0] = 0x09;
-    frame[1] = 0x80 ^ 8;
+    frame[0] = FINBIT ^ OPPING;
+    frame[1] = MSKBIT ^ 8;
     memcpy(frame + 2, &mask, 4);
     memcpy(frame + 6, &payload, 8);
 
@@ -347,21 +365,18 @@ int send_ping (int s) {
     return 0;
 }
 
-int print_web(const uint8_t *buf, size_t buflen) {
+int print_web(const uint8_t *buffer, size_t buflen) {
     int s, rc;
     list_t *l;
     uint8_t frame[1024];
     uint32_t mask;
 
-    uint8_t *buffer = "a: a";
-    buflen = 4;
-
     size_t len, i, j, count = 0, size = (buflen < 125 ? 1 : buflen / 125);
 
     for (i = 0; i < size; i++) {
         memset(frame, 0, 1024);
-        frame[0] = i == 0 ? 0x01 : 0x00;
-        frame[1] = 0x80;
+        frame[0] = i == 0 ? OPTXT : OPCONT;
+        frame[1] = MSKBIT;
 
         len = buflen - count > 125 ? 125 : buflen - count;
         frame[1] ^= len;
@@ -375,13 +390,12 @@ int print_web(const uint8_t *buf, size_t buflen) {
 
         // last frame FIN bit
         if (i == size - 1)
-            frame[0] ^= 0x80;
+            frame[0] ^= FINBIT;
 
         //print_bytes((char*)frame, 2 + 4 + len);
 
         for (l = clientsockets; l; l = l->next) {
             s = *((int*)l->val);
-            print_bytes(frame, 2 + 4 + len);
             rc = write(s, frame, 2 + 4 + len);
             if (rc < 0) {
                 perror("write");
