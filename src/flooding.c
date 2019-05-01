@@ -167,7 +167,7 @@ void hello_potential_neighbours(struct timeval *tv) {
                     assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
                                   ipstr, INET6_ADDRSTRLEN) != NULL);
 
-                    sprintf(msg, "(%s, %u) is a Martian.",
+                    sprintf(msg, "You recommended (%s, %u) but I can't reach it.",
                             ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
                     cprint(0, "%s\n", msg);
 

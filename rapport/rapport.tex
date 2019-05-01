@@ -6,9 +6,73 @@
 \usepackage[utf8]{inputenc} %package fondamental
 \usepackage[T1]{fontenc} %package fondamental
 
-\usepackage[pdftex, pdfauthor={Maxime Flin, Pierre Gimalac}, pdftitle={Rapport projet}, pdfsubject={chatgroup with udp flooding}, pdfkeywords={UDP, chatgroup, flooding}, colorlinks=true, linkcolor=black]{hyperref}
-\begin{document}
+\usepackage[top=3cm, bottom=3cm, left=3cm, right=3cm]{geometry} %permet de
 
-Rien pour l'instant
+\usepackage[pdftex, pdfauthor={Maxime Flin, Pierre Gimalac}, pdftitle={Rapport projet}, pdfsubject={chatgroup with udp flooding}, pdfkeywords={UDP, chatgroup, flooding}, colorlinks=true, linkcolor=black]{hyperref}
+
+\author{Maxime Flin \& Pierre Gimalac}
+\title{Rapport de Projet}
+
+\begin{document}
+\maketitle
+
+\section{Compilation et exécution}
+Le projet se compile grâce au makefile fourni, en faisant la commande \textit{'make all'}.\\
+
+L'exécutable produit s'appelle \textit{chat}. Il possèdes des arguments optionnels qui sont dans l'ordre:
+\begin{enumerate}
+\item un numéro de port (un numéro aléatoire sera choisi si l'argument n'est pas fourni)
+\item ``0'', ``1'', ``STDOUT'', ``STDERR'', ou un chemin vers un fichier (potentiellement non existant), indiquant où doivent être écris les logs. Par défaut les logs sont écris sur STDERR.
+\item un pseudonyme (un pseudonyme aléatoire sera choisi dans une liste si l'argument n'est pas fourni).
+\end{enumerate}
+
+\subsection{Commandes}
+L'interface possède un certain nombre de commandes, qui commencent par /:
+\begin{description}
+\item[add <addr> <port>] ajoute aux voisins potentiels les adresses associées à <addr> et <port>.
+\item[name <name>] change le pseudonyme en <name>.
+\item[random] change le pseudonyme de manière aléatoire.
+\item[print] affiche la liste des voisins et voisins potentiels.
+\item[juliusz] équivalent à ``/add jch.irif.fr 1212''
+\item[neighbour] force l'envoi de tlv neighbour.
+\item[clear] efface le terminal (fonctionne au moins sur bash et zsh).
+\item[chid] change l'id de manière aléatoire.
+\item[transfert <path>] envoie le fichier <path> avec le protocole de fragmentation.
+\item[help] affiche l'ensemble des commandes.
+\item[quit] quitte programme, envoie des tlv goaway au passage.
+\end{description}
+
+\section{Interface}
+\section{Sujet minimal}
+\section{Extensions}
+\subsection{Tlv 220}
+\section{Extensions considérées mais non implémentées}
+\section{Détails d'implémentation}
+
+
 
 \end{document}
+
+ % - introduction : projet fait par machin et bidule.
+ %  - manuel
+ %     - comment compiler
+ %     - comment s'en servir
+ %  - partie qui marche
+ %     - sujet minimal
+ %     - extensions
+ %  - partie qui ne marche pas
+ %     - qui ne marche pas parce qu'on est incompétents
+ %     - qui ne marche pas parce qu'on a eu la flemme
+ %  - parties pompées sur les copains (à qui merci)
+ %  - détails d'implémentation
+ %     - structure générale du programme
+ %     - parties non-triviales que je vous explique gentiment
+ %     - parties super bien faites dont on est fiers
+ %     - parties mal faites dont on a un peu honte mais qu'on a la flemme
+ %       d'améliorer
+ %  - commentaires sur le protocole
+ %     - telle partie du protocole est mal faite, voici comment l'améliorer
+ %     - telle partie du protocole est difficile à implémenter, je vous déteste
+ %  - conclusion
+ %     - ce sujet nous a énormément apporté, il nous a ouvert l'esprit et
+ %       a amélioré nos performances sexuelles.

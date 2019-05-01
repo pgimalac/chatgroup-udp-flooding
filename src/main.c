@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, quit_handler);
 
     unsigned short port = 0;
-    if (argc > 1){
+    if (argc >= 2){
         char *pos = 0;
         long int port2 = strtol(argv[1], &pos, 0);
         if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
@@ -160,8 +160,25 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (argc >= 3)
-        setPseudo(argv[2]);
+    logfd = 2;
+    if (argc >= 3){
+        if (strcmp("1", argv[2]) == 0 ||
+                strcasecmp("STDOUT", argv[2]) == 0)
+            logfd = 1;
+        else if (strcmp("2", argv[2]) == 0 ||
+                strcasecmp("STDERR", argv[2]) == 0)
+            logfd = 2;
+        else {
+            int fd = open(argv[2], O_WRONLY | O_CREAT);
+            if (fd >= 0)
+                logfd = fd;
+            else
+                cperror("open");
+        }
+    }
+
+    if (argc >= 4)
+        setPseudo(argv[3]);
     else
         setRandomPseudo();
 

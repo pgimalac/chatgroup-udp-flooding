@@ -265,17 +265,19 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
 void cprint(int fd, char *str, ...){
     if (fd < 0) return;
 
-    char *B, *F;
+    char *B = "", *F = "";
     if (fd == 0){
-        B = LOGFD_B; F = LOGFD_F;
         fd = logfd;
+        if (fd == STDOUT_FILENO || fd == STDERR_FILENO){
+            B = LOGFD_B;
+            F = LOGFD_F;
+        }
     } else if (fd == STDOUT_FILENO){
         B = STDOUT_B; F = STDOUT_F;
     } else if (fd == STDERR_FILENO){
         B = STDERR_B; F = STDERR_F;
-    } else {
-        B = ""; F = "";
     }
+
     write(fd, B, strlen(B));
     write(fd, F, strlen(F));
 

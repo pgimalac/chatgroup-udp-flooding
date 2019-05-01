@@ -269,7 +269,15 @@ void setRandomPseudo(){
 
 // OTHER
 
-void print_message(const u_int8_t* msg, int size){
+void print_message(u_int8_t* msg, int size){
+    msg += strspn((char*)msg, forbiden);
+    while (size > 0 && strchr(forbiden, msg[size - 1]) != NULL)
+        size--;
+
+    for (int i = 0; i < size; i++)
+        if (strchr(forbiden, msg[i]) != NULL)
+            msg[i] = ' ';
+
     time_t now = time(0);
     struct tm *t = localtime(&now);
     cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);

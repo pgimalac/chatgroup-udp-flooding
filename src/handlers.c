@@ -123,7 +123,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     if (!map && !hashmap_contains(data_map, (void*)(tlv + 2))) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
-            print_message(tlv + 15, size);
+            print_message((u_int8_t*)tlv + 15, size);
         } else if (tlv[14] == DATA_FRAG) {
             if (size < 9)
                 cprint(0, "Data fragment was corrupted (too short).\n");

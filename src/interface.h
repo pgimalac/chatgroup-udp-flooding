@@ -46,6 +46,6 @@ void setRandomPseudo();
 
 void handle_command(char*);
 
-void print_message(const u_int8_t*, int);
+void print_message(u_int8_t*, int);
 
 #endif
