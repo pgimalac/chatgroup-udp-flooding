@@ -38,7 +38,7 @@ int init() {
         return 2;
     }
 
-    httpport = (rand() % 50) + 8000;
+    httpport = (rand() % 10) + 8080;
     clientsockets = 0;
     webmessage_map = hashmap_init(sizeof(int));
 

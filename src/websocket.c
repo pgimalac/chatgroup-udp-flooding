@@ -65,15 +65,16 @@ int create_tcpserver(int port) {
     return s;
 }
 
-const char *NOT_FOUND = "HTTP/1.1 404 Not Found\n\r\n\r\nThis page don't exist";
-const char *INVALID = "HTTP/1.1 400 Bas Request\n\r\n\r";
-const char *STATUSLINE = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n";
+const char *NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\nThis page don't exist";
+const char *INVALID = "HTTP/1.1 400 Bas Request\r\n\r\n";
+const char *STATUSLINE = "HTTP/1.1 200 OK\r\n"
+    "Content-Type: text/html; charset=utf-8\r\n";
 const char *MAGICSTRINGWS = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const size_t MSWSL = strlen("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-const char *SWITPROTO = "HTTP/1.1 101 Switching Protocols\nUpgrade: websocket\nConnection: Upgrade\n";
+const char *SWITPROTO = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n";
 
 int handle_http () {
-    int rc, s;
+    int rc, s, i;
     size_t len = 0, keylen;
     char buffer[4096], *ptr, *end;
     unsigned char *key, hash[20];
@@ -89,7 +90,7 @@ int handle_http () {
 
     memset(buffer, 0, 4096);
     len = 0;
-    while ((rc = read(s, buffer + len, 4096 - len)) > 0) {
+    for (i = 0; i < 100 && (rc = read(s, buffer + len, 4096 - len)) > 0; i++) {
         len += rc;
         if (memmem(buffer, len, "\r\n\r\n", 4))
             break;
@@ -114,11 +115,9 @@ int handle_http () {
         write(s, STATUSLINE, strlen(STATUSLINE));
 
         char tmp[250];
-        rc = sprintf(tmp, "Content-Length: %d\n", pagelen);
+        rc = sprintf(tmp, "Content-Length: %d\r\n\r\n", pagelen);
         write(s, tmp, rc);
-        write(s, "\r\n\r\n", 4);
         write(s, page, pagelen);
-
         close(s);
         return 0;
     }
@@ -348,11 +347,14 @@ int send_ping (int s) {
     return 0;
 }
 
-int print_web(const uint8_t *buffer, size_t buflen) {
+int print_web(const uint8_t *buf, size_t buflen) {
     int s, rc;
     list_t *l;
     uint8_t frame[1024];
     uint32_t mask;
+
+    uint8_t *buffer = "a: a";
+    buflen = 4;
 
     size_t len, i, j, count = 0, size = (buflen < 125 ? 1 : buflen / 125);
 
@@ -379,8 +381,7 @@ int print_web(const uint8_t *buffer, size_t buflen) {
 
         for (l = clientsockets; l; l = l->next) {
             s = *((int*)l->val);
-            send_ping(s);
-            return 0;
+            print_bytes(frame, 2 + 4 + len);
             rc = write(s, frame, 2 + 4 + len);
             if (rc < 0) {
                 perror("write");
