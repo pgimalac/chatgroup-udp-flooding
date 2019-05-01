@@ -294,11 +294,17 @@ int handle_ws(int s) {
 
         case 0x08: // close
             // send close
-            print_bytes(frag->buffer, frag->buflen);
             if (frag->buflen) {
                 uint16_t code = ntohs(*((uint16_t*)frag->buffer));
                 printf("close code %u\n", code);
             }
+
+            if (frag->buflen > 2) {
+                printf("closing message:\n");
+                write(1, frag->buffer + 2, frag->buflen - 2);
+                printf("\n");
+            }
+
             status = -1;
             close(s);
             break;
