@@ -69,29 +69,37 @@ static const char *usages[] = {
     "quit"
 };
 
-static void add(char *buffer){
+static void add(const char *buf, size_t len) {
     int rc;
     char *name = 0, *service = 0;
+    char *buffer = calloc(len + 1, 1);
+    memcpy(buffer, buf, len);
+
     name = strtok(buffer, " ");
     service = strtok(0, " \n");
+
     if (!name || !service) {
         cprint(STDERR_FILENO, "Usage: %s\n", usages[0]);
+        free(buffer);
         return;
     }
 
     rc = add_neighbour(name, service);
     if (rc != 0) {
         cprint(STDERR_FILENO, "Could not add the given neighbour: %s\n", gai_strerror(rc));
+        free(buffer);
         return;
     }
     cprint(STDOUT_FILENO, "The neighbour %s, %s was added to potential neighbours\n", name, service);
+
+    free(buffer);
 }
 
-static void name(char *buffer){
-    setPseudo(buffer);
+static void name(const char *buffer, size_t len){
+    setPseudo(buffer, len);
 }
 
-static void nameRandom(char *buffer){
+static void nameRandom(const char *buffer, size_t len){
     setRandomPseudo();
 }
 
@@ -101,7 +109,7 @@ static void __print(const neighbour_t *n){
     cprint(STDOUT_FILENO, "    @ %s / %d\n", ipstr, ntohs(n->addr->sin6_port));
 }
 
-static void print(char *buffer){
+static void print(const char *buffer, size_t len){
     if (hashset_isempty(neighbours)){
         cprint(STDOUT_FILENO, "You have no neighbour\n");
     } else {
@@ -118,41 +126,37 @@ static void print(char *buffer){
     }
 }
 
-static void juliusz(char *buffer){
+static void juliusz(const char *buffer, size_t buflen){
     char j[] = "jch.irif.fr 1212";
     // on appelle strtok sur la chaine dans add
     // donc on doit pouvoir modifier la chaine,
     // d'où le tableau et pas un pointeur
-    add(j);
+    add(j, sizeof(j));
 }
 
-static void neighbour(char *buffer){
+static void neighbour(const char *buffer, size_t buflen){
     neighbour_flooding(1);
 }
 
-static void clear(char *buffer){
+static void clear(const char *buffer, size_t buflen){
     cprint(STDOUT_FILENO, EFFACER);
 }
 
-static void chid(char *buffer) {
+static void chid(const char *buffer, size_t buflen) {
     id = random_uint64();
     cprint(STDOUT_FILENO, "New id: %lx.\n", id);
 }
 
 #define MAX_BUF_SIZE ((1 << 16) - 1)
-static void transfert(char *path) {
+static void transfert(const char *path, size_t buflen) {
     int fd, rc;
-    char buffer[MAX_BUF_SIZE], *pathbis;
+    char buffer[MAX_BUF_SIZE], *npath = calloc(buflen + 1, 1);
+    memcpy(npath, path, buflen);
 
-    pathbis = path + strspn(path, forbiden);
-    rc = strlen(pathbis);
+    cprint(STDOUT_FILENO, "Send file %s on network.\n", npath);
+    fd = open(npath, O_RDONLY);
+    free(npath);
 
-    while (rc > 0 && strchr(forbiden, pathbis[rc - 1]) != NULL)
-        rc--;
-
-    pathbis[rc] = 0;
-    cprint(STDOUT_FILENO, "Send file %s on network.\n", pathbis);
-    fd = open(pathbis, O_RDONLY);
     if (fd < 0) {
         cperror("open");
         return;
@@ -170,17 +174,17 @@ static void transfert(char *path) {
     send_data(buffer, rc);
 }
 
-static void help(char *buffer){
+static void help(const char *buffer, size_t len){
     cprint(STDOUT_FILENO, "Possible commands are:\n");
     for (const char **usage = usages; *usage; usage++)
         cprint(STDOUT_FILENO, "    %s\n", *usage);
 }
 
-static void quit(char *buffer) {
+static void quit(const char *buffer, size_t len) {
     quit_handler(0);
 }
 
-static void unknown(char *buffer){
+static void unknown(const char *buffer, size_t len){
     cprint(STDERR_FILENO, "Invalid command, possible commands are:\n");
     for (const char **usage = usages; *usage; usage++)
         cprint(STDERR_FILENO, "    %s\n", *usage);
@@ -202,7 +206,7 @@ static const char *names[] =
      NULL
     };
 
-static void (*interface[])(char*) =
+static void (*interface[])(const char*, size_t) =
     {
      add,
      name,
@@ -219,19 +223,22 @@ static void (*interface[])(char*) =
     };
 
 
-void handle_command(char *buffer) {
+void handle_command(const char *buffer, size_t len) {
     cprint(STDOUT_FILENO, SEPARATOR);
-    char *ins = strpbrk(buffer, " \n");
+    if (len == 0)
+        return;
+
+    char *ins = memchr(buffer, ' ', len);
     int ind;
     if (ins != NULL)
         for (ind = 0; names[ind] != NULL; ind ++)
             if (strncasecmp(buffer, names[ind], strlen(names[ind])) == 0){
-                interface[ind](ins);
+                interface[ind](ins + 1, len - (ins - buffer) - 1);
                 break;
             }
 
     if (ins == NULL || names[ind] == NULL)
-        unknown(buffer);
+        unknown(buffer, len);
     cprint(STDOUT_FILENO, SEPARATOR);
 }
 
@@ -241,9 +248,11 @@ const char* getPseudo(){
     return pseudo;
 }
 
-void setPseudo(char *buffer){
-    buffer += strspn(buffer, forbiden);
-    int len = strlen(buffer);
+void setPseudo(const char *buf, size_t len){
+    char *buffer = calloc(len + 1, 1);
+    memcpy(buffer, buf, len);
+    buffer += strspn(buf, forbiden);
+    len = strlen(buf);
     while (len > 0 && strchr(forbiden, buffer[len - 1]) != NULL)
         len--;
 
@@ -252,7 +261,7 @@ void setPseudo(char *buffer){
     } else if (len < 3){
         cprint(STDERR_FILENO, "Nickname too short\n");
     } else {
-        for (int i = 0; i < len; i++)
+        for (size_t i = 0; i < len; i++)
             if (strchr(forbiden, buffer[i]) != NULL)
                 buffer[i] = ' ';
 
@@ -284,3 +293,13 @@ void print_message(u_int8_t* msg, int size){
     cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);
 }
 
+void handle_input(const char *buffer, size_t buflen) {
+    char *purified = purify(buffer, &buflen);
+    if (purified[0] == COMMAND)
+        handle_command(purified + 1, buflen - 1);
+    else {
+        send_data(purified, buflen);
+        print_web((uint8_t*)purified, buflen);
+    }
+    free(purified);
+}

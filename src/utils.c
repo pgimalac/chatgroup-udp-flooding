@@ -426,3 +426,28 @@ int min(int a, int b){
 int max(int a, int b){
     return a < b ? b : a;
 }
+
+char *purify(const char *buffer, size_t *len) {
+    size_t i = 0, j = *len - 1;
+    while (i < (*len) && (buffer[i] == ' ' || buffer[i] == '\n'
+                         || buffer[i] == '\t' || buffer[i] == '\r'))
+        i++;
+
+    if (i == *len)
+        return 0;
+
+    while (j > 0 && (buffer[j] == ' ' || buffer[j] == '\n'
+                    || buffer[j] == '\t' || buffer[j] == '\r'))
+        j--;
+
+    if (j == i)
+        return 0;
+
+    *len = j - i + 1;
+    char *purified = malloc(*len);
+    if (!purified)
+        return 0;
+
+    memcpy(purified, buffer + i, *len);
+    return purified;
+}

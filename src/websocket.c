@@ -18,6 +18,7 @@
 #include "list.h"
 #include "hashmap.h"
 #include "flooding.h"
+#include "interface.h"
 #include "websocket.h"
 
 int pagelen = 0;
@@ -299,11 +300,8 @@ int handle_ws(int s) {
     if (fin) {
         switch (frag->opcode) {
         case OPTXT: //text
-            write(1, frag->buffer, frag->buflen);
-            printf("\n");
-
-            send_data((char*)frag->buffer, frag->buflen);
-            print_web((uint8_t*)frag->buffer, frag->buflen);
+            cprint(STDOUT_FILENO, "%*s\n", frag->buflen, frag->buffer);
+            handle_input((char*)frag->buffer, frag->buflen);
             break;
 
         case OPBIN: //bin
@@ -317,9 +315,8 @@ int handle_ws(int s) {
             }
 
             if (frag->buflen > 2) {
-                cprint(0, "closing message:\n");
-                write(1, frag->buffer + 2, frag->buflen - 2);
-                printf("\n");
+                cprint(0, "closing message: %*s\n",
+                       frag->buflen - 2, frag->buffer + 2);
             }
 
             status = -1;

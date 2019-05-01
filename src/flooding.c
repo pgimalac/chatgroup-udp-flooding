@@ -30,7 +30,7 @@
 
 #define FRAG_TIMEOUT 60
 
-void frag_data(char *buffer, u_int16_t size) {
+void frag_data(const char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
     uint16_t nsize = htons(size), pos;
     body_t data = { 0 };
@@ -65,7 +65,7 @@ void frag_data(char *buffer, u_int16_t size) {
     }
 }
 
-void send_data(char *buffer, u_int16_t size){
+void send_data(const char *buffer, u_int16_t size){
     if (buffer == 0 || size <= 0) return;
 
     if (size > 255) {

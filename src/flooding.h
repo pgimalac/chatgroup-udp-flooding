@@ -5,7 +5,7 @@
 
 #define MAX_NB_NEIGHBOUR 100
 
-void send_data(char *buffer, u_int16_t size);
+void send_data(const char *buffer, u_int16_t size);
 
 void hello_potential_neighbours(struct timeval *tv);
 

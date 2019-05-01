@@ -39,14 +39,17 @@
 #define STDOUT_B ""
 
 #define SEPARATOR "===============================================\n"
+#define COMMAND '/'
 
-void setPseudo(char*);
+void setPseudo(const char*, size_t len);
 
 const char* getPseudo();
 
 void setRandomPseudo();
 
-void handle_command(char*);
+void handle_command(const char*, size_t len);
+
+void handle_input(const char *buffer, size_t buflen);
 
 void print_message(u_int8_t*, int);
 

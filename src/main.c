@@ -22,8 +22,6 @@
 #define MIN_PORT 1024
 #define MAX_PORT 49151
 
-#define COMMAND '/'
-
 int init() {
     init_random();
 
@@ -132,7 +130,7 @@ int handle_reception () {
     return 0;
 }
 
-void handle_input() {
+void handle_stdin_input() {
     int rc;
     char buffer[4096] = { 0 };
 
@@ -145,24 +143,7 @@ void handle_input() {
     if (rc <= 1)
         return;
 
-    int tmp = strspn(buffer, forbiden);
-    char *bufferbis = buffer + tmp;
-    rc -= tmp;
-
-    while (rc > 0 && strchr(forbiden, bufferbis[rc - 1]) != NULL)
-        rc--;
-
-    if (bufferbis[0] == COMMAND) handle_command(bufferbis + 1);
-    else {
-        const char *pseudo = getPseudo();
-        int len = rc + strlen(pseudo) + 3;
-
-        char *tmp = malloc(len);
-        snprintf(tmp, len, "%s: %s", pseudo, buffer);
-        send_data(tmp, len);
-        print_web((uint8_t*)tmp, len);
-        free(tmp);
-    }
+    handle_input(buffer, rc);
 }
 
 int main(int argc, char **argv) {
@@ -199,7 +180,7 @@ int main(int argc, char **argv) {
     }
 
     if (argc >= 4)
-        setPseudo(argv[3]);
+        setPseudo(argv[3], strlen(argv[3]));
     else
         setRandomPseudo();
 
@@ -272,7 +253,7 @@ int main(int argc, char **argv) {
             continue;
 
         if (FD_ISSET(0, &readfds))
-            handle_input();
+            handle_stdin_input();
 
         if (FD_ISSET(websock, &readfds)) {
             handle_http();
