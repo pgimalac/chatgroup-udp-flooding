@@ -21,12 +21,10 @@ void* voidndup(const void *o, int n){
     return cpy;
 }
 
-int init_random() {
+void init_random() {
     int seed = time(0);
-    if (seed == -1) return -1;
-
+    assert(seed != -1);
     srand(seed);
-    return 0;
 }
 
 u_int64_t random_uint64 () {
@@ -249,7 +247,7 @@ char *strappv(char** str){
     return buff;
 }
 
-void print_bytes(const char *buffer, size_t len) {
+void print_bytes(const unsigned char *buffer, size_t len) {
     if (!buffer) return;
 
     for (size_t i = 0; i < len; i++) {
@@ -265,76 +263,76 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
 }
 
 void cprint(int fd, char *str, ...){
-    char *B, *F;
+    if (fd < 0) return;
+
+    char *B = "", *F = "";
     if (fd == 0){
-        B = LOGFD_B; F = LOGFD_F;
         fd = logfd;
+        if (fd == STDOUT_FILENO || fd == STDERR_FILENO){
+            B = LOGFD_B;
+            F = LOGFD_F;
+        }
     } else if (fd == STDOUT_FILENO){
         B = STDOUT_B; F = STDOUT_F;
     } else if (fd == STDERR_FILENO){
         B = STDERR_B; F = STDERR_F;
-    } else {
-        B = ""; F = "";
     }
+
     write(fd, B, strlen(B));
     write(fd, F, strlen(F));
 
     va_list ap;
     va_start(ap, str);
 
-    size_t len = 0, tmp;
+    unsigned int help;
+    size_t len = 0;
     char *strbis = str, *strter;
     while (*strbis){
         strter = strchrnul(strbis, '%');
         len += strter - strbis;
-        printf("texte en dur:%lu\n", strter - strbis);
         if (*strter == '\0')
             break;
         strter++;
         assert (strter[0] != '\0');
         switch (strter[0]) {
             case 's':
-                tmp = strlen(va_arg(ap, char*));
-                printf("s:%lu\n", tmp);
-                len += tmp;
+                len += strlen(va_arg(ap, char*));
                 break;
             case 'd':
-                tmp = snprintf(NULL, 0, "%d", va_arg(ap, int));
-                printf("d:%lu\n", tmp);
-                len += tmp;
+                len += snprintf(NULL, 0, "%d", va_arg(ap, int));
                 break;
             case 'u':
-                tmp = snprintf(NULL, 0, "%u", va_arg(ap, unsigned int));
-                printf("u:%lu\n", tmp);
-                len += tmp;
+                len += snprintf(NULL, 0, "%u", va_arg(ap, unsigned int));
                 break;
             case 'l':
                 strter ++;
                 assert(strter[0] != '\0');
                 switch (strter[0]){
                     case 'x':
-                        tmp = snprintf(NULL, 0, "%lx", va_arg(ap, long));
-                        printf("lx:%lu\n", tmp);
-                        len += tmp;
+                        len += snprintf(NULL, 0, "%lx", va_arg(ap, long));
                         break;
                     case 'u':
-                        tmp = snprintf(NULL, 0, "%lu", va_arg(ap, unsigned long));
-                        printf("lu:%lu\n", tmp);
-                        len += tmp;
+                        len += snprintf(NULL, 0, "%lu", va_arg(ap, unsigned long));
                         break;
                     case 'd':
-                        tmp = snprintf(NULL, 0, "%ld", va_arg(ap, long));
-                        printf("ld:%lu\n", tmp);
-                        len += tmp;
+                        len += snprintf(NULL, 0, "%ld", va_arg(ap, long));
                         break;
                     default:
                         assert(0);
                 }
                 break;
+            case '*':
+                strter++;
+                assert(strter[0] == 's' || strter[0] == 'd');
+                help = va_arg(ap, unsigned int);
+                if (strter[0] == 's'){
+                    len += help;
+                    va_arg(ap, char*);
+                } else
+                    len += max(help, snprintf(NULL, 0, "%d", va_arg(ap, int)));
+                break;
             case '%':
-                tmp = 1;
-                printf("%%:%lu\n", tmp);
-                len += tmp;
+                len += 1;
                 break;
             default:
                 assert(0);
@@ -346,16 +344,16 @@ void cprint(int fd, char *str, ...){
 
     char *buffer = alloca(len + 1), *bufbis = buffer;
     buffer[len] = '\0';
-    printf("%lu\n", len);
     strbis = str;
 
     va_start(ap, str);
     while (*strbis){
-        strter = strchr(strbis, '%');
+        strter = strchrnul(strbis, '%');
         strncpy(bufbis, strbis, strter - strbis);
-        if (strter == NULL)
+        if (*strter == 0)
             break;
         bufbis += strter - strbis;
+        strter++;
         switch (strter[0]) {
             case 's':
                 bufbis += sprintf(bufbis, "%s", va_arg(ap, char*));
@@ -380,6 +378,22 @@ void cprint(int fd, char *str, ...){
                         break;
                 }
                 break;
+            case '*':
+                strter++;
+                unsigned int tmp = va_arg(ap, unsigned int);
+                if (strter[0] == 's'){
+                    memcpy(bufbis, va_arg(ap, char*), tmp);
+                    bufbis += tmp;
+                } else {
+                    int num = va_arg(ap, int);
+                    unsigned int size = snprintf(NULL, 0, "%d", num);
+                    if (size < tmp){
+                        memset(bufbis, '0', tmp - size);
+                        bufbis += tmp - size;
+                    }
+                    bufbis += sprintf(bufbis, "%d", num);
+                }
+                break;
             case '%':
                 bufbis[0] = '%';
                 bufbis++;
@@ -394,8 +408,15 @@ void cprint(int fd, char *str, ...){
     write(fd, RESET, strlen(RESET));
 }
 
-void perrorbis(int err, char *str){
-    cprint(STDERR_FILENO, "%s: %s\n", str, strerror(err));
+void perrorbis(int err, const char *str){
+    if (str && *str)
+        cprint(STDERR_FILENO, "%s: %s\n", str, strerror(err));
+    else
+        cprint(STDERR_FILENO, "%s\n", strerror(err));
+}
+
+void cperror(const char *str){
+    perrorbis(errno, str);
 }
 
 int min(int a, int b){

@@ -8,3 +8,4 @@ rapport.pdf
 *.sublime*
 chat
 vgcore*
+*.synctex.gz

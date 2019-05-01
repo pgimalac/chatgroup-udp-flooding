@@ -4,13 +4,15 @@
 #include <network.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <errno.h>
+#include <time.h>
 
 #include "types.h"
 #include "interface.h"
@@ -23,7 +25,7 @@ const int pseudo_length = 25;
 const char *pseudos[28] = {
                 "Raskolnikov",
                 "Mlle Swann",
-                "Joshep  K.",
+                "Joshep K.",
                 "Humbert Humbert",
                 "Jacopo Belbo",
                 "Méphistophélès",
@@ -59,9 +61,12 @@ static const char *usages[] = {
     "random",
     "print",
     "juliusz",
-    "neighbour",
+    "neighbour"
+    "clear",
+    "chid",
     "transfert <path to file>",
-    "quit",
+    "help",
+    "quit"
 };
 
 static void add(char *buffer){
@@ -70,16 +75,16 @@ static void add(char *buffer){
     name = strtok(buffer, " ");
     service = strtok(0, " \n");
     if (!name || !service) {
-        fprintf(stderr, "%s%sUsage: %s\n%s", STDERR_F, STDERR_B, usages[0], RESET);
+        cprint(STDERR_FILENO, "Usage: %s\n", usages[0]);
         return;
     }
 
     rc = add_neighbour(name, service);
     if (rc != 0) {
-        fprintf(stderr, "%s%sCould not add the given neighbour: %s\n%s", STDERR_F, STDERR_B, gai_strerror(rc), RESET);
+        cprint(STDERR_FILENO, "Could not add the given neighbour: %s\n", gai_strerror(rc));
         return;
     }
-    printf("%s%s The neighbour %s, %s was added to potential neighbours\n%s", STDOUT_F, STDOUT_B, name, service, RESET);
+    cprint(STDOUT_FILENO, "The neighbour %s, %s was added to potential neighbours\n", name, service);
 }
 
 static void name(char *buffer){
@@ -93,24 +98,24 @@ static void nameRandom(char *buffer){
 static void __print(const neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    printf("%s%s    @ %s / %d\n%s", STDOUT_F, STDOUT_B, ipstr, ntohs(n->addr->sin6_port), RESET);
+    cprint(STDOUT_FILENO, "    @ %s / %d\n", ipstr, ntohs(n->addr->sin6_port));
 }
 
 static void print(char *buffer){
     if (hashset_isempty(neighbours)){
-        printf("%s%sYou have no neighbour\n%s", STDOUT_F, STDOUT_B, RESET);
+        cprint(STDOUT_FILENO, "You have no neighbour\n");
     } else {
-        printf("%s%sYou have %lu neighbour%s:\n%s", STDOUT_F, STDOUT_B, neighbours->size, neighbours->size == 1 ? "" : "s", RESET);
+        cprint(STDOUT_FILENO, "You have %lu neighbour%s:\n", neighbours->size,
+            neighbours->size == 1 ? "" : "s");
         hashset_iter(neighbours, __print);
     }
     if (hashset_isempty(potential_neighbours)){
-        printf("%s%sYou have no potential_neighbour.\n%s", STDOUT_F, STDOUT_B, RESET);
+        cprint(STDOUT_FILENO, "You have no potential_neighbour.\n");
     } else {
-        printf("%s%sYou have %lu potential neighbour%s:\n%s", STDOUT_F, STDOUT_B, potential_neighbours->size,
-                    potential_neighbours->size == 1 ? "" : "s", RESET);
+        cprint(STDOUT_FILENO, "You have %lu potential neighbour%s:\n", potential_neighbours->size,
+                    potential_neighbours->size == 1 ? "" : "s");
         hashset_iter(potential_neighbours, __print);
     }
-    printf("%s%s\n%s", STDOUT_F, STDOUT_B, RESET);
 }
 
 static void juliusz(char *buffer){
@@ -125,8 +130,13 @@ static void neighbour(char *buffer){
     neighbour_flooding(1);
 }
 
-static void quit(char *buffer) {
-    quit_handler(0);
+static void clear(char *buffer){
+    cprint(STDOUT_FILENO, EFFACER);
+}
+
+static void chid(char *buffer) {
+    id = random_uint64();
+    cprint(STDOUT_FILENO, "New id: %lx.\n", id);
 }
 
 #define MAX_BUF_SIZE ((1 << 16) - 1)
@@ -141,67 +151,76 @@ static void transfert(char *path) {
         rc--;
 
     pathbis[rc] = 0;
-    printf("Send file %s on network.\n", pathbis);
+    cprint(STDOUT_FILENO, "Send file %s on network.\n", pathbis);
     fd = open(pathbis, O_RDONLY);
     if (fd < 0) {
-        perror("open");
+        cperror("open");
         return;
     }
 
     rc = read(fd, buffer, MAX_BUF_SIZE);
     if (rc < 0) {
-        perror("read");
+        cperror("read");
         return;
     }
 
     close(fd);
 
-    dprintf(logfd, "Transfering file %u.\n", rc);
+    cprint(0, "Transfering file %u.\n", rc);
     send_data(buffer, rc);
 }
 
-static void unknown(char *buffer){
-    printf("Invalid command, possible commands are:\n");
+static void help(char *buffer){
+    cprint(STDOUT_FILENO, "Possible commands are:\n");
     for (const char **usage = usages; *usage; usage++)
-        printf("%s%s    %s\n%s", STDOUT_F, STDOUT_B, *usage, RESET);
+        cprint(STDOUT_FILENO, "    %s\n", *usage);
 }
 
-static void chid(char *buffer) {
-    id = random_uint64();
-    dprintf(logfd, "New id: %lx.\n", id);
+static void quit(char *buffer) {
+    quit_handler(0);
+}
+
+static void unknown(char *buffer){
+    cprint(STDERR_FILENO, "Invalid command, possible commands are:\n");
+    for (const char **usage = usages; *usage; usage++)
+        cprint(STDERR_FILENO, "    %s\n", *usage);
 }
 
 static const char *names[] =
     {
-     "chid",
      "add",
      "name",
      "random",
      "print",
      "juliusz",
      "neighbour",
-     "quit",
+     "clear",
+     "chid",
      "transfert",
+     "help",
+     "quit",
      NULL
     };
 
 static void (*interface[])(char*) =
     {
-     chid,
      add,
      name,
      nameRandom,
      print,
      juliusz,
      neighbour,
-     quit,
+     clear,
+     chid,
      transfert,
+     help,
+     quit,
      NULL
     };
 
 
 void handle_command(char *buffer) {
-    printf("%s%s================================================\n%s", STDOUT_F, STDOUT_B, RESET);
+    cprint(STDOUT_FILENO, SEPARATOR);
     char *ins = strpbrk(buffer, " \n");
     int ind;
     if (ins != NULL)
@@ -213,7 +232,7 @@ void handle_command(char *buffer) {
 
     if (ins == NULL || names[ind] == NULL)
         unknown(buffer);
-    printf("%s%s================================================\n%s", STDOUT_F, STDOUT_B, RESET);
+    cprint(STDOUT_FILENO, SEPARATOR);
 }
 
 // =========== PSEUDO part ===========
@@ -229,9 +248,9 @@ void setPseudo(char *buffer){
         len--;
 
     if (len > PSEUDO_LENGTH){
-        fprintf(stderr, "%s%sNickname too long.\n%s", STDERR_F, STDERR_B, RESET);
+        cprint(STDERR_FILENO, "Nickname too long.\n");
     } else if (len < 3){
-        fprintf(stderr, "%s%sNickname too short\n%s", STDERR_F, STDERR_B, RESET);
+        cprint(STDERR_FILENO, "Nickname too short\n");
     } else {
         for (int i = 0; i < len; i++)
             if (strchr(forbiden, buffer[i]) != NULL)
@@ -239,12 +258,29 @@ void setPseudo(char *buffer){
 
         memcpy(pseudo, buffer, len);
         pseudo[len] = '\0';
-        printf("%s%sNickname set to \"%s\"\n%s", STDOUT_F, STDOUT_B, pseudo, RESET);
+        cprint(STDOUT_FILENO, "Nickname set to \"%s\"\n", pseudo);
     }
 }
 
 void setRandomPseudo(){
     int index = rand() % pseudo_length;
     strcpy(pseudo, pseudos[index]);
-    printf("%s%sNickname set to \"%s\"\n%s", STDOUT_F, STDOUT_B, pseudo, RESET);
+    cprint(STDOUT_FILENO, "Nickname set to \"%s\"\n", pseudo);
 }
+
+// OTHER
+
+void print_message(u_int8_t* msg, int size){
+    msg += strspn((char*)msg, forbiden);
+    while (size > 0 && strchr(forbiden, msg[size - 1]) != NULL)
+        size--;
+
+    for (int i = 0; i < size; i++)
+        if (strchr(forbiden, msg[i]) != NULL)
+            msg[i] = ' ';
+
+    time_t now = time(0);
+    struct tm *t = localtime(&now);
+    cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);
+}
+

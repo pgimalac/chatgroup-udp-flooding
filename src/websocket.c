@@ -204,7 +204,7 @@ int handle_ws(int s) {
     }
 
     if (rc == 0) {
-        printf("Connection closed by web page\n");
+        cprint(0, "Connection closed by web page\n");
         close(s);
         return -1;
     }
@@ -215,12 +215,12 @@ int handle_ws(int s) {
     memset(len, 0, 8);
     rc = read(s, len, 1);
     if (rc < 0) {
-        perror("read");
+        cperror("read");
         return -1;
     }
 
     if (rc == 0) {
-        printf("Connection closed by web page\n");
+        cprint(0, "Connection closed by web page\n");
         close(s);
         return -1;
     }
@@ -228,7 +228,7 @@ int handle_ws(int s) {
     mask = len[0] & MSKBIT;
     memset(maskkey, 0, 4);
 
-    printf("web message received fin = %d, opcode = %02hhx, mask = %d\n",
+    cprint(0, "web message received fin = %d, opcode = %d, mask = %d\n",
            fin ? 1 : 0, opcode, mask ? 1 : 0);
 
     switch (len[0] & 0x7f) {
@@ -253,7 +253,7 @@ int handle_ws(int s) {
     payload = malloc(payloadlen);
     rc = read(s, payload, payloadlen);
     if (rc < 0) {
-        perror("read");
+        cperror("read");
         free(payload);
         return -1;
     }
@@ -274,7 +274,7 @@ int handle_ws(int s) {
     frag = hashmap_get(webmessage_map, &s);
     if (!frag) {
         if (opcode == OPCONT) {
-            fprintf(stderr, "continue frame but there is nothing to continue\n");
+            cprint(STDERR_FILENO, "continue frame but there is nothing to continue\n");
             close(s);
             free(payload);
             free(decoded);
@@ -313,11 +313,11 @@ int handle_ws(int s) {
             // send close
             if (frag->buflen) {
                 uint16_t code = ntohs(*((uint16_t*)frag->buffer));
-                printf("close code %u\n", code);
+                cprint(0, "close code %u\n", code);
             }
 
             if (frag->buflen > 2) {
-                printf("closing message:\n");
+                cprint(0, "closing message:\n");
                 write(1, frag->buffer + 2, frag->buflen - 2);
                 printf("\n");
             }
@@ -342,7 +342,7 @@ int handle_ws(int s) {
     free(decoded);
     free(payload);
 
-    printf("done.\n");
+    cprint(0, "done.\n");
     return status;
 }
 
@@ -398,13 +398,11 @@ int print_web(const uint8_t *buffer, size_t buflen) {
             s = *((int*)l->val);
             rc = write(s, frame, 2 + 4 + len);
             if (rc < 0) {
-                perror("write");
+                cperror("write");
                 return -1;
             }
         }
     }
-
-    printf("sended\n");
 
     return 0;
 }

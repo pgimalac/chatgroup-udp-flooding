@@ -4,8 +4,9 @@ FOLDER_SRC = src/
 FOLDER_STRUCTS = src/structs/
 FOLDER_ALL = $(FOLDER_SRC) $(FOLDER_STRUCTS)
 
-FILES_SRC = utils.c interface.c base64.c websocket.c \
+FILES_SRC = utils.c interface.c base64.c websocket.c onsend.c \
 			tlv.c network.c checkers.c flooding.c handlers.c main.c
+
 FILES_STRUCTS = array.c list.c hashmap.c hashset.c
 
 FILES_SRC_FP = $(addprefix $(FOLDER_SRC), $(FILES_SRC))

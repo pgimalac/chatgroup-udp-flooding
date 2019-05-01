@@ -8,8 +8,6 @@
 #include "utils.h"
 #include "structs/hashset.h"
 
-// the given buffer is NULL
-#define BUFNULL -1
 // the given buffer is too short
 #define BUFSH -2
 // the given size of the buffer is incoherent with the size of the message
@@ -24,8 +22,6 @@
 int sock;
 chat_id_t id;
 hashset_t *neighbours, *potential_neighbours;
-
-int init_network();
 
 size_t message_to_iovec(message_t *msg, struct iovec **iov);
 

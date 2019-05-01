@@ -65,7 +65,7 @@ typedef struct datime {
 
 typedef struct frag {
     u_int8_t *id;
-    char *buffer;
+    u_int8_t *buffer;
     u_int8_t type;
     u_int16_t size;
     u_int16_t recv;

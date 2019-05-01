@@ -52,20 +52,14 @@ static short resize(hashset_t *h, int capacity) {
 }
 
 short hashset_contains(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
-    if (h == NULL || ip == NULL) return 0;
-
-    for (list_t* l = h->tab[hash_neighbour_data(ip, port) % h->capacity]; l != NULL; l = l->next)
-        if (memcmp(GET_IP(l->val), ip, sizeof(struct in6_addr)) == 0 && port == GET_PORT(l->val))
-            return 1;
-
-    return 0;
+    return hashset_get(h, ip, port) != NULL;
 }
 
 neighbour_t *hashset_get(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port) {
-    if (h == NULL) return 0;
+    if (h == NULL || ip == NULL) return 0;
 
     for (list_t* l = h->tab[hash_neighbour_data(ip, port) % h->capacity]; l != NULL; l = l->next)
-        if (memcmp(&GET_IP(l->val), ip, sizeof(struct in6_addr)) == 0 && port == GET_PORT(l->val))
+        if (port == GET_PORT(l->val) && memcmp(GET_IP(l->val), ip, sizeof(struct in6_addr)) == 0)
             return (neighbour_t*)l->val;
 
     return 0;
@@ -79,31 +73,30 @@ short hashset_add(hashset_t *h, neighbour_t* n){
     if(hashset_contains(h, ip, port)){
         return 2;
     } else {
-        if (h->size + 1 > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
-            resize(h, h->capacity * 2);
         if (!list_add(&h->tab[hash_neighbour_data(ip, port) % h->capacity], n))
             return 0;
         h->size++;
+        if (h->size > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
+            resize(h, h->capacity * 2);
         return 1;
     }
 }
 
 static void* hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
-    if (l != NULL){
-        if (memcmp(GET_IP((*l)->val), ip, sizeof(struct in6_addr)) == 0 && GET_PORT((*l)->val) == port){
-            return list_remove(l, 0);
-        }
+    if (l == NULL || *l == NULL)
+        return NULL;
 
-        list_t* tmp;
-        for(tmp = *l;
-            tmp->next != NULL
-                && (memcmp(GET_IP(tmp->next->val), ip, sizeof(struct in6_addr))
-                    || GET_PORT(tmp->next->val) != port);
-            tmp = tmp->next) ;
+    if (GET_PORT((*l)->val) == port && memcmp(GET_IP((*l)->val), ip, sizeof(struct in6_addr)) == 0)
+        return list_remove(l, 0);
 
-        return list_remove(&tmp->next, 0);
-    }
-    return NULL;
+    list_t* tmp;
+    for(tmp = *l;
+        tmp->next != NULL
+            && (GET_PORT(tmp->next->val) != port ||
+                memcmp(GET_IP(tmp->next->val), ip, sizeof(struct in6_addr)));
+        tmp = tmp->next) ;
+
+    return tmp->next == NULL ? NULL : list_remove(&tmp->next, 0);
 }
 
 neighbour_t* hashset_remove_neighbour(hashset_t* h, const neighbour_t *n){
@@ -111,17 +104,18 @@ neighbour_t* hashset_remove_neighbour(hashset_t* h, const neighbour_t *n){
 }
 
 neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
-    if (h != NULL && hashset_contains(h, ip, port)) {
-        int i = hash_neighbour_data(ip, port) % h->capacity;
-        neighbour_t *n = hashset_list_remove(&h->tab[i], ip, port);
-        assert(n != NULL);
+    if (h == NULL)
+        return NULL;
+
+    int i = hash_neighbour_data(ip, port) % h->capacity;
+    neighbour_t *n = hashset_list_remove(&h->tab[i], ip, port);
+    if (n != NULL){
         h->size--;
         if (h->size < HASHSET_RATIO_LOWER_LIMIT * h->capacity &&
             h->size > HASHSET_INITIAL_CAPACITY)
             resize(h, h->capacity / 2);
-        return n;
     }
-    return 0;
+    return n;
 }
 
 

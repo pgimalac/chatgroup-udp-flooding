@@ -25,17 +25,18 @@
 #define COMMAND '/'
 
 int init() {
-    int rc;
-    rc = init_random();
-    if (rc < 0) {
-        perror("init random");
-        return 1;
+    init_random();
+
+    id = random_uint64();
+    neighbours = hashset_init();
+    if (neighbours == NULL){
+        return -1;
     }
 
-    rc = init_network();
-    if (rc < 0) {
-        perror("init network");
-        return 2;
+    potential_neighbours = hashset_init();
+    if (potential_neighbours == NULL){
+        hashset_destroy(neighbours);
+        return -1;
     }
 
     httpport = (rand() % 10) + 8080;
@@ -43,8 +44,28 @@ int init() {
     webmessage_map = hashmap_init(sizeof(int));
 
     flooding_map = hashmap_init(12);
+    if (flooding_map == NULL){
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
+        return -1;
+    }
+
     data_map = hashmap_init(12);
+    if (data_map == NULL){
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
+        hashmap_destroy(flooding_map, 0);
+        return -1;
+    }
+
     fragmentation_map = hashmap_init(12);
+    if (fragmentation_map == NULL){
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
+        hashmap_destroy(flooding_map, 0);
+        hashmap_destroy(data_map, 0);
+        return -1;
+    }
 
     return 0;
 }
@@ -56,10 +77,10 @@ int handle_reception () {
     struct sockaddr_in6 addr = { 0 };
 
     rc = recv_message(sock, &addr, c, &len);
-    if (rc < 0) {
+    if (rc != 0) {
         if (errno == EAGAIN)
-            return - 1;
-        perror("receive message");
+            return -1;
+        cperror("receive message");
         return -2;
     }
 
@@ -76,24 +97,33 @@ int handle_reception () {
     if (!n) {
         n = new_neighbour(addr.sin6_addr.s6_addr,
                           addr.sin6_port, 0);
-        dprintf(logfd, "%s%sAdd to potential neighbours.\n%s", LOGFD_F, LOGFD_B, RESET);
+        if (!n){
+            cprint(0, "An error occured while trying to create a new neighbour.\n");
+            return -4;
+        }
+        cprint(0, "Add to potential neighbours.\n");
     }
 
     message_t *msg = malloc(sizeof(message_t));
+    if (!msg){
+        cperror("malloc");
+        return -5;
+    }
     memset(msg, 0, sizeof(message_t));
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
-        fprintf(stderr, "%s%s%s:%d bytes_to_message error : %d\n%s", STDERR_F, STDERR_B, __FILE__, __LINE__, rc, RESET);
+        cprint(0, "Received an invalid message.\n");
+        handle_invalid_message(rc, n);
         free(msg);
         return -3;
     }
 
-    dprintf(logfd, "%s%sReceived message : magic %d, version %d, size %d\n%s", LOGFD_F, LOGFD_B, msg->magic, msg->version, msg->body_length, RESET);
+    cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
 
     if (msg->magic != MAGIC) {
-        fprintf(stderr, "%s%sInvalid magic value\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(STDERR_FILENO, "Invalid magic value\n");
     } else if (msg->version != VERSION) {
-        fprintf(stderr, "%s%sInvalid version\n%s", LOGFD_F, LOGFD_B, RESET);
+        cprint(STDERR_FILENO, "Invalid version\n");
     } else {
         handle_tlv(msg->body, n);
     }
@@ -108,7 +138,7 @@ void handle_input() {
 
     rc = read(0, buffer, 4096);
     if (rc < 0) {
-        perror("read stdin");
+        cperror("read stdin");
         return;
     }
 
@@ -137,12 +167,13 @@ void handle_input() {
 
 int main(int argc, char **argv) {
     int rc;
+
     rc = init();
     if (rc != 0) return rc;
-    dprintf(logfd, "%s%slocal id: %lx\n%s", LOGFD_F, LOGFD_B, id, RESET);
+    cprint(0, "local id: %lx\n", id);
 
     unsigned short port = 0;
-    if (argc > 1){
+    if (argc >= 2){
         char *pos = 0;
         long int port2 = strtol(argv[1], &pos, 0);
         if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
@@ -150,16 +181,33 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (argc >= 3)
-        setPseudo(argv[2]);
+    logfd = 2;
+    if (argc >= 3){
+        if (strcmp("1", argv[2]) == 0 ||
+                strcasecmp("STDOUT", argv[2]) == 0)
+            logfd = 1;
+        else if (strcmp("2", argv[2]) == 0 ||
+                strcasecmp("STDERR", argv[2]) == 0)
+            logfd = 2;
+        else {
+            int fd = open(argv[2], O_WRONLY | O_CREAT);
+            if (fd >= 0)
+                logfd = fd;
+            else
+                cperror("open");
+        }
+    }
+
+    if (argc >= 4)
+        setPseudo(argv[3]);
     else
         setRandomPseudo();
 
-    printf("%s%sWelcome %s.\n%s", STDOUT_F, STDOUT_B, getPseudo(), RESET);
+    cprint(STDOUT_FILENO, "Welcome %s.\n", getPseudo());
 
     sock = start_server(port);
     if (sock < 0) {
-        fprintf(stderr, "%s%scoudn't create socket\n%s", STDERR_F, STDERR_B, RESET);
+        cprint(STDERR_FILENO, "coudn't create socket\n");
         return 1;
     }
 
@@ -169,10 +217,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    printf("Web interface on http://localhost:%d.\n", httpport);
+    cprint(STDOUT_FILENO, "Web interface on http://localhost:%d.\n", httpport);
 
     signal(SIGINT, quit_handler);
-    printf("%s%s================================\n\n%s", STDOUT_F, STDOUT_B, RESET);
+    cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
     int size;
     message_t *msg;
@@ -196,7 +244,7 @@ int main(int argc, char **argv) {
 
         clean_old_data();
         clean_old_frags();
-        dprintf(logfd, "%s%sTimeout before next send loop %ld.\n\n%s", LOGFD_F, LOGFD_B, tv.tv_sec, RESET);
+        cprint(0, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
 
         fd_set readfds;
         list_t *l, *to_delete = 0;
@@ -216,8 +264,7 @@ int main(int argc, char **argv) {
 
         rc = select(max + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
-            perror("select");
-            exit(1);
+            cperror("select");
             continue;
         }
 
@@ -259,7 +306,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("%s%sBye !\n%s", STDOUT_F, STDOUT_B, RESET);
+    cprint(STDOUT_FILENO, "Bye !\n");
 
     return 0;
 }

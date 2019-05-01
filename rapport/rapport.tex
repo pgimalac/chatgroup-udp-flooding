@@ -6,9 +6,117 @@
 \usepackage[utf8]{inputenc} %package fondamental
 \usepackage[T1]{fontenc} %package fondamental
 
-\usepackage[pdftex, pdfauthor={Maxime Flin, Pierre Gimalac}, pdftitle={Rapport projet}, pdfsubject={chatgroup with udp flooding}, pdfkeywords={UDP, chatgroup, flooding}, colorlinks=true, linkcolor=black]{hyperref}
-\begin{document}
+\usepackage[top=3cm, bottom=3cm, left=3cm, right=3cm]{geometry} %permet de
 
-Rien pour l'instant
+\usepackage[pdftex, pdfauthor={Maxime Flin, Pierre Gimalac}, pdftitle={Rapport projet}, pdfsubject={chatgroup with udp flooding}, pdfkeywords={UDP, chatgroup, flooding}, colorlinks=true, linkcolor=black]{hyperref}
+
+\author{Maxime Flin \& Pierre Gimalac}
+\title{Rapport de Projet}
+
+\begin{document}
+\maketitle
+
+\section{Compilation et exécution}
+Le projet se compile grâce au makefile fourni, en faisant la commande \textit{'make all'}.\\
+
+L'exécutable produit s'appelle \textit{chat}. Il possèdes des arguments optionnels qui sont dans l'ordre:
+\begin{enumerate}
+\item un numéro de port (un numéro aléatoire sera choisi si l'argument n'est pas fourni)
+\item ``0'', ``1'', ``STDOUT'', ``STDERR'', ou un chemin vers un fichier (potentiellement à créer), indiquant où doivent être écris les logs. Par défaut les logs sont écris sur STDERR.
+\item un pseudonyme (un pseudonyme aléatoire sera choisi dans une liste si l'argument n'est pas fourni).
+\end{enumerate}
+
+\section{Interface}
+\subsection{Commandes}
+L'interface possède un certain nombre de commandes, qui commencent par /:
+\begin{description}
+\item[add <addr> <port>] ajoute aux voisins potentiels les adresses associées à <addr> et <port>.
+\item[name <name>] change le pseudonyme en <name>.
+\item[random] change le pseudonyme de manière aléatoire.
+\item[print] affiche la liste des voisins et voisins potentiels.
+\item[juliusz] équivalent à ``/add jch.irif.fr 1212''
+\item[neighbour] force l'envoi de tlv neighbour.
+\item[clear] efface le terminal (fonctionne au moins sur bash et zsh).
+\item[chid] change l'id de manière aléatoire.
+\item[transfert <path>] envoie le fichier <path> avec le protocole de fragmentation.
+\item[help] affiche l'ensemble des commandes.
+\item[quit] quitte programme, envoie des tlv goaway au passage.
+\end{description}
+
+\subsection{Affichage}
+Les messages affichés sont de différentes couleurs selon la sortie utilisées (STDOUT, STDERR, log) [les couleurs peuvent être facilement changées dans \textit{interface.h}].\\
+
+La fonction \textit{cprint} dans \textit{utils} redéfinit \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.
+
+\section{Organisation du projet}
+Le fichier \textit{main} contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.\\
+
+Le sous-dossier \textbf{structs} contient les structures de données utilisées dans le projet: hashmap, hashset, liste chaînée, arraylist.\\
+
+Le fichier \textit{interface} contient les fonctions liées à l'interface (changement de pseudonyme, gestion de commandes, affichages des messages).\\
+
+Les fichiers \textit{network} et \textit{flooding} contiennent les fonctions liées à l'inondation, à la réception et à l'envoi de messages.\\
+
+Les fichiers \textit{tlv}, \textit{checkers}, \textit{handlers}, \textit{onsend} contiennent des fonctions de gestion de tlv (création, vérification et gestion à la réception,...).\\
+
+La plupart des structures utilisées pour l'implémentation du protocole sont définies dans \textit{types.h}.\\
+
+Le fichier \textit{util} contient des fonctions diverses utilisées tout au long du projet.
+
+\section{Sujet minimal}
+Nous gérons les voisins avec plusieurs hashset: un pour les voisins potentiels et un pour les voisins symétriques.
+
+Les messages reçus récemment et les messages à innonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à innonder pour le message donné).
+
+Les fragments de messages sont stockés dans une hasmap. [voir extensions]
+
+Les messages à envoyer sont stockés dans une liste circulaire.
+
+La boucle principale fait dans l'ordre:
+\begin{enumerate}
+\item gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon on leur envoie un hello long.
+\item si le nombre de voisin symétrique n'est pas trop élevé, gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hellos courts, ils sont retirés, sinon on leur en envoie un autre.
+\item innondation des messages aux voisins, si un voisin n'a pas envoyé de ack après 5 envois, il est rétrogradé en potentiel.
+\item envoie de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
+\item on retire un par un les messages de la liste de messages et on les envoie.
+\item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
+\item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) [voir extensions].
+\item appel à \textit{select} sur STDIN et la socket utilisée, en donnant un timeout qui est le minimum des prochains moments où l'une des actions ci-dessus sera nécéssaire.
+\item si STDIN est à lire, traitement de l'entrée standard (commande ou envoi de message).
+\item s'il y a un message reçu, on va lire la socket un certains nombre de fois (pour éviter une congestion s'il y a beaucoup de messages reçus). Ce nombre est compris entre le nombre de voisins et deux fois le nombre de voisins et varie en fonction du nombre de messages reçus à chaque tour de boucle.
+\end{enumerate}
+
+\section{Extensions}
+\subsection{Tlv 220}
+
+% interface web
+% tlv 221 ?
+% crypto ?
+
+
 
 \end{document}
+
+ % - introduction : projet fait par machin et bidule.
+ %  - manuel
+ %     - comment compiler
+ %     - comment s'en servir
+ %  - partie qui marche
+ %     - sujet minimal
+ %     - extensions
+ %  - partie qui ne marche pas
+ %     - qui ne marche pas parce qu'on est incompétents
+ %     - qui ne marche pas parce qu'on a eu la flemme
+ %  - parties pompées sur les copains (à qui merci)
+ %  - détails d'implémentation
+ %     - structure générale du programme
+ %     - parties non-triviales que je vous explique gentiment
+ %     - parties super bien faites dont on est fiers
+ %     - parties mal faites dont on a un peu honte mais qu'on a la flemme
+ %       d'améliorer
+ %  - commentaires sur le protocole
+ %     - telle partie du protocole est mal faite, voici comment l'améliorer
+ %     - telle partie du protocole est difficile à implémenter, je vous déteste
+ %  - conclusion
+ %     - ce sujet nous a énormément apporté, il nous a ouvert l'esprit et
+ %       a amélioré nos performances sexuelles.

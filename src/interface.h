@@ -1,12 +1,15 @@
 #ifndef __H_INTERFACE
 #define __H_INTERFACE
 
+#include <stdlib.h>
+
 #define PSEUDO_LENGTH 50
 #define forbiden " \n\t\r"
 
-#define EFFACER "\033[H\033[2J"
+#define EFFACER "\e[1;1H\e[2J"
 #define RESET "\e[0m\e[0m"
 
+/* foregrounds */
 #define BLACKf "\e[30m"
 #define REDf "\e[31m"
 #define GREENf "\e[32m"
@@ -16,6 +19,7 @@
 #define CYANf "\e[36m"
 #define WHITEf "\e[37m"
 
+/* backgrounds */
 #define BLACKb "\e[40m"
 #define REDb "\e[41m"
 #define GREENb "\e[42m"
@@ -34,6 +38,8 @@
 #define STDOUT_F WHITEf
 #define STDOUT_B ""
 
+#define SEPARATOR "===============================================\n"
+
 void setPseudo(char*);
 
 const char* getPseudo();
@@ -41,5 +47,7 @@ const char* getPseudo();
 void setRandomPseudo();
 
 void handle_command(char*);
+
+void print_message(u_int8_t*, int);
 
 #endif

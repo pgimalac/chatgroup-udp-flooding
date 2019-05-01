@@ -6,7 +6,7 @@
 
 #include "types.h"
 
-#define logfd 1
+int logfd;
 
 /**
  * Generic usefull functions
@@ -16,7 +16,7 @@ pid_t httppid;
 
 void* voidndup(const void*, int);
 
-int init_random();
+void init_random();
 
 u_int64_t random_uint64();
 
@@ -34,9 +34,11 @@ char *strappv(char** str);
 
 void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]);
 
-void print_bytes(const char *buf, size_t len);
+void print_bytes(const unsigned char *buf, size_t len);
 
-void perrorbis(int err, char *str);
+void perrorbis(int err, const char *str);
+
+void cperror(const char *str);
 
 void cprint(int fd, char *str, ...);
 
