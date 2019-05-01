@@ -237,7 +237,7 @@ void handle_command(const char *buffer, size_t len) {
             break;
         }
 
-    if (ins == NULL || names[ind] == NULL)
+    if (names[ind] == NULL)
         unknown(buffer, len);
     cprint(STDOUT_FILENO, SEPARATOR);
 }
