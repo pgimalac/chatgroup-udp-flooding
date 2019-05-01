@@ -229,13 +229,13 @@ void handle_command(const char *buffer, size_t len) {
         return;
 
     char *ins = memchr(buffer, ' ', len);
+    if (!ins) ins = (char*)buffer + len;
     int ind;
-    if (ins != NULL)
-        for (ind = 0; names[ind] != NULL; ind ++)
-            if (strncasecmp(buffer, names[ind], strlen(names[ind])) == 0){
-                interface[ind](ins + 1, len - (ins - buffer) - 1);
-                break;
-            }
+    for (ind = 0; names[ind] != NULL; ind ++)
+        if (strncasecmp(buffer, names[ind], ins - buffer) == 0){
+            interface[ind](ins + 1, len - (ins - buffer) - 1);
+            break;
+        }
 
     if (ins == NULL || names[ind] == NULL)
         unknown(buffer, len);
@@ -293,7 +293,7 @@ void print_message(u_int8_t* msg, int size){
     cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);
 }
 
-void handle_input(const char *buffer, size_t buflen) {
+void handle_input(char *buffer, size_t buflen) {
     char *purified = purify(buffer, &buflen);
     if (purified[0] == COMMAND)
         handle_command(purified + 1, buflen - 1);
@@ -301,5 +301,4 @@ void handle_input(const char *buffer, size_t buflen) {
         send_data(purified, buflen);
         print_web((uint8_t*)purified, buflen);
     }
-    free(purified);
 }

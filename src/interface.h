@@ -49,7 +49,7 @@ void setRandomPseudo();
 
 void handle_command(const char*, size_t len);
 
-void handle_input(const char *buffer, size_t buflen);
+void handle_input(char *buffer, size_t buflen);
 
 void print_message(u_int8_t*, int);
 
