@@ -39,17 +39,23 @@ int init() {
 
     flooding_map = hashmap_init(12);
     if (flooding_map == NULL){
-        hashmap_destroy(flooding_map, 0);
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
         return -1;
     }
     data_map = hashmap_init(12);
     if (data_map == NULL){
-        hashmap_destroy(data_map, 0);
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
+        hashmap_destroy(flooding_map, 0);
         return -1;
     }
     fragmentation_map = hashmap_init(12);
     if (fragmentation_map == NULL){
-        hashmap_destroy(fragmentation_map, 0);
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
+        hashmap_destroy(flooding_map, 0);
+        hashmap_destroy(data_map, 0);
         return -1;
     }
 

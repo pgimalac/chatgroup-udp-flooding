@@ -9,6 +9,7 @@
 #define EFFACER "\e[1;1H\e[2J"
 #define RESET "\e[0m\e[0m"
 
+/* foregrounds */
 #define BLACKf "\e[30m"
 #define REDf "\e[31m"
 #define GREENf "\e[32m"
@@ -18,6 +19,7 @@
 #define CYANf "\e[36m"
 #define WHITEf "\e[37m"
 
+/* backgrounds */
 #define BLACKb "\e[40m"
 #define REDb "\e[41m"
 #define GREENb "\e[42m"

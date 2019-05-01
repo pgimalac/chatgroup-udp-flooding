@@ -26,9 +26,9 @@
 
 #define NEIGHBOUR_TIMEOUT 120
 
-#define CLEAN_TIMEOUT 30
+#define CLEAN_TIMEOUT 45
 
-#define FRAG_TIMEOUT 40
+#define FRAG_TIMEOUT 60
 
 void frag_data(char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
