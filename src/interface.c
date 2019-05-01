@@ -228,16 +228,15 @@ void handle_command(const char *buffer, size_t len) {
     if (len == 0)
         return;
 
-    char *ins = memchr(buffer, ' ', len);
-    int ind;
-    if (ins != NULL)
-        for (ind = 0; names[ind] != NULL; ind ++)
-            if (strncasecmp(buffer, names[ind], strlen(names[ind])) == 0){
-                interface[ind](ins + 1, len - (ins - buffer) - 1);
-                break;
-            }
+    char *sp = memchr(buffer, ' ', len);
+    int ind, size = sp ? sp - buffer : (long int)len;
+    for (ind = 0; names[ind] != NULL; ind ++)
+        if (strncasecmp(buffer, names[ind], size) == 0){
+            interface[ind](sp + 1, len - size - 1);
+            break;
+        }
 
-    if (ins == NULL || names[ind] == NULL)
+    if (names[ind] == NULL)
         unknown(buffer, len);
     cprint(STDOUT_FILENO, SEPARATOR);
 }
