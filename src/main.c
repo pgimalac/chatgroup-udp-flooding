@@ -9,6 +9,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -21,6 +22,12 @@
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
+
+static pthread_t web_pt, rec_pt, send_pt, input_pt;
+static char web_running = 0, rec_running = 0, send_running = 0, input_running = 0;
+static pthread_cond_t cond_end_thread = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t mutex_end_thread = PTHREAD_MUTEX_INITIALIZER;
+
 
 int init() {
     init_random();
@@ -79,110 +86,24 @@ int init() {
     return 0;
 }
 
-int handle_reception () {
-    int rc;
-    u_int8_t c[4096] = { 0 };
-    size_t len = 4096;
-    struct sockaddr_in6 addr = { 0 };
-
-    rc = recv_message(sock, &addr, c, &len);
-    if (rc != 0) {
-        if (errno == EAGAIN)
-            return -1;
-        cperror("receive message");
-        return -2;
-    }
-
-    neighbour_t *n = hashset_get(neighbours,
-                    addr.sin6_addr.s6_addr,
-                    addr.sin6_port);
-
-    if (!n) {
-        n = hashset_get(potential_neighbours,
-                        addr.sin6_addr.s6_addr,
-                        addr.sin6_port);
-    }
-
-    if (!n) {
-        n = new_neighbour(addr.sin6_addr.s6_addr,
-                          addr.sin6_port, 0);
-        if (!n){
-            cprint(0, "An error occured while trying to create a new neighbour.\n");
-            return -4;
-        }
-        cprint(0, "Add to potential neighbours.\n");
-    }
-
-    message_t *msg = malloc(sizeof(message_t));
-    if (!msg){
-        cperror("malloc");
-        return -5;
-    }
-    memset(msg, 0, sizeof(message_t));
-    rc = bytes_to_message(c, len, n, msg);
-    if (rc != 0){
-        cprint(0, "Received an invalid message.\n");
-        handle_invalid_message(rc, n);
-        free(msg);
-        return -3;
-    }
-
-    cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
-
-    if (msg->magic != MAGIC) {
-        cprint(STDERR_FILENO, "Invalid magic value\n");
-    } else if (msg->version != VERSION) {
-        cprint(STDERR_FILENO, "Invalid version\n");
-    } else {
-        handle_tlv(msg->body, n);
-    }
-
-    free_message(msg);
-    return 0;
-}
-
-void handle_stdin_input() {
-    int rc;
-    char buffer[4096] = { 0 };
-    rc = read(0, buffer, 4096);
-    if (rc <= 0) {
-        if (rc < 0)
-            cperror("read stdin");
-        return;
-    }
-
-    if (rc <= 1)
-        return;
-
-    handle_input(buffer, rc);
-}
-
-int main(int argc, char **argv) {
-    int rc;
-
-    rc = init();
-    if (rc != 0) return rc;
-    cprint(0, "local id: %lx\n", id);
-
-    unsigned short port = 0;
-    if (argc >= 2){
+void init_arguments(int argc, char **argv, u_int16_t *port){
+    if (argc >= 1){
         char *pos = 0;
-        long int port2 = strtol(argv[1], &pos, 0);
-        if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
-            port = (unsigned short)port2;
-        }
+        long int port2 = strtol(argv[0], &pos, 0);
+        if (*pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT)
+            *port = (unsigned short)port2;
     }
 
     logfd = 2;
-    if (argc >= 3){
-        if (strcmp("1", argv[2]) == 0 ||
-                strcasecmp("STDOUT", argv[2]) == 0)
+    if (argc >= 2){
+        if (strcmp("1", argv[1]) == 0 ||
+                strcasecmp("STDOUT", argv[1]) == 0)
             logfd = 1;
-        else if (strcmp("2", argv[2]) == 0 ||
-                strcasecmp("STDERR", argv[2]) == 0)
+        else if (strcmp("2", argv[1]) == 0 ||
+                strcasecmp("STDERR", argv[1]) == 0)
             logfd = 2;
         else {
-            int fd = open(argv[2], O_WRONLY | O_CREAT);
+            int fd = open(argv[1], O_WRONLY | O_CREAT);
             if (fd >= 0)
                 logfd = fd;
             else
@@ -190,71 +111,45 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (argc >= 4)
-        setPseudo(argv[3], strlen(argv[3]));
+    if (argc >= 3)
+        setPseudo(argv[2], strlen(argv[2]));
     else
         setRandomPseudo();
+}
 
-    cprint(STDOUT_FILENO, "Welcome %s.\n", getPseudo());
 
-    sock = start_server(port);
-    if (sock < 0) {
-        cprint(STDERR_FILENO, "coudn't create socket\n");
-        return 1;
-    }
+void cleaner(void *running){
+    // unlock all mutexes, TODO
 
-    websock = create_tcpserver(httpport);
-    if (websock < 0) {
-        fprintf(stderr, "Error while creating web server.\n");
-        return 1;
-    }
+    pthread_mutex_lock(&mutex_end_thread);
+    *(char*)running = 0;
+    pthread_mutex_unlock(&mutex_end_thread);
+    pthread_cond_broadcast(&cond_end_thread);
+}
 
-    cprint(STDOUT_FILENO, "Web interface on http://localhost:%d.\n", httpport);
 
-    signal(SIGINT, quit_handler);
-    cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
-    int size;
-    message_t *msg;
-    struct timeval tv = { 0 };
+void *web_thread(void *_){
+    web_running = 1;
+    pthread_cleanup_push(cleaner, &web_running);
+    pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
+    list_t *to_delete = 0, *l;
+    void *val;
+    int rc, s;
+    fd_set readfds;
 
-    size_t number_recv = 1, i;
-
-    while (1) {
-        size = hello_neighbours(&tv);
-        if (size < MAX_NB_NEIGHBOUR) {
-            hello_potential_neighbours(&tv);
-        }
-
-        message_flooding(&tv);
-        neighbour_flooding(0);
-
-        while((msg = pull_message())) {
-            send_message(sock, msg, &tv);
-            free_message(msg);
-        }
-
-        clean_old_data();
-        clean_old_frags();
-        cprint(0, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
-
-        fd_set readfds;
-        list_t *l, *to_delete = 0;
-        void *val;
-        int s, max = sock > websock ? sock : websock;
-
+    while (1){
         FD_ZERO(&readfds);
-        FD_SET(sock, &readfds);
         FD_SET(websock, &readfds);
-        FD_SET(0, &readfds);
+        int highest = websock;
 
         for (l = clientsockets; l; l = l->next) {
             s = *((int*)l->val);
             FD_SET(s, &readfds);
-            if (s > max) max = s;
+            highest = max(highest, s);
         }
 
-        rc = select(max + 1, &readfds, 0, 0, &tv);
+        rc = select(highest + 1, &readfds, 0, 0, NULL);
         if (rc < 0) {
             cperror("select");
             continue;
@@ -263,20 +158,15 @@ int main(int argc, char **argv) {
         if (rc == 0)
             continue;
 
-        if (FD_ISSET(0, &readfds))
-            handle_stdin_input();
-
-        if (FD_ISSET(websock, &readfds)) {
+        if (FD_ISSET(websock, &readfds))
             handle_http();
-        }
 
         for (l = clientsockets; l; l = l->next) {
             s = *((int*)l->val);
             if (FD_ISSET(s, &readfds)) {
                 rc = handle_ws(s);
-                if (rc < 0) {
+                if (rc < 0)
                     list_add(&to_delete, l->val);
-                }
             }
         }
 
@@ -284,6 +174,31 @@ int main(int argc, char **argv) {
             val = list_pop(&to_delete);
             list_eremove(&clientsockets, val);
         }
+    }
+    pthread_cleanup_pop(1);
+}
+
+void *rec_thread(void *_){
+    rec_running = 1;
+    pthread_cleanup_push(cleaner, &rec_running);
+    pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
+    fd_set readfds;
+    int rc;
+    size_t i, number_recv = 1;
+
+    while (1){
+        FD_ZERO(&readfds);
+        FD_SET(sock, &readfds);
+
+        rc = select(sock + 1, &readfds, 0, 0, 0);
+
+        if (rc < 0) {
+            cperror("select");
+            continue;
+        }
+
+        if (rc == 0)
+            continue;
 
         if (FD_ISSET(sock, &readfds)) {
             for (i = 0; i < number_recv; i++)
@@ -297,8 +212,139 @@ int main(int argc, char **argv) {
                 number_recv++;
         }
     }
+    pthread_cleanup_pop(1);
+}
 
-    cprint(STDOUT_FILENO, "Bye !\n");
+void *send_thread(void *_){
+    send_running = 1;
+    pthread_cleanup_push(cleaner, &send_running);
+    pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
+    int size;
+    message_t *msg;
+    struct timeval tv = { 0 };
 
-    return 0;
+    while (1) {
+        tv.tv_sec = MAX_TIMEOUT;
+        tv.tv_usec = 0;
+
+        size = hello_neighbours(&tv);
+        if (size < MAX_NB_NEIGHBOUR)
+            hello_potential_neighbours(&tv);
+
+        message_flooding(&tv);
+        neighbour_flooding(0);
+
+        while((msg = pull_message())) {
+            send_message(sock, msg, &tv);
+            free_message(msg);
+        }
+
+        clean_old_data();
+        clean_old_frags();
+
+        sleep(tv.tv_sec);
+    }
+
+    pthread_cleanup_pop(1);
+}
+
+#define BUFFER_INPUT_SIZE 4096
+void *input_thread(void *_){
+    input_running = 1;
+    pthread_cleanup_push(cleaner, &input_running);
+    pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
+
+    int rc;
+    char buffer[BUFFER_INPUT_SIZE] = { 0 };
+
+    while (1){
+        rc = read(0, buffer, BUFFER_INPUT_SIZE);
+
+        if (rc < 0){
+            cperror("read stdin");
+            continue;
+        }
+
+        if (rc == 0){ // end of stdin reached
+            int *ret = malloc(1);
+            *ret = 0;
+            pthread_exit(ret);
+        }
+
+        handle_input(buffer, rc);
+    }
+
+    pthread_cleanup_pop(1);
+}
+
+int main(int argc, char **argv) {
+    int rc;
+
+    rc = init();
+    if (rc != 0) return rc;
+    cprint(0, "local id: %lx\n", id);
+
+    unsigned short port = 0;
+    init_arguments(argc - 1, argv + 1, &port);
+
+    cprint(STDOUT_FILENO, "Welcome %s.\n", getPseudo());
+
+    sock = start_server(port);
+    if (sock < 0) {
+        cprint(STDERR_FILENO, "coudn't create socket\n");
+        return 1;
+    }
+
+    websock = create_tcpserver(httpport);
+    if (websock < 0) {
+        cprint(STDERR_FILENO, "Error while creating web server.\n");
+        return 1;
+    }
+
+    cprint(STDOUT_FILENO, "Web interface on http://localhost:%d.\n", httpport);
+
+    signal(SIGINT, quit_handler);
+    cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
+
+    void *ret;
+
+    pthread_t *thread_id[4] = {&web_pt, &rec_pt, &send_pt, &input_pt};
+    char *runnings[4] = {&web_running, &rec_running, &send_running, &input_running};
+    void *(*starters[4])(void*) = {web_thread, rec_thread, send_thread, input_thread};
+
+    for (int i = 0; i < 4; i++){
+        rc = pthread_create(thread_id[i], 0, starters[i], 0);
+        if (rc != 0){
+            cperror("Could not create initial threads.\n");
+            return 1;
+        }
+    }
+
+    while (1) {
+        pthread_mutex_lock(&mutex_end_thread);
+        pthread_cond_wait(&cond_end_thread, &mutex_end_thread);
+
+        for (int i = 0; i < 4; i++)
+            if (*runnings[i] == 0){
+                pthread_join(*thread_id[i], &ret);
+                if (*(int*)ret == 0) // normal shutdown
+                    return 0;
+
+                free(ret);
+
+                cprint(STDERR_FILENO, "A thread was stopped, trying to restart it\n");
+                rc = pthread_create(thread_id[i], NULL, starters[i], NULL);
+                if (rc){
+                    sleep(5);
+                    rc = pthread_create(thread_id[i], NULL, starters[i], NULL);
+                    if (rc){
+                        cprint(STDERR_FILENO, "Could not restart the thread.\n");
+                        return 1;
+                    }
+                }
+                cprint(STDERR_FILENO, "Thread successfully restarted\n");
+            }
+
+        pthread_mutex_unlock(&mutex_end_thread);
+    }
 }

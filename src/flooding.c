@@ -17,9 +17,7 @@
 #include "interface.h"
 #include "utils.h"
 
-#define MAX_TIMEOUT 30
-
-// number of shot hello before removing from potential neighbour
+// number of short hello before removing from potential neighbour
 #define NBSH 5
 
 #define SYM_TIMEOUT 120
@@ -190,8 +188,6 @@ int hello_neighbours(struct timeval *tv) {
 
     list_t *l, *to_delete = 0;
     char ipstr[INET6_ADDRSTRLEN];
-    tv->tv_sec = MAX_TIMEOUT;
-    tv->tv_usec = 0;
 
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next, size++) {

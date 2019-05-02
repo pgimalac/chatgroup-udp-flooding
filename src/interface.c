@@ -262,12 +262,7 @@ const char* getPseudo(){
 }
 
 void setPseudo(const char *buf, size_t len){
-    char *buffer = calloc(len + 1, 1);
-    memcpy(buffer, buf, len);
-    buffer += strspn(buf, forbiden);
-    len = strlen(buf);
-    while (len > 0 && strchr(forbiden, buffer[len - 1]) != NULL)
-        len--;
+    buf = purify((char*)buf, &len);
 
     if (len > PSEUDO_LENGTH){
         cprint(STDERR_FILENO, "Nickname too long.\n");
@@ -275,10 +270,11 @@ void setPseudo(const char *buf, size_t len){
         cprint(STDERR_FILENO, "Nickname too short\n");
     } else {
         for (size_t i = 0; i < len; i++)
-            if (strchr(forbiden, buffer[i]) != NULL)
-                buffer[i] = ' ';
+            if (strchr(forbiden, buf[i]) == NULL)
+                pseudo[i] = buf[i];
+            else
+                pseudo[i] = ' ';
 
-        memcpy(pseudo, buffer, len);
         pseudo[len] = '\0';
         cprint(STDOUT_FILENO, "Nickname set to \"%s\"\n", pseudo);
     }

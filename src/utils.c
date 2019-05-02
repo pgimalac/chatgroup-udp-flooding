@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "utils.h"
 #include "interface.h"
@@ -403,12 +404,17 @@ void cprint(int fd, char *str, ...){
 
     #define PRINT_STRING(S) write(fd, S, strlen(S))
 
+    static pthread_mutex_t write_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&write_mutex);
+
     PRINT_STRING(B);
     PRINT_STRING(F);
 
     write(fd, buffer, len);
 
     PRINT_STRING(RESET);
+
+    pthread_mutex_unlock(&write_mutex);
 }
 
 void perrorbis(int err, const char *str){

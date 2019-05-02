@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define MAX_TIMEOUT 30
+
 #define MAX_NB_NEIGHBOUR 100
 
 void send_data(u_int8_t type, const char *buffer, u_int16_t size);

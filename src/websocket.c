@@ -82,7 +82,7 @@ static int not_found(int s) {
 
 static int bad_request(int s) {
     write(s, INVALID, strlen(INVALID));
-    fprintf(stderr, "Bad request\n");
+    cprint(STDERR_FILENO, "Bad request\n");
     close(s);
     return 0;
 }
@@ -351,7 +351,7 @@ int handle_ws(int s) {
     mask = len[0] & MSKBIT;
     memset(maskkey, 0, 4);
 
-    cprint(0, "web message received fin = %d, opcode = %d, mask = %d\n",
+    cprint(0, "web message received fin = %d, opcode = %d, mask = %d\n\n",
            fin ? 1 : 0, opcode, mask ? 1 : 0);
 
     switch (len[0] & 0x7f) {
