@@ -7,10 +7,13 @@
 #include "types.h"
 
 int logfd;
+char tmpdir[255];
 
 /**
  * Generic usefull functions
  */
+
+pid_t httppid;
 
 void* voidndup(const void*, int);
 
@@ -43,5 +46,7 @@ void cprint(int fd, char *str, ...);
 int min(int, int);
 
 int max(int a, int b);
+
+char *purify(char *buffer, size_t *len);
 
 #endif

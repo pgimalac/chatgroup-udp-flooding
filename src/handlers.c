@@ -11,6 +11,7 @@
 #include "tlv.h"
 #include "flooding.h"
 #include "interface.h"
+#include "websocket.h"
 
 static void handle_pad1(const u_int8_t *tlv, neighbour_t *n) {
     cprint(0, "Pad1 received\n");
@@ -124,6 +125,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
             print_message((u_int8_t*)tlv + 15, size);
+            print_web(tlv + 15, size);
         } else if (tlv[14] == DATA_FRAG) {
             if (size < 9)
                 cprint(0, "Data fragment was corrupted (too short).\n");
@@ -184,8 +186,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
             if (frag->recv == frag->size) {
                 cprint(0, "New long message received.\n");
-                // TODO: check data type
-                print_message(frag->buffer, frag->size);
+                print_file(tlv[19], frag->buffer, frag->size);
                 free(frag->buffer);
                 free(frag->id);
                 if (!hashmap_remove(fragmentation_map, fragid, 1, 1))

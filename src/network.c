@@ -10,11 +10,14 @@
 #include <assert.h>
 #include <time.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <errno.h>
 
+#include "utils.h"
 #include "network.h"
 #include "tlv.h"
 #include "interface.h"
+#include "websocket.h"
 #include "onsend.h"
 
 // user address
@@ -333,6 +336,15 @@ void quit_handler (int sig) {
         }
 
         free(goaway.content);
+    }
+
+    close(sock);
+    close(websock);
+
+    for (l = clientsockets; l; l = l->next) {
+        rc = *((int*)l->val);
+        // TODO : send close frame
+        close(rc);
     }
 
     cprint(STDOUT_FILENO, "Bye.\n");
