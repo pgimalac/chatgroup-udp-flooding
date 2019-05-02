@@ -99,7 +99,6 @@ static int get_static_file(int s, const char *path, size_t len) {
     char *pt = 0;
     for (char *p = memchr(path, '.', len); p && (pt = p);
          p = memchr(p + 1, '.', len - (p - path))) {
-        cprint(0, "%*s\n", len - (p - path), p);
     }
 
     // file has no extention, not supppose to happend
@@ -281,12 +280,14 @@ static int send_pong (int s, const int8_t *payload, size_t buflen) {
     size_t len, i, j, count = 0,
         size = (buflen < 125 ? 1 : buflen / 125);
 
+    cprint(0, "Ping received, send pong.\n");
+
     for (i = 0; i < size; i++) {
         memset(frame, 0, 1024);
         frame[0] = i == 0 ? OPPONG : OPCONT;
         frame[1] = MSKBIT;
 
-        len = len - count > 125 ? 125 : len - count;
+        len = buflen - count > 125 ? 125 : buflen - count;
         frame[1] ^= len;
 
         mask = random_uint32();
@@ -306,6 +307,8 @@ static int send_pong (int s, const int8_t *payload, size_t buflen) {
             return 0;
         }
     }
+
+    cprint(0, "Pong sended.\n");
 
     return 0;
 }
