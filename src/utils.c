@@ -278,9 +278,6 @@ void cprint(int fd, char *str, ...){
         B = STDERR_B; F = STDERR_F;
     }
 
-    write(fd, B, strlen(B));
-    write(fd, F, strlen(F));
-
     va_list ap;
     va_start(ap, str);
 
@@ -404,8 +401,14 @@ void cprint(int fd, char *str, ...){
     }
     va_end(ap);
 
+    #define PRINT_STRING(S) write(fd, S, strlen(S))
+
+    PRINT_STRING(B);
+    PRINT_STRING(F);
+
     write(fd, buffer, len);
-    write(fd, RESET, strlen(RESET));
+
+    PRINT_STRING(RESET);
 }
 
 void perrorbis(int err, const char *str){

@@ -127,15 +127,12 @@ int handle_reception () {
 void handle_input() {
     int rc;
     char buffer[4096] = { 0 };
-
     rc = read(0, buffer, 4096);
-    if (rc < 0) {
-        cperror("read stdin");
+    if (rc <= 0) {
+        if (rc < 0)
+            cperror("read stdin");
         return;
     }
-
-    if (rc <= 1)
-        return;
 
     int tmp = strspn(buffer, forbiden);
     char *bufferbis = buffer + tmp;

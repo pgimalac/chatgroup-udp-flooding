@@ -9,6 +9,8 @@
 #define EFFACER "\e[1;1H\e[2J"
 #define RESET "\e[0m\e[0m"
 
+#define BLINK "\e[5m"
+
 /* foregrounds */
 #define BLACKf "\e[30m"
 #define REDf "\e[31m"
