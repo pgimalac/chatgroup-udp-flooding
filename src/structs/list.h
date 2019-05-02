@@ -25,6 +25,8 @@ short list_add(list_t**, void*);
  */
 void *list_remove(list_t**, int);
 
+void *list_eremove(list_t**, void*);
+
 short list_filter(list_t **l, int(*pred)(void*));
 
 /**

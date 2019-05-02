@@ -429,3 +429,18 @@ int min(int a, int b){
 int max(int a, int b){
     return a < b ? b : a;
 }
+
+char *purify(char *buffer, size_t *len) {
+    size_t i = 0;
+    while (i < *len && strchr(forbiden, buffer[i]) != NULL)
+        i++;
+
+    if (i == *len)
+        return 0;
+
+    while (strchr(forbiden, buffer[*len - 1]) != NULL)
+        --*len;
+
+    *len -= i;
+    return buffer + i;
+}

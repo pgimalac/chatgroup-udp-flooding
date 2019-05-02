@@ -17,11 +17,10 @@
 #include "interface.h"
 #include "tlv.h"
 #include "flooding.h"
+#include "websocket.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
-
-#define COMMAND '/'
 
 int init() {
     init_random();
@@ -31,11 +30,27 @@ int init() {
     if (neighbours == NULL){
         return -1;
     }
+
     potential_neighbours = hashset_init();
     if (potential_neighbours == NULL){
         hashset_destroy(neighbours);
         return -1;
     }
+
+    httpport = (rand() % 10) + 8080;
+    clientsockets = 0;
+    webmessage_map = hashmap_init(sizeof(int));
+
+    sprintf(tmpdir, "chat_%lx", random_uint64());
+    char fptmpdir[1024];
+    sprintf(fptmpdir, "/tmp/%s", tmpdir);
+    int rc = mkdir(fptmpdir, 0722);
+    if (rc < 0) {
+        perror("mkdir");
+        return -1;
+    }
+
+    cprint(0, "Create tmpdir %s.\n", fptmpdir);
 
     flooding_map = hashmap_init(12);
     if (flooding_map == NULL){
@@ -43,6 +58,7 @@ int init() {
         hashset_destroy(potential_neighbours);
         return -1;
     }
+
     data_map = hashmap_init(12);
     if (data_map == NULL){
         hashset_destroy(neighbours);
@@ -50,6 +66,7 @@ int init() {
         hashmap_destroy(flooding_map, 0);
         return -1;
     }
+
     fragmentation_map = hashmap_init(12);
     if (fragmentation_map == NULL){
         hashset_destroy(neighbours);
@@ -124,7 +141,7 @@ int handle_reception () {
     return 0;
 }
 
-void handle_input() {
+void handle_stdin_input() {
     int rc;
     char buffer[4096] = { 0 };
     rc = read(0, buffer, 4096);
@@ -134,15 +151,10 @@ void handle_input() {
         return;
     }
 
-    int tmp = strspn(buffer, forbiden);
-    char *bufferbis = buffer + tmp;
-    rc -= tmp;
+    if (rc <= 1)
+        return;
 
-    while (rc > 0 && strchr(forbiden, bufferbis[rc - 1]) != NULL)
-        rc--;
-
-    if (bufferbis[0] == COMMAND) handle_command(bufferbis + 1);
-    else send_data(bufferbis, rc);
+    handle_input(buffer, rc);
 }
 
 int main(int argc, char **argv) {
@@ -151,8 +163,6 @@ int main(int argc, char **argv) {
     rc = init();
     if (rc != 0) return rc;
     cprint(0, "local id: %lx\n", id);
-
-    signal(SIGINT, quit_handler);
 
     unsigned short port = 0;
     if (argc >= 2){
@@ -181,7 +191,7 @@ int main(int argc, char **argv) {
     }
 
     if (argc >= 4)
-        setPseudo(argv[3]);
+        setPseudo(argv[3], strlen(argv[3]));
     else
         setRandomPseudo();
 
@@ -193,6 +203,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    websock = create_tcpserver(httpport);
+    if (websock < 0) {
+        fprintf(stderr, "Error while creating web server.\n");
+        return 1;
+    }
+
+    cprint(STDOUT_FILENO, "Web interface on http://localhost:%d.\n", httpport);
+
+    signal(SIGINT, quit_handler);
     cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
     int size;
@@ -220,13 +239,22 @@ int main(int argc, char **argv) {
         cprint(0, "Timeout before next send loop %ld.\n\n", tv.tv_sec);
 
         fd_set readfds;
-        fd_set done;
+        list_t *l, *to_delete = 0;
+        void *val;
+        int s, max = sock > websock ? sock : websock;
+
         FD_ZERO(&readfds);
-        FD_ZERO(&done);
         FD_SET(sock, &readfds);
+        FD_SET(websock, &readfds);
         FD_SET(0, &readfds);
 
-        rc = select(sock + 1, &readfds, 0, 0, &tv);
+        for (l = clientsockets; l; l = l->next) {
+            s = *((int*)l->val);
+            FD_SET(s, &readfds);
+            if (s > max) max = s;
+        }
+
+        rc = select(max + 1, &readfds, 0, 0, &tv);
         if (rc < 0) {
             cperror("select");
             continue;
@@ -236,7 +264,26 @@ int main(int argc, char **argv) {
             continue;
 
         if (FD_ISSET(0, &readfds))
-            handle_input();
+            handle_stdin_input();
+
+        if (FD_ISSET(websock, &readfds)) {
+            handle_http();
+        }
+
+        for (l = clientsockets; l; l = l->next) {
+            s = *((int*)l->val);
+            if (FD_ISSET(s, &readfds)) {
+                rc = handle_ws(s);
+                if (rc < 0) {
+                    list_add(&to_delete, l->val);
+                }
+            }
+        }
+
+        while (to_delete) {
+            val = list_pop(&to_delete);
+            list_eremove(&clientsockets, val);
+        }
 
         if (FD_ISSET(sock, &readfds)) {
             for (i = 0; i < number_recv; i++)
@@ -245,6 +292,7 @@ int main(int argc, char **argv) {
                         number_recv--;
                     break;
                 }
+
             if (i == number_recv && number_recv < 2 * neighbours->size)
                 number_recv++;
         }

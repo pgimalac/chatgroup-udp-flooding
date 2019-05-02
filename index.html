@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Chat</title>
+    <link rel="author" href="https://www.irif.fr/~jch/"/>
+    <style type="text/css">
+      #nick {
+          margin-left: 2em;
+      }
+      #box {
+          height: 24em;
+          width: 80%;
+          border: 1px solid;
+          overflow: auto;
+      }
+      #inputform {
+          width: 100%;
+      }
+      #input {
+          width: 80%;
+          border: 1px solid;
+      }
+      .connected {
+          color: green;
+      }
+      .disconnected {
+          background-color: red;
+          font-weight: bold;
+      }
+      .nonick {
+          color: red;
+          font-weight: bold;
+      }
+      .error {
+          background-color: red;
+          font-weight: bold;
+      }
+
+      .noerror {
+          display: none;
+      }
+
+      #errspan {
+          margin-left: 1em;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Chat</h1>
+    <p><span id="statdiv">Connecting...</span><span id="errspan"></span></p>
+    <form id="nickform">
+      Nickname: <span id="nickspan"></span>
+      <input id="nick" type="text" name="nick"/>
+      <input type="submit" value="Set nickname"/>
+    </form>
+    <p></p>
+    <div id="box"></div>
+    <form id="inputform">
+      <input id="input" type="text" name="input"/>
+      <input id="inputbutton" type="submit" value="Send"/>
+    </form>
+    <form id="addrform" >
+      <p>Ajouter un voisin:</p>
+      <label>
+        Adresse:
+        <input id="addr" type="text" name="addr">
+      </label>
+      <label>
+        Port:
+        <input id="port" type="text" name="port">
+      </label>
+      <input id="addrbutton" type="submit" value="Ajouter">
+    </form>
+    <form id="fileform">
+      <p>Envoyer un (petit) fichier:</p>
+      <input id="file" type="file" name="file">
+      <input id="filebutton" type="submit" value="Ajouter">
+    </form>
+
+    <script type="text/javascript">
+      'use strict';
+      var socket = null;
+      var socketopen = false;
+      var nick = null;
+      var storage = null;
+      try {
+          storage = window.sessionStorage;
+          if(storage) {
+              nick = storage.getItem('nick');
+          }
+      } catch(e) {
+          console.error(e);
+      }
+
+      function displayNick() {
+          var nickspan = document.getElementById('nickspan');
+          if(!nick) {
+              nickspan.textContent = 'none';
+              nickspan.classList.remove('nick');
+              nickspan.classList.add('nonick');
+          } else {
+              nickspan.textContent = nick;
+              nickspan.classList.remove('nonick');
+              nickspan.classList.add('nick');
+          }
+      }
+
+      window.onload = function() {
+          displayNick();
+          socket = new WebSocket(`ws${location.protocol == 'https:' ? 's' : ''}://${location.host}/ws`);
+          socket.onerror = console.error;
+          socket.onopen = function(event) {
+              var statdiv = document.getElementById('statdiv');
+              statdiv.textContent = 'Connected';
+              statdiv.classList.remove('disconnected');
+              statdiv.classList.add('connected');
+          }
+          socket.onclose = function(event) {
+              var statdiv = document.getElementById('statdiv');
+              statdiv.textContent = 'Disconnected';
+              statdiv.classList.remove('connected');
+              statdiv.classList.add('disconnected');
+          }
+          socket.onmessage = function(event) {
+              var box = document.getElementById('box');
+              var p = document.createElement('p');
+              p.innerHTML = event.data; // js injection here
+              box.appendChild(p);
+              if(box.scrollHeight > box.clientHeight) {
+                  box.scrollTop = box.scrollHeight - box.clientHeight;
+              }
+          }
+      }
+
+      let errorTimeout = null;
+
+      function setErrorTimeout(ms) {
+          if(errorTimeout) {
+              clearTimeout(errorTimeout);
+              errorTimeout = null;
+          }
+          if(ms) {
+              errorTimeout = setTimeout(clearError, ms);
+          }
+      }
+
+      function displayError(message) {
+          let errspan = document.getElementById('errspan');
+          errspan.textContent = message;
+          errspan.classList.remove('noerror');
+          errspan.classList.add('error');
+          setErrorTimeout(5000);
+      }
+
+      function clearError() {
+          let errspan = document.getElementById('errspan');
+          errspan.textContent = '';
+          errspan.classList.remove('error');
+          errspan.classList.add('noerror');
+          setErrorTimeout(null);
+      }
+
+      function handleInput(e) {
+          e.preventDefault();
+          if(!nick) {
+              displayError('Please pick a nickname');
+              return false;
+          }
+          var input = document.getElementById('input');
+          var inputform = document.getElementById('inputform');
+          var value = input.value;
+          if(value.substr(0,4) === '/me ') {
+              socket.send('* ' + nick + ' ' + value.substr(4));
+          } else {
+              socket.send(nick + ': ' + value);
+          }
+          inputform.reset();
+      }
+
+      document.getElementById('inputform').addEventListener('submit', handleInput);
+
+      document.getElementById('addrform').addEventListener('submit', function (e) {
+          e.preventDefault();
+
+          var addr = document.getElementById('addr').value;
+          var port = document.getElementById('port').value;
+          var addrform = document.getElementById('addrform');
+          if(addr && port) {
+              socket.send(`/add ${addr} ${port}`);
+          }
+          addrform.reset();
+      });
+
+      document.getElementById('fileform').addEventListener('submit', function (e) {
+          e.preventDefault();
+
+          var files = document.getElementById('file').files;
+          var fileform = document.getElementById('fileform');
+          for (var i = 0; i < files.length; i++) {
+              if (files[i].size > (1 << 16)) {
+                  console.error('file too big');
+                  continue;
+              }
+              // TODO: send file
+          }
+          fileform.reset();
+      });
+
+      function handleNick(e) {
+          e.preventDefault();
+          var nickbox = document.getElementById('nick');
+          var nickform = document.getElementById('nickform');
+          nick = nickbox.value;
+          nickform.reset();
+          displayNick();
+          if(storage) {
+              try {
+                  if(nick) {
+                      storage.setItem('nick', nick);
+                  } else {
+                      storage.removeItem('nick');
+                  }
+              } catch(e) {
+                  console.error(e);
+              }
+          }
+      }
+      document.getElementById('nickform').addEventListener('submit', handleNick);
+    </script>
+  </body>
+</html>
