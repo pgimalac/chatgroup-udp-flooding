@@ -7,6 +7,7 @@
 #include "types.h"
 
 int logfd;
+char tmpdir[255];
 
 /**
  * Generic usefull functions

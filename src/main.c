@@ -41,6 +41,17 @@ int init() {
     clientsockets = 0;
     webmessage_map = hashmap_init(sizeof(int));
 
+    sprintf(tmpdir, "chat_%lx", random_uint64());
+    char fptmpdir[1024];
+    sprintf(fptmpdir, "/tmp/%s", tmpdir);
+    int rc = mkdir(fptmpdir, 0722);
+    if (rc < 0) {
+        perror("mkdir");
+        return -1;
+    }
+
+    cprint(0, "Create tmpdir %s.\n", fptmpdir);
+
     flooding_map = hashmap_init(12);
     if (flooding_map == NULL){
         hashset_destroy(neighbours);

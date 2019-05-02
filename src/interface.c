@@ -53,6 +53,8 @@ const char *pseudos[28] = {
                 "HAL"
 };
 
+const char *ext[] = { 0, 0, "gif", "jpg", "png" };
+
 // =========== COMMANDS part ===========
 
 static const char *usages[] = {
@@ -64,7 +66,7 @@ static const char *usages[] = {
     "neighbour"
     "clear",
     "chid",
-    "transfert <path to file>",
+    "transfert <type> <path to file>",
     "help",
     "quit"
 };
@@ -150,8 +152,17 @@ static void chid(const char *buffer, size_t buflen) {
 #define MAX_BUF_SIZE ((1 << 16) - 1)
 static void transfert(const char *path, size_t buflen) {
     int fd, rc;
-    char buffer[MAX_BUF_SIZE], *npath = calloc(buflen + 1, 1);
-    memcpy(npath, path, buflen);
+    if (!path || buflen == 0)
+        return;
+
+    uint8_t type = path[0] - '0';
+    char buffer[MAX_BUF_SIZE], *npath = calloc(buflen, 1);
+    if (!npath) {
+        perror("calloc");
+        return;
+    }
+
+    memcpy(npath, path + 2, buflen - 2);
 
     cprint(STDOUT_FILENO, "Send file %s on network.\n", npath);
     fd = open(npath, O_RDONLY);
@@ -171,7 +182,7 @@ static void transfert(const char *path, size_t buflen) {
     close(fd);
 
     cprint(0, "Transfering file %u.\n", rc);
-    send_data(buffer, rc);
+    send_data(type, buffer, rc);
 }
 
 static void help(const char *buffer, size_t len){
@@ -229,10 +240,12 @@ void handle_command(const char *buffer, size_t len) {
         return;
 
     char *ins = memchr(buffer, ' ', len);
-    if (!ins) ins = (char*)buffer + len;
+    if (!ins) ins = (char*)buffer + len - 1;
     int ind;
+
     for (ind = 0; names[ind] != NULL; ind ++)
-        if (strncasecmp(buffer, names[ind], ins - buffer) == 0){
+        if (strlen(names[ind]) == (size_t)(ins - buffer)
+            && strncasecmp(buffer, names[ind], ins - buffer) == 0){
             interface[ind](ins + 1, len - (ins - buffer) - 1);
             break;
         }
@@ -279,18 +292,11 @@ void setRandomPseudo(){
 
 // OTHER
 
-void print_message(u_int8_t* msg, int size){
-    msg += strspn((char*)msg, forbiden);
-    while (size > 0 && strchr(forbiden, msg[size - 1]) != NULL)
-        size--;
-
-    for (int i = 0; i < size; i++)
-        if (strchr(forbiden, msg[i]) != NULL)
-            msg[i] = ' ';
-
+void print_message(const u_int8_t* buffer, int size){
     time_t now = time(0);
     struct tm *t = localtime(&now);
-    cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2, t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, msg);
+    cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2,
+           t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, buffer);
 }
 
 void handle_input(char *buffer, size_t buflen) {
@@ -298,7 +304,42 @@ void handle_input(char *buffer, size_t buflen) {
     if (purified[0] == COMMAND)
         handle_command(purified + 1, buflen - 1);
     else {
-        send_data(purified, buflen);
+        send_data(0, purified, buflen);
         print_web((uint8_t*)purified, buflen);
+    }
+}
+
+void print_file(uint8_t type, const u_int8_t *buffer, size_t len) {
+    int fd;
+    char name[256], fp[1024];
+    char img[2048];
+    switch (type) {
+    case 0:
+        print_message((u_int8_t*)buffer, len);
+        print_web((u_int8_t*)buffer, len);
+        break;
+
+    case 2:
+    case 3:
+    case 4:
+        sprintf(name, "%lx.%s", random_uint64(), ext[(int)type]);
+        sprintf(fp, "/tmp/%s/%s", tmpdir, name);
+        fd = open(fp, O_CREAT|O_WRONLY, 0722);
+        if (fd < 0) {
+            cperror("open");
+            return;
+        }
+
+        write(fd, buffer, len);
+        close(fd);
+
+        cprint(STDOUT_FILENO, "New file received %s.\n", fp);
+        fd = sprintf(img, "<img src='/%s'/>", name);
+        print_web((u_int8_t*)img, fd);
+        break;
+
+    default:
+        cprint(0, "Dont know what to do with file type %d.\n", type);
+        break;
     }
 }

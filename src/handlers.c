@@ -186,9 +186,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
             if (frag->recv == frag->size) {
                 cprint(0, "New long message received.\n");
-                // TODO: check data type
-                print_message(frag->buffer, frag->size);
-                print_web(frag->buffer, frag->size);
+                print_file(tlv[19], frag->buffer, frag->size);
                 free(frag->buffer);
                 free(frag->id);
                 if (!hashmap_remove(fragmentation_map, fragid, 1, 1))

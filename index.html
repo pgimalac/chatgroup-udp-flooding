@@ -125,7 +125,7 @@
           socket.onmessage = function(event) {
               var box = document.getElementById('box');
               var p = document.createElement('p');
-              p.appendChild(document.createTextNode(event.data));
+              p.innerHTML = event.data; // js injection here
               box.appendChild(p);
               if(box.scrollHeight > box.clientHeight) {
                   box.scrollTop = box.scrollHeight - box.clientHeight;
@@ -198,9 +198,13 @@
           var files = document.getElementById('file').files;
           var fileform = document.getElementById('fileform');
           for (var i = 0; i < files.length; i++) {
-              socket.send(`/transfert ${files[i].name}`);
+              if (files[i].size > (1 << 16)) {
+                  console.error('file too big');
+                  continue;
+              }
+              // TODO: send file
           }
-          inputform.reset();
+          fileform.reset();
       });
 
       function handleNick(e) {

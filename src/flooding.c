@@ -30,7 +30,7 @@
 
 #define FRAG_TIMEOUT 60
 
-void frag_data(const char *buffer, u_int16_t size) {
+void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
     uint16_t nsize = htons(size), pos;
     body_t data = { 0 };
@@ -45,7 +45,7 @@ void frag_data(const char *buffer, u_int16_t size) {
         memcpy(offset, &nonce_frag, sizeof(nonce_frag));
         offset += sizeof(nonce_frag);
 
-        *offset++ = 0; // data type
+        *offset++ = type; // data type
 
         memcpy(offset, &nsize, 2); // size
         offset += 2;
@@ -65,16 +65,16 @@ void frag_data(const char *buffer, u_int16_t size) {
     }
 }
 
-void send_data(const char *buffer, u_int16_t size){
+void send_data(u_int8_t type, const char *buffer, u_int16_t size){
     if (buffer == 0 || size <= 0) return;
 
     if (size > 255) {
-        frag_data(buffer, size);
+        frag_data(type, buffer, size);
         return;
     }
 
     body_t data = { 0 };
-    int rc = tlv_data(&data.content, id, random_uint32(), DATA_KNOWN, buffer, size);
+    int rc = tlv_data(&data.content, id, random_uint32(), type, buffer, size);
 
     if (rc < 0){
         if (rc == -1)

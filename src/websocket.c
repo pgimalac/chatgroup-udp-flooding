@@ -68,18 +68,137 @@ int create_tcpserver(int port) {
 
 const char *NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\nThis page don't exist";
 const char *INVALID = "HTTP/1.1 400 Bas Request\r\n\r\n";
-const char *STATUSLINE = "HTTP/1.1 200 OK\r\n"
-    "Content-Type: text/html; charset=utf-8\r\n";
+const char *STATUSLINE = "HTTP/1.1 200 OK\r\n";
 const char *MAGICSTRINGWS = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const size_t MSWSL = strlen("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-const char *SWITPROTO = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n";
+const char *SWITPROTO = "HTTP/1.1 101 Switching Protocols\r\n"
+    "Upgrade: websocket\r\nConnection: Upgrade\r\n";
+
+static int not_found(int s) {
+    write(s, NOT_FOUND, strlen(NOT_FOUND));
+    close(s);
+    return 0;
+}
+
+static int bad_request(int s) {
+    write(s, INVALID, strlen(INVALID));
+    fprintf(stderr, "Bad request\n");
+    close(s);
+    return 0;
+}
+
+static int get_static_file(int s, const char *path, size_t len) {
+    int fd, rc;
+    char buffer[1024];
+    char *npath = calloc(len + 1, 1);
+    memcpy(npath, path, len);
+
+    char *fp = calloc(len + strlen(tmpdir) + 6, 1);
+    sprintf(fp, "/tmp/%s%s", tmpdir, npath);
+
+    char *pt = 0;
+    for (char *p = memchr(path, '.', len); p && (pt = p);
+         p = memchr(p + 1, '.', len - (p - path))) {
+        cprint(0, "%*s\n", len - (p - path), p);
+    }
+
+    // file has no extention, not supppose to happend
+    // ignore this situation
+    if (!pt) {
+        free(npath);
+        free(fp);
+        return not_found(s);
+    }
+
+    char *content_type;
+    if (memcmp(pt, ".png", len - (pt - path)) == 0) {
+        content_type = "Content-Type: image/png\r\n";
+    } else if (memcmp(pt, ".jpg", len - (pt - path)) == 0) {
+        content_type = "Content-Type: image/jpg\r\n";
+    } else if (memcmp(pt,".gif", len - (pt - path)) == 0) {
+        content_type = "Content-Type: image/gif\r\n";
+    } else {
+        content_type = "Content-Type: text/html\r\n";
+    }
+
+    cprint(0, "Try to load file %s.\n", fp);
+    fd = open(fp, O_RDONLY);
+
+    free(npath);
+    free(fp);
+
+    if (fd < 0) {
+        cperror("open");
+        return not_found(s);
+    }
+
+    write(s, STATUSLINE, strlen(STATUSLINE));
+    write(s, content_type, strlen(content_type));
+    write(s, "\r\n", 2);
+
+    while ((rc = read(fd, buffer, 1024)) > 0)
+        write(s, buffer, rc);
+
+    close(s);
+    return 0;
+}
+
+static int get_index(int s) {
+    write(s, STATUSLINE, strlen(STATUSLINE));
+    write(s, "Content-Type: text/html; charset=utf-8\r\n", 40);
+
+    char tmp[250];
+    int rc = sprintf(tmp, "Content-Length: %d\r\n\r\n", pagelen);
+    write(s, tmp, rc);
+    write(s, page, pagelen);
+    close(s);
+    return 0;
+}
+
+static int get_ws(int s, const char *buffer, size_t len) {
+    unsigned char *key, hash[20], *h64;
+    char *ptr, *end;
+    size_t keylen;
+
+    // web socket interface
+    if (memcmp("GET /ws HTTP/1.1", buffer, 14))
+        return not_found(s);
+    // check Connection
+    if (!memmem(buffer, len, "Upgrade: websocket", 18))
+        return bad_request(s);
+
+    ptr = memmem(buffer, len, "Sec-WebSocket-Key: ", 19);
+    if (!ptr) return bad_request(s);
+
+    end = memchr(ptr, '\r', len - (ptr - buffer));
+    if (!end) return bad_request(s);
+
+    keylen = end - ptr - 19;
+    key = alloca(keylen + MSWSL);
+    memcpy(key, ptr + 19, keylen);
+    memcpy(key + keylen, MAGICSTRINGWS, MSWSL);
+
+    SHA1(key, keylen + MSWSL, hash);
+    h64 = base64_encode(hash, 20, &keylen);
+
+    write(s, SWITPROTO, strlen(SWITPROTO));
+    write(s, "Sec-WebSocket-Accept: ", 22);
+    write(s, h64, keylen);
+    write(s, "\r\n\r\n", 4);
+
+    free(h64);
+
+    int *ss = malloc(sizeof(int));
+    *ss = s;
+    list_add(&clientsockets, ss);
+
+    return 0;
+}
 
 int handle_http () {
     int rc, s, i;
-    size_t len = 0, keylen;
-    char buffer[4096], *ptr, *end;
-    unsigned char *key, hash[20];
-    unsigned char *h64;
+    size_t len = 0;
+    char buffer[4096];
 
     s = accept(websock, 0, 0);
     if (s < 0) {
@@ -87,7 +206,7 @@ int handle_http () {
         return 1;
     }
 
-    printf("New web connection\n");
+    cprint(0, "New web connection\n");
 
     memset(buffer, 0, 4096);
     len = 0;
@@ -103,75 +222,38 @@ int handle_http () {
         return -1;
     }
 
-    write(1, buffer, len);
+    cprint(0, "%*s", len, buffer);
 
     // empty request
-    if (len == 0) {
+    if (len <= 6) {
         close(s);
         return 0;
     }
 
-    // web page
-    if (memcmp("GET / HTTP/1.1", buffer, 14) == 0) {
-        write(s, STATUSLINE, strlen(STATUSLINE));
+    char *sp1, *sp2;
+    sp1 = memchr(buffer, ' ', len);
+    if (!sp1 || sp1[1] != '/') return bad_request(s);
 
-        char tmp[250];
-        rc = sprintf(tmp, "Content-Length: %d\r\n\r\n", pagelen);
-        write(s, tmp, rc);
-        write(s, page, pagelen);
-        close(s);
-        return 0;
+    sp2 = memchr(sp1 + 1, ' ', len - (sp1 - buffer));
+    if (!sp2) return bad_request(s);
+
+    if (memcmp(sp2 + 1, "HTTP/1.1", 8)) {
+        cprint(STDERR_FILENO, "no HTTP/1.1\n");
+        return bad_request(s);
     }
 
-    // web socket interface
-    if (memcmp("GET /ws HTTP/1.1", buffer, 14) == 0) {
-        // check Connection
-        if (!memmem(buffer, len, "Upgrade: websocket", 18)) {
-            write(s, INVALID, strlen(INVALID));
-            fprintf(stderr, "Invalid request\n");
-            close(s);
-        }
+    switch (sp1[2]) {
+    case ' ':
+        return get_index(s);
+        break;
 
-        ptr = memmem(buffer, len, "Sec-WebSocket-Key: ", 19);
-        if (!ptr) {
-            write(s, INVALID, strlen(INVALID));
-            close(s);
-            return 1;
-        }
+    case 'w':
+        return get_ws(s, buffer, len);
+        break;
 
-        end = memchr(ptr, '\r', len - (ptr - buffer));
-        if (!end) {
-            write(s, INVALID, strlen(INVALID));
-            close(s);
-            return 1;
-        }
-
-        keylen = end - ptr - 19;
-        key = alloca(keylen + MSWSL);
-        memcpy(key, ptr + 19, keylen);
-        memcpy(key + keylen, MAGICSTRINGWS, MSWSL);
-
-        SHA1(key, keylen + MSWSL, hash);
-        h64 = base64_encode(hash, 20, &keylen);
-
-        write(s, SWITPROTO, strlen(SWITPROTO));
-        write(s, "Sec-WebSocket-Accept: ", 22);
-        write(s, h64, keylen);
-        write(s, "\r\n\r\n", 4);
-
-        free(h64);
-
-        int *ss = malloc(sizeof(int));
-        *ss = s;
-        list_add(&clientsockets, ss);
-
-        return 0;
+    default:
+        return get_static_file(s, sp1 + 1, sp2 - sp1 - 1);
     }
-
-    write(s, NOT_FOUND, strlen(NOT_FOUND));
-    close(s);
-
-    return 0;
 }
 
 #define FINBIT (1 << 7)
@@ -190,6 +272,43 @@ typedef struct fragws {
     int8_t *buffer;
     size_t buflen;
 } fragws_t;
+
+
+static int send_pong (int s, const int8_t *payload, size_t buflen) {
+    int rc;
+    uint8_t frame[1024];
+    uint32_t mask = random_uint32();
+    size_t len, i, j, count = 0,
+        size = (buflen < 125 ? 1 : buflen / 125);
+
+    for (i = 0; i < size; i++) {
+        memset(frame, 0, 1024);
+        frame[0] = i == 0 ? OPPONG : OPCONT;
+        frame[1] = MSKBIT;
+
+        len = len - count > 125 ? 125 : len - count;
+        frame[1] ^= len;
+
+        mask = random_uint32();
+        memcpy(frame + 2, &mask, 4);
+
+        for (j = 0; j < len; j++) {
+            frame[j + 6] = payload[j] ^ frame[2 + (j % 4)];
+        }
+
+        // last frame FIN bit
+        if (i == size - 1)
+            frame[0] ^= FINBIT;
+
+        rc = write(s, frame, 2 + 4 + len);
+        if (rc < 0) {
+            cperror("write");
+            return 0;
+        }
+    }
+
+    return 0;
+}
 
 int handle_ws(int s) {
     int rc, status = 0;
@@ -305,6 +424,8 @@ int handle_ws(int s) {
             break;
 
         case OPBIN: //bin
+            cprint(STDOUT_FILENO, "%*s\n", frag->buflen, frag->buffer);
+            handle_input((char*)frag->buffer, frag->buflen);
             break;
 
         case OPCLOSE: // close
@@ -324,6 +445,7 @@ int handle_ws(int s) {
             break;
 
         case OPPING: //ping
+            send_pong(s, frag->buffer, frag->buflen);
             break;
 
         case OPPONG: //pong
@@ -341,25 +463,6 @@ int handle_ws(int s) {
 
     cprint(0, "done.\n");
     return status;
-}
-
-int send_ping (int s) {
-    uint8_t frame[1024];
-    uint32_t mask = random_uint32();
-    uint64_t payload = random_uint64();
-
-    memset(frame, 0, 1024);
-    frame[0] = FINBIT ^ OPPING;
-    frame[1] = MSKBIT ^ 8;
-    memcpy(frame + 2, &mask, 4);
-    memcpy(frame + 6, &payload, 8);
-
-    for (int i = 0; i < 8; i++)
-        frame[i + 6] ^= frame[2 + i % 4];
-
-    write(s, frame, 8 + 4 + 2);
-
-    return 0;
 }
 
 int print_web(const uint8_t *buffer, size_t buflen) {
