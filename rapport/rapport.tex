@@ -66,9 +66,9 @@ Le fichier \textit{util} contient des fonctions diverses utilisées tout au long
 \section{Sujet minimal}
 Nous gérons les voisins avec plusieurs hashset: un pour les voisins potentiels et un pour les voisins symétriques.
 
-Les messages reçus récemment et les messages à innonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à innonder pour le message donné).
+Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
 
-Les fragments de messages sont stockés dans une hasmap. [voir extensions]
+Les fragments de messages sont stockés dans une hashmap. [voir extensions]
 
 Les messages à envoyer sont stockés dans une liste circulaire.
 
@@ -76,8 +76,8 @@ La boucle principale fait dans l'ordre:
 \begin{enumerate}
 \item gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon on leur envoie un hello long.
 \item si le nombre de voisin symétrique n'est pas trop élevé, gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hellos courts, ils sont retirés, sinon on leur en envoie un autre.
-\item innondation des messages aux voisins, si un voisin n'a pas envoyé de ack après 5 envois, il est rétrogradé en potentiel.
-\item envoie de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
+\item inondation des messages aux voisins, si un voisin n'a pas envoyé de ack après 5 envois, il est rétrogradé en potentiel.
+\item envoi de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
 \item on retire un par un les messages de la liste de messages et on les envoie.
 \item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
 \item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) [voir extensions].
