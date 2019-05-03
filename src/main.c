@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <assert.h>
+#include <getopt.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -22,6 +23,8 @@
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
+
+static int port = 0, pseudo_set = 0;
 
 int init() {
     init_random();
@@ -38,7 +41,8 @@ int init() {
         return -1;
     }
 
-    httpport = (rand() % 10) + 8080;
+    if (httpport == 0)
+        httpport = (rand() % 10) + 8080;
     clientsockets = 0;
     webmessage_map = hashmap_init(sizeof(int));
 
@@ -158,43 +162,133 @@ void handle_stdin_input() {
     handle_input(buffer, rc);
 }
 
+#define NBOPT 4
+static struct option options[] =
+    {
+     {"port",     required_argument, 0, 0},
+     {"web-port", required_argument, 0, 0},
+     {"verbose",  optional_argument, 0, 0},
+     {"pseudo",   required_argument, 0, 0},
+     {0, 0, 0, 0}
+    };
+
+static int opt_port(char *arg) {
+    if (!is_number(arg)) {
+        fprintf(stderr, "Port must be a number. %s is not a number.\n", arg);
+        return -1;
+    }
+
+    port = atoi(arg);
+    if (port < 1024) {
+        fprintf(stderr, "Not a valid port number %d\n", port);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int opt_webport(char *port) {
+    if (!is_number(port)) {
+        fprintf(stderr, "Web port must be a number. %s is not a number.\n", port);
+        return -1;
+    }
+
+    httpport = atoi(port);
+    if (httpport < 1024) {
+        fprintf(stderr, "Not a valid port number %d\n", httpport);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int opt_verbose(char *file) {
+    if (file) {
+        printf("file %s\n", file);
+        int fd = open(file, O_CREAT|O_WRONLY, 0644);
+        if (fd < 0) {
+            perror("open");
+            logfd = 2;
+        } else logfd = fd;
+    }
+
+    return 0;
+}
+
+static int opt_pseudo(char *name) {
+    if (strlen(name) == 0) {
+        fprintf(stderr, "Pseudo can not be empty,\n");
+        return -1;
+    }
+
+    setPseudo(name, strlen(name));
+    pseudo_set = 1;
+    return 0;
+}
+
+static int (*option_handlers[NBOPT])(char *) =
+    {
+     opt_port,
+     opt_webport,
+     opt_verbose,
+     opt_pseudo
+    };
+
+static const char *usage =
+    "usage: %s [-v[file] | --verbose[=log file]]\n"
+    "%*s[-p | -port <port number>]\n"
+    "%*s[--web-port <port number>]\n"
+    "%*s[--pseudo <pseudo>]";
+
+int parse_args(int argc, char **argv) {
+    int rc, c, option_index, padding;
+    while (1) {
+
+        c = getopt_long(argc, argv, "p:v::", options, &option_index);
+
+        if (c == -1)
+            break;
+
+        switch(c) {
+        case 0:
+            rc = option_handlers[option_index](optarg);
+            break;
+
+        case 'p':
+            rc = opt_port(optarg);
+            break;
+
+        case 'v':
+            rc = opt_verbose(optarg);
+            break;
+
+        default:
+            padding = 8 + strlen(argv[0]);
+            printf(usage, argv[0], padding, "", padding, "");
+            return -1;
+        }
+
+        if (rc < 0) {
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char **argv) {
     int rc;
 
+    logfd = 2;
+    rc = parse_args(argc, argv);
+    if (rc < 0) return rc;
+
+    if (!pseudo_set) setRandomPseudo();
+
     rc = init();
     if (rc != 0) return rc;
+
     cprint(0, "local id: %lx\n", id);
-
-    unsigned short port = 0;
-    if (argc >= 2){
-        char *pos = 0;
-        long int port2 = strtol(argv[1], &pos, 0);
-        if (argv[1] != NULL && *pos == '\0' && port2 >= MIN_PORT && port2 <= MAX_PORT) {
-            port = (unsigned short)port2;
-        }
-    }
-
-    logfd = 2;
-    if (argc >= 3){
-        if (strcmp("1", argv[2]) == 0 ||
-                strcasecmp("STDOUT", argv[2]) == 0)
-            logfd = 1;
-        else if (strcmp("2", argv[2]) == 0 ||
-                strcasecmp("STDERR", argv[2]) == 0)
-            logfd = 2;
-        else {
-            int fd = open(argv[2], O_WRONLY | O_CREAT);
-            if (fd >= 0)
-                logfd = fd;
-            else
-                cperror("open");
-        }
-    }
-
-    if (argc >= 4)
-        setPseudo(argv[3], strlen(argv[3]));
-    else
-        setRandomPseudo();
 
     cprint(STDOUT_FILENO, "Welcome %s.\n", getPseudo());
 

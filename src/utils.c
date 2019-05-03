@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "utils.h"
 #include "interface.h"
@@ -264,6 +265,7 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
 
 void cprint(int fd, char *str, ...){
     if (fd < 0) return;
+    if (logfd < 0 && fd == logfd) return;
 
     char *B = "", *F = "";
     if (fd == 0){
@@ -401,7 +403,7 @@ void cprint(int fd, char *str, ...){
     }
     va_end(ap);
 
-    #define PRINT_STRING(S) write(fd, S, strlen(S))
+#define PRINT_STRING(S) write(fd, S, strlen(S))
 
     PRINT_STRING(B);
     PRINT_STRING(F);
@@ -443,4 +445,10 @@ char *purify(char *buffer, size_t *len) {
 
     *len -= i;
     return buffer + i;
+}
+
+int is_number(char *str) {
+    if (!str || !*str) return 0;
+    while (*str && isdigit(*str)) str++;
+    return *str == 0;
 }

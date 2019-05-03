@@ -136,6 +136,9 @@ int start_server(int port) {
         return -1;
     }
 
+    local_addr.sin6_family = AF_INET6;
+    local_addr.sin6_port = htons(port);
+
     char out[INET6_ADDRSTRLEN];
     assert (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) != NULL);
     if (local_addr.sin6_port)
@@ -157,8 +160,6 @@ int start_server(int port) {
         return -3;
     }
 
-    local_addr.sin6_family = AF_INET6;
-    local_addr.sin6_port = htons(port);
     rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
     if (rc < 0) {
         cperror("bind");

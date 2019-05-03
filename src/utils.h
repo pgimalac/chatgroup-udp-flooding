@@ -49,4 +49,6 @@ int max(int a, int b);
 
 char *purify(char *buffer, size_t *len);
 
+int is_number(char *);
+
 #endif
