@@ -9,6 +9,7 @@
 int logfd;
 char tmpdir[255];
 pthread_mutex_t write_mutex, queue_mutex;
+pthread_cond_t send_cond;
 
 /**
  * Generic usefull functions

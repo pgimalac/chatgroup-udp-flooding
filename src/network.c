@@ -373,7 +373,7 @@ void quit_handler (int sig) {
     char ipstr[INET6_ADDRSTRLEN];
     message_t msg = { 0 };
     body_t goaway = { 0 };
-    struct timeval tv = { 0 };
+    struct timespec tv = { 0 };
 
     cprint(0, "Send go away leave to neighbours before quit.\n");
 

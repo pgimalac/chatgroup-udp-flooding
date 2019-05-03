@@ -90,7 +90,7 @@ void send_data(u_int8_t type, const char *buffer, u_int16_t size){
     free(data.content);
 }
 
-void hello_potential_neighbours(struct timeval *tv) {
+void hello_potential_neighbours(struct timespec *tv) {
     int rc;
     size_t i;
     time_t max, delta, now = time(0);
@@ -179,7 +179,7 @@ void hello_potential_neighbours(struct timeval *tv) {
     }
 }
 
-int hello_neighbours(struct timeval *tv) {
+int hello_neighbours(struct timespec *tv) {
     neighbour_t *p;
     int rc;
     size_t i, size = 0;
@@ -459,7 +459,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     return tv;
 }
 
-int message_flooding(struct timeval *tv) {
+int message_flooding(struct timespec *tv) {
     size_t i;
     int rc;
     list_t *l, *msg_done = 0;

@@ -17,17 +17,17 @@
 #include "network.h"
 #include "tlv.h"
 
-typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*, struct timeval *tv);
+typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*, struct timespec *tv);
 
-static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing PAD1\n");
 }
 
-static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing PadN %u\n", tlv[1]);
 }
 
-static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     dst->last_hello_send = time(0);
     assert(dst->last_hello_send != -1);
     if (tlv[1] == 8) {
@@ -38,13 +38,13 @@ static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *
     }
 }
 
-static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing neighbour.\n");
     dst->last_neighbour_send = time(0);
     assert(dst->last_neighbour_send != -1);
 }
 
-static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     hashmap_t *map;
     data_info_t *dinfo;
     datime_t *datime;
@@ -79,19 +79,19 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     }
 }
 
-static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing ack.\n");
 }
 
-static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_goaway(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing go away %u.\n", tlv[2]);
 }
 
-static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_warning(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing warning.\n");
 }
 
-static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
+static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing an unknow tlv.\n");
 }
 
@@ -106,7 +106,7 @@ onsend_fnc onsenders[NUMBER_TLV_TYPE] = {
                onsend_warning
 };
 
-int send_message(int sock, message_t *msg, struct timeval *tv) {
+int send_message(int sock, message_t *msg, struct timespec *tv) {
     int rc;
     struct msghdr hdr = { 0 };
     body_t *p;

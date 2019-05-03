@@ -3,6 +3,6 @@
 
 #include "types.h"
 
-int send_message(int sock, message_t *msg, struct timeval *tv);
+int send_message(int sock, message_t *msg, struct timespec *tv);
 
 #endif

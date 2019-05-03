@@ -35,7 +35,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
 
 int add_neighbour(const char *hostname, const char *service);
 
-int send_message(int sock, message_t *msg, struct timeval *tv);
+int send_message(int sock, message_t *msg, struct timespec *tv);
 
 int start_server(int port);
 

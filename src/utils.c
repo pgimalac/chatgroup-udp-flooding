@@ -148,6 +148,7 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
     p->msg->body_length += tlv->size;
 
     pthread_mutex_unlock(&queue_mutex);
+    pthread_cond_broadcast(&send_cond);
 
     return 0;
 }

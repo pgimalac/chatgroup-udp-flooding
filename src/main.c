@@ -47,6 +47,7 @@ int init(){
 
     pthread_mutex_init(&mutex_end_thread, &attr);
     cond_end_thread = initiate_cond();
+    send_cond = initiate_cond();
 
     pthread_mutex_init(&neighbours_mutex, &attr);
     neighbours = hashset_init();
@@ -261,7 +262,8 @@ void *send_thread(void *running){
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
     int size;
     message_t *msg;
-    struct timeval tv = { 0 };
+    struct timespec tv = { 0 };
+    pthread_mutex_t useless = PTHREAD_MUTEX_INITIALIZER;
 
     while (1) {
         tv.tv_sec = MAX_TIMEOUT;
@@ -281,7 +283,9 @@ void *send_thread(void *running){
         clean_old_data();
         clean_old_frags();
 
-        sleep(tv.tv_sec);
+        pthread_mutex_lock(&useless);
+        pthread_cond_timedwait(&send_cond, &useless, &tv);
+        pthread_mutex_unlock(&useless);
     }
 
     pthread_cleanup_pop(1);
