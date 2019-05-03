@@ -155,13 +155,13 @@ void cleaner(void *running){
     pthread_mutex_unlock(&fragmentation_map_mutex);
     pthread_mutex_unlock(&queue_mutex);
     pthread_mutex_unlock(&clientsockets_mutex);
-    cprint(STDERR_FILENO, "CLEANER running.\n");
+    cprint(0, "CLEANER running.\n");
 
     pthread_mutex_lock(&mutex_end_thread);
     *(char*)running = 0;
     pthread_mutex_unlock(&mutex_end_thread);
     pthread_cond_broadcast(&cond_end_thread);
-    cprint(STDERR_FILENO, "CLEANER ended\n");
+    cprint(0, "CLEANER ended\n");
 }
 
 
