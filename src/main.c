@@ -301,7 +301,7 @@ void *input_thread(void *running){
         char *line = readline("");
 
         if (line == NULL){ // end of stdin reached
-            int *ret = malloc(1);
+            int *ret = malloc(sizeof(int));
             *ret = 0;
             pthread_exit(ret);
         }

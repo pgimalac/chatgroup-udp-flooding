@@ -63,6 +63,11 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
 
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
+    if (!dinfo){
+        cprint(STDERR_FILENO, "%s:%d Tried to get a data from flooding_map but it wasn't in.\n",
+            __FILE__, __LINE__);
+        return;
+    }
     ++dinfo->send_count;
 
     if (now != -1){
@@ -118,7 +123,7 @@ int send_message(int sock, message_t *msg, struct timespec *tv) {
     cprint(0, "> Send message to (%s, %u).\n", ipstr, ntohs(msg->dst->addr->sin6_port));
 
     for (p = msg->body; p; p = p->next) {
-        if (p->content[0] > NUMBER_TLV_TYPE) onsend_unknow(p->content, msg->dst, tv);
+        if (p->content[0] >= NUMBER_TLV_TYPE) onsend_unknow(p->content, msg->dst, tv);
         else onsenders[(int)p->content[0]](p->content, msg->dst, tv);
     }
 

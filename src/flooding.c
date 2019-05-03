@@ -24,9 +24,9 @@
 
 #define NEIGHBOUR_TIMEOUT 120
 
-#define CLEAN_TIMEOUT 45
+#define CLEAN_TIMEOUT 60
 
-#define FRAG_TIMEOUT 60
+#define FRAG_TIMEOUT 80
 
 void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
@@ -328,13 +328,11 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
     list_t *l;
     data_info_t *dinfo;
-    datime_t *datime;
+
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
-    u_int8_t *data;
-    hashmap_t *map;
 
-    datime = hashmap_get(data_map, dataid);
+    datime_t *datime = hashmap_get(data_map, dataid);
     if (!datime) {
         cprint(STDERR_FILENO, "%s:%d Data_map did not contained a dataid it was supposed to contain.\n",
             __FILE__, __LINE__);
@@ -342,10 +340,10 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     datime->last = now;
-    data = datime->data;
+    u_int8_t *data = datime->data;
     size = data[1] + 2;
 
-    map = hashmap_get(flooding_map, dataid);
+    hashmap_t *map = hashmap_get(flooding_map, dataid);
     if (!map){
         cprint(STDERR_FILENO, "%s:%d Flooding_map did not contained a dataid it was supposed to contain.\n",
             __FILE__, __LINE__);
