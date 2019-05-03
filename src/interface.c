@@ -301,6 +301,7 @@ void print_message(const u_int8_t* buffer, int size){
 
 void handle_input(char *buffer, size_t buflen) {
     char *purified = purify(buffer, &buflen);
+    if (!purified) return;
     if (purified[0] == COMMAND)
         handle_command(purified + 1, buflen - 1);
     else {
