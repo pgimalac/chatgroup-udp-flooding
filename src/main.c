@@ -396,7 +396,6 @@ int main(int argc, char **argv) {
         pthread_mutex_lock(&mutex_end_thread);
         pthread_cond_wait(&cond_end_thread, &mutex_end_thread);
 
-        cprint(0, "A THREAD ENDED ?\n");
         for (int i = 0; i < NUMBER_THREAD; i++)
             if (*runnings[i] == 0){
                 cprint(0, "THREAD %d ended\n", i + 1);
@@ -404,9 +403,11 @@ int main(int argc, char **argv) {
                 cprint(0, "The thread was joined.\n");
 
                 if (ret == PTHREAD_CANCELED || ret == NULL){
-                    cprint(0, "Thread cancelled.\n");
+                    // cancel thread so there is a thread running 'quit'
+                    cprint(0, "Thread %i was cancelled.\n");
                     pthread_mutex_unlock(&mutex_end_thread);
                     sleep(10);
+                    return 1;
                 }
 
                 if (*(int*)ret == 0){ // normal shutdown
