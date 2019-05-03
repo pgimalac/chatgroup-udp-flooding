@@ -159,7 +159,20 @@ void handle_stdin_input() {
     if (rc == 0)
         quit_handler(0);
 
-    handle_input(buffer, rc);
+    size_t len = rc;
+    purify(buffer, &len);
+    if (buffer[0] != '/') {
+        char tmp[6000];
+        rc = sprintf(tmp, "%s: %s", getPseudo(), buffer);
+        if (rc < 0) {
+            perror("sprintf");
+            return;
+        }
+        memcpy(buffer, tmp, rc);
+        len = rc;
+    }
+
+    handle_input(buffer, len);
 }
 
 #define NBOPT 4
@@ -204,12 +217,14 @@ static int opt_webport(char *port) {
 
 static int opt_verbose(char *file) {
     if (file) {
-        printf("file %s\n", file);
         int fd = open(file, O_CREAT|O_WRONLY, 0644);
         if (fd < 0) {
             perror("open");
             logfd = 2;
-        } else logfd = fd;
+        } else {
+            printf("Logs are in %s.\n", file);
+            logfd = fd;
+        }
     }
 
     return 0;
