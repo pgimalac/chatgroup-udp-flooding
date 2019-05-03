@@ -8,6 +8,7 @@
 
 #define EFFACER "\e[1;1H\e[2J"
 #define RESET "\e[0m\e[0m"
+#define CLBEG "\e[1K\e[1G" // clear the line and move to the beginning
 
 #define BLINK "\e[5m"
 

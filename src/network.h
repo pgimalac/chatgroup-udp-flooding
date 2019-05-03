@@ -3,6 +3,7 @@
 
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "types.h"
 #include "utils.h"
@@ -22,6 +23,7 @@
 int sock;
 chat_id_t id;
 hashset_t *neighbours, *potential_neighbours;
+pthread_mutex_t neighbours_mutex, potential_neighbours_mutex;
 
 int handle_reception ();
 

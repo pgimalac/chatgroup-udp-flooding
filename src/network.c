@@ -411,7 +411,5 @@ void quit_handler (int sig) {
     }
 
     cprint(STDOUT_FILENO, "Bye.\n");
-    int *ret = malloc(1);
-    *ret = 0;
-    pthread_exit(ret);
+    exit(sig);
 }

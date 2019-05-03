@@ -15,6 +15,7 @@
 #include "interface.h"
 #include "utils.h"
 #include "network.h"
+#include "tlv.h"
 
 typedef void (*onsend_fnc)(const u_int8_t*, neighbour_t*, struct timeval *tv);
 
@@ -94,7 +95,7 @@ static void onsend_unknow(const u_int8_t *tlv, neighbour_t *dst, struct timeval 
     cprint(0, "* Containing an unknow tlv.\n");
 }
 
-onsend_fnc onsenders[9] = {
+onsend_fnc onsenders[NUMBER_TLV_TYPE] = {
                onsend_pad1,
                onsend_padn,
                onsend_hello,
@@ -102,8 +103,7 @@ onsend_fnc onsenders[9] = {
                onsend_data,
                onsend_ack,
                onsend_goaway,
-               onsend_warning,
-               onsend_unknow
+               onsend_warning
 };
 
 int send_message(int sock, message_t *msg, struct timeval *tv) {
@@ -118,7 +118,7 @@ int send_message(int sock, message_t *msg, struct timeval *tv) {
     cprint(0, "> Send message to (%s, %u).\n", ipstr, ntohs(msg->dst->addr->sin6_port));
 
     for (p = msg->body; p; p = p->next) {
-        if (p->content[0] >= 9) onsend_unknow(p->content, msg->dst, tv);
+        if (p->content[0] > NUMBER_TLV_TYPE) onsend_unknow(p->content, msg->dst, tv);
         else onsenders[(int)p->content[0]](p->content, msg->dst, tv);
     }
 

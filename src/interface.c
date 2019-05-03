@@ -87,12 +87,10 @@ static void add(const char *buf, size_t len) {
     }
 
     rc = add_neighbour(name, service);
-    if (rc != 0) {
+    if (rc != 0)
         cprint(STDERR_FILENO, "Could not add the given neighbour: %s\n", gai_strerror(rc));
-        free(buffer);
-        return;
-    }
-    cprint(STDOUT_FILENO, "The neighbour %s, %s was added to potential neighbours\n", name, service);
+    else
+        cprint(STDOUT_FILENO, "The neighbour %s, %s was added to potential neighbours\n", name, service);
 
     free(buffer);
 }

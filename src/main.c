@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <pthread.h>
+#include <readline/readline.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -25,19 +26,35 @@
 
 static pthread_t web_pt, rec_pt, send_pt, input_pt;
 static char web_running = 0, rec_running = 0, send_running = 0, input_running = 0;
-static pthread_cond_t cond_end_thread = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t mutex_end_thread = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cond_end_thread;
+static pthread_mutex_t mutex_end_thread;
 
+static pthread_cond_t initiate_cond(){
+    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    return cond;
+}
 
-int init() {
+int init(){
     init_random();
-
     id = random_uint64();
+
+    rl_catch_signals = 0;
+
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+    // to avoid any deadlock
+
+    pthread_mutex_init(&mutex_end_thread, &attr);
+    cond_end_thread = initiate_cond();
+
+    pthread_mutex_init(&neighbours_mutex, &attr);
     neighbours = hashset_init();
     if (neighbours == NULL){
         return -1;
     }
 
+    pthread_mutex_init(&potential_neighbours_mutex, &attr);
     potential_neighbours = hashset_init();
     if (potential_neighbours == NULL){
         hashset_destroy(neighbours);
@@ -59,6 +76,7 @@ int init() {
 
     cprint(0, "Create tmpdir %s.\n", fptmpdir);
 
+    pthread_mutex_init(&flooding_map_mutex, &attr);
     flooding_map = hashmap_init(12);
     if (flooding_map == NULL){
         hashset_destroy(neighbours);
@@ -66,6 +84,7 @@ int init() {
         return -1;
     }
 
+    pthread_mutex_init(&data_map_mutex, &attr);
     data_map = hashmap_init(12);
     if (data_map == NULL){
         hashset_destroy(neighbours);
@@ -74,6 +93,7 @@ int init() {
         return -1;
     }
 
+    pthread_mutex_init(&fragmentation_map_mutex, &attr);
     fragmentation_map = hashmap_init(12);
     if (fragmentation_map == NULL){
         hashset_destroy(neighbours);
@@ -82,6 +102,12 @@ int init() {
         hashmap_destroy(data_map, 0);
         return -1;
     }
+
+    pthread_mutex_init(&write_mutex, &attr);
+    pthread_mutex_init(&queue_mutex, &attr);
+    pthread_mutex_init(&clientsockets_mutex, &attr);
+
+    pthread_mutexattr_destroy(&attr);
 
     return 0;
 }
@@ -119,19 +145,28 @@ void init_arguments(int argc, char **argv, u_int16_t *port){
 
 
 void cleaner(void *running){
-    // unlock all mutexes, TODO
+    pthread_mutex_unlock(&write_mutex);
+    pthread_mutex_unlock(&mutex_end_thread);
+    pthread_mutex_unlock(&neighbours_mutex);
+    pthread_mutex_unlock(&potential_neighbours_mutex);
+    pthread_mutex_unlock(&flooding_map_mutex);
+    pthread_mutex_unlock(&data_map_mutex);
+    pthread_mutex_unlock(&fragmentation_map_mutex);
+    pthread_mutex_unlock(&queue_mutex);
+    pthread_mutex_unlock(&clientsockets_mutex);
+    cprint(STDERR_FILENO, "CLEANER running.\n");
 
     pthread_mutex_lock(&mutex_end_thread);
     *(char*)running = 0;
     pthread_mutex_unlock(&mutex_end_thread);
     pthread_cond_broadcast(&cond_end_thread);
+    cprint(STDERR_FILENO, "CLEANER ended\n");
 }
 
 
-
-void *web_thread(void *_){
-    web_running = 1;
-    pthread_cleanup_push(cleaner, &web_running);
+void *web_thread(void *running){
+    *(char*)running = 1;
+    pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
     list_t *to_delete = 0, *l;
     void *val;
@@ -143,11 +178,13 @@ void *web_thread(void *_){
         FD_SET(websock, &readfds);
         int highest = websock;
 
+        pthread_mutex_lock(&clientsockets_mutex);
         for (l = clientsockets; l; l = l->next) {
             s = *((int*)l->val);
             FD_SET(s, &readfds);
             highest = max(highest, s);
         }
+        pthread_mutex_unlock(&clientsockets_mutex);
 
         rc = select(highest + 1, &readfds, 0, 0, NULL);
         if (rc < 0) {
@@ -158,6 +195,7 @@ void *web_thread(void *_){
         if (rc == 0)
             continue;
 
+        pthread_mutex_lock(&clientsockets_mutex);
         if (FD_ISSET(websock, &readfds))
             handle_http();
 
@@ -174,13 +212,14 @@ void *web_thread(void *_){
             val = list_pop(&to_delete);
             list_eremove(&clientsockets, val);
         }
+        pthread_mutex_unlock(&clientsockets_mutex);
     }
     pthread_cleanup_pop(1);
 }
 
-void *rec_thread(void *_){
-    rec_running = 1;
-    pthread_cleanup_push(cleaner, &rec_running);
+void *rec_thread(void *running){
+    *(char*)running = 1;
+    pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
     fd_set readfds;
     int rc;
@@ -212,12 +251,13 @@ void *rec_thread(void *_){
                 number_recv++;
         }
     }
+
     pthread_cleanup_pop(1);
 }
 
-void *send_thread(void *_){
-    send_running = 1;
-    pthread_cleanup_push(cleaner, &send_running);
+void *send_thread(void *running){
+    *(char*)running = 1;
+    pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
     int size;
     message_t *msg;
@@ -225,7 +265,6 @@ void *send_thread(void *_){
 
     while (1) {
         tv.tv_sec = MAX_TIMEOUT;
-        tv.tv_usec = 0;
 
         size = hello_neighbours(&tv);
         if (size < MAX_NB_NEIGHBOUR)
@@ -249,29 +288,33 @@ void *send_thread(void *_){
 }
 
 #define BUFFER_INPUT_SIZE 4096
-void *input_thread(void *_){
-    input_running = 1;
-    pthread_cleanup_push(cleaner, &input_running);
+void *input_thread(void *running){
+    *(char*)running = 1;
+    pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
 
-    int rc;
-    char buffer[BUFFER_INPUT_SIZE] = { 0 };
-
     while (1){
-        rc = read(0, buffer, BUFFER_INPUT_SIZE);
+        char *line = readline("");
 
-        if (rc < 0){
-            cperror("read stdin");
-            continue;
-        }
-
-        if (rc == 0){ // end of stdin reached
+        if (line == NULL){ // end of stdin reached
             int *ret = malloc(1);
             *ret = 0;
             pthread_exit(ret);
         }
 
-        handle_input(buffer, rc);
+        size_t len = strlen(line);
+        char *buffer = purify(line, &len);
+
+        #define S "\e1M\e[1A\e[K"
+
+        if (len > 0) {
+            write(STDOUT_FILENO, S, strlen(S));
+            print_message((u_int8_t*)buffer, len);
+            handle_input(buffer, len);
+            write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
+        }
+
+        free(line);
     }
 
     pthread_cleanup_pop(1);
@@ -308,12 +351,14 @@ int main(int argc, char **argv) {
 
     void *ret;
 
-    pthread_t *thread_id[4] = {&web_pt, &rec_pt, &send_pt, &input_pt};
-    char *runnings[4] = {&web_running, &rec_running, &send_running, &input_running};
-    void *(*starters[4])(void*) = {web_thread, rec_thread, send_thread, input_thread};
+    #define NUMBER_THREAD 4
 
-    for (int i = 0; i < 4; i++){
-        rc = pthread_create(thread_id[i], 0, starters[i], 0);
+    pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
+    char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
+    void *(*starters[NUMBER_THREAD])(void*) = {web_thread, rec_thread, send_thread, input_thread};
+
+    for (int i = 0; i < NUMBER_THREAD; i++){
+        rc = pthread_create(thread_id[i], 0, starters[i], runnings[i]);
         if (rc != 0){
             cperror("Could not create initial threads.\n");
             return 1;
@@ -324,25 +369,28 @@ int main(int argc, char **argv) {
         pthread_mutex_lock(&mutex_end_thread);
         pthread_cond_wait(&cond_end_thread, &mutex_end_thread);
 
-        for (int i = 0; i < 4; i++)
+        cprint(0, "A THREAD ENDED ?\n");
+        for (int i = 0; i < NUMBER_THREAD; i++)
             if (*runnings[i] == 0){
+                cprint(0, "THREAD %d ended\n", i + 1);
                 pthread_join(*thread_id[i], &ret);
+                cprint(0, "The thread was joined.\n");
                 if (*(int*)ret == 0) // normal shutdown
                     return 0;
 
                 free(ret);
 
                 cprint(STDERR_FILENO, "A thread was stopped, trying to restart it\n");
-                rc = pthread_create(thread_id[i], NULL, starters[i], NULL);
+                rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);
                 if (rc){
                     sleep(5);
-                    rc = pthread_create(thread_id[i], NULL, starters[i], NULL);
+                    rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);
                     if (rc){
                         cprint(STDERR_FILENO, "Could not restart the thread.\n");
                         return 1;
                     }
                 }
-                cprint(STDERR_FILENO, "Thread successfully restarted\n");
+                cprint(0, "Thread successfully restarted\n");
             }
 
         pthread_mutex_unlock(&mutex_end_thread);

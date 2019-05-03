@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
+#include <readline/readline.h>
 
 #include "utils.h"
 #include "interface.h"
@@ -99,6 +100,7 @@ int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
 }
 
 int push_tlv(body_t *tlv, neighbour_t *dst) {
+    pthread_mutex_lock(&queue_mutex);
     msg_queue_t *p;
 
     p = queue;
@@ -145,18 +147,26 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
     p->msg->body = tlv;
     p->msg->body_length += tlv->size;
 
+    pthread_mutex_unlock(&queue_mutex);
+
     return 0;
 }
 
 message_t *pull_message() {
+    pthread_mutex_lock(&queue_mutex);
+
     message_t *msg;
     msg_queue_t *q;
 
-    if (!queue) return 0;
+    if (!queue){
+        pthread_mutex_unlock(&queue_mutex);
+        return 0;
+    }
     if (queue == queue->next) {
         msg = queue->msg;
         free(queue);
         queue = 0;
+        pthread_mutex_unlock(&queue_mutex);
         return msg;
     }
 
@@ -168,6 +178,7 @@ message_t *pull_message() {
     queue->prev->next = queue;
 
     free(q);
+    pthread_mutex_unlock(&queue_mutex);
     return msg;
 }
 
@@ -262,6 +273,7 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
     memcpy(buffer, n->addr->sin6_addr.s6_addr, 16);
     memcpy(buffer + 16, &n->addr->sin6_port, 2);
 }
+
 
 void cprint(int fd, char *str, ...){
     if (fd < 0) return;
@@ -404,16 +416,19 @@ void cprint(int fd, char *str, ...){
 
     #define PRINT_STRING(S) write(fd, S, strlen(S))
 
-    static pthread_mutex_t write_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&write_mutex);
+
+    PRINT_STRING(CLBEG);
 
     PRINT_STRING(B);
     PRINT_STRING(F);
 
     write(fd, buffer, len);
-
     PRINT_STRING(RESET);
 
+    write(fd, rl_line_buffer, rl_end);
+
+    fsync(fd);
     pthread_mutex_unlock(&write_mutex);
 }
 

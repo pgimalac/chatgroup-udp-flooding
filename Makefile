@@ -18,7 +18,7 @@ OBJ = $(FILES_FP:%.c=%.o)
 
 CC = gcc
 FLAGS = -g -Wall -Wextra -Wno-unused-parameter $(foreach d, $(FOLDER_ALL), -I $(d))
-LIBS = -lssl -lcrypto -pthread
+LIBS = -lssl -lcrypto -pthread -lreadline
 
 all: $(NAME)
 
