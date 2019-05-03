@@ -136,14 +136,6 @@ int start_server(int port) {
         return -1;
     }
 
-    local_addr.sin6_family = AF_INET6;
-    local_addr.sin6_port = htons(port);
-    rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
-    if (rc < 0) {
-        cperror("bind");
-        return -2;
-    }
-
     char out[INET6_ADDRSTRLEN];
     assert (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) != NULL);
     if (local_addr.sin6_port)
@@ -151,11 +143,26 @@ int start_server(int port) {
     else
         cprint(0, "Start server at %s on a random port.\n", out);
 
-    int one = 1;
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
+    int num = 1;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &num, sizeof(num));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
+    }
+
+    num = 0;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &num, sizeof(num));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    local_addr.sin6_family = AF_INET6;
+    local_addr.sin6_port = htons(port);
+    rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
+    if (rc < 0) {
+        cperror("bind");
+        return -2;
     }
 
     return s;
