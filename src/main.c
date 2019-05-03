@@ -145,14 +145,14 @@ void handle_stdin_input() {
     int rc;
     char buffer[4096] = { 0 };
     rc = read(0, buffer, 4096);
-    if (rc <= 0) {
-        if (rc < 0)
-            cperror("read stdin");
+
+    if (rc < 0){
+        cperror("read stdin");
         return;
     }
 
-    if (rc <= 1)
-        return;
+    if (rc == 0)
+        quit_handler(0);
 
     handle_input(buffer, rc);
 }
@@ -230,7 +230,14 @@ int main(int argc, char **argv) {
         neighbour_flooding(0);
 
         while((msg = pull_message())) {
-            send_message(sock, msg, &tv);
+            rc = send_message(sock, msg, &tv);
+            if (rc == EAFNOSUPPORT){
+                hashset_remove_neighbour(potential_neighbours, msg->dst);
+                hashset_remove_neighbour(neighbours, msg->dst);
+                free(msg->dst->addr);
+                free(msg->dst->tutor_id);
+                free(msg->dst);
+            }
             free_message(msg);
         }
 
