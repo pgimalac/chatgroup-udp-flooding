@@ -9,6 +9,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <assert.h>
 
 #include "tlv.h"
 #include "types.h"
@@ -217,6 +218,7 @@ int main(int argc, char **argv) {
     int size;
     message_t *msg;
     struct timeval tv = { 0 };
+    char ipstr[INET6_ADDRSTRLEN];
 
     size_t number_recv = 1, i;
 
@@ -231,12 +233,18 @@ int main(int argc, char **argv) {
 
         while((msg = pull_message())) {
             rc = send_message(sock, msg, &tv);
-            if (rc == EAFNOSUPPORT){
+            if (rc == EAFNOSUPPORT || rc == ENETUNREACH){
                 hashset_remove_neighbour(potential_neighbours, msg->dst);
                 hashset_remove_neighbour(neighbours, msg->dst);
+                assert (inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
+                              ipstr, INET6_ADDRSTRLEN) != NULL);
+                cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
+                    ipstr, msg->dst->addr->sin6_port);
                 free(msg->dst->addr);
                 free(msg->dst->tutor_id);
                 free(msg->dst);
+            } else if (rc != 0) {
+                perrorbis(rc, "SENDMSG");
             }
             free_message(msg);
         }
