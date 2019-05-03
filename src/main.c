@@ -180,7 +180,7 @@ static struct option options[] =
     {
      {"port",     required_argument, 0, 0},
      {"web-port", required_argument, 0, 0},
-     {"verbose",  optional_argument, 0, 0},
+     {"logs",     required_argument, 0, 0},
      {"pseudo",   required_argument, 0, 0},
      {0, 0, 0, 0}
     };
@@ -215,7 +215,7 @@ static int opt_webport(char *port) {
     return 0;
 }
 
-static int opt_verbose(char *file) {
+static int opt_log(char *file) {
     if (file) {
         int fd = open(file, O_CREAT|O_WRONLY, 0644);
         if (fd < 0) {
@@ -245,21 +245,21 @@ static int (*option_handlers[NBOPT])(char *) =
     {
      opt_port,
      opt_webport,
-     opt_verbose,
+     opt_log,
      opt_pseudo
     };
 
 static const char *usage =
-    "usage: %s [-v[file] | --verbose[=log file]]\n"
+    "usage: %s [-l[file] | --logs <log file>]\n"
     "%*s[-p | -port <port number>]\n"
     "%*s[--web-port <port number>]\n"
-    "%*s[--pseudo <pseudo>]";
+    "%*s[--pseudo <pseudo>]\n";
 
 int parse_args(int argc, char **argv) {
     int rc, c, option_index, padding;
     while (1) {
 
-        c = getopt_long(argc, argv, "p:v::", options, &option_index);
+        c = getopt_long(argc, argv, "p:l::", options, &option_index);
 
         if (c == -1)
             break;
@@ -273,8 +273,8 @@ int parse_args(int argc, char **argv) {
             rc = opt_port(optarg);
             break;
 
-        case 'v':
-            rc = opt_verbose(optarg);
+        case 'l':
+            rc = opt_log(optarg);
             break;
 
         default:
