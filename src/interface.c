@@ -190,7 +190,9 @@ static void help(const char *buffer, size_t len){
 }
 
 static void quit(const char *buffer, size_t len) {
-    quit_handler(0);
+    int *ret = malloc(sizeof(int));
+    *ret = 0;
+    pthread_exit(ret);
 }
 
 static void unknown(const char *buffer, size_t len){

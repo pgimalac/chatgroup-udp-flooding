@@ -292,7 +292,6 @@ int add_neighbour(const char *hostname, const char *service) {
     rc = getaddrinfo (hostname, service, &hints, &r);
     if (rc != 0){
         cprint(0, "getaddrinfo: %s\n", gai_strerror(rc));
-        perrorbis(rc, "getaddrinfo: %s\n");
         return rc;
     }
 

@@ -311,17 +311,41 @@ void *input_thread(void *running){
 
         #define S "\e1M\e[1A\e[K"
 
+        char *buf = alloca(len);
+        memcpy(buf, buffer, len);
+        free(line);
+
         if (len > 0) {
             write(STDOUT_FILENO, S, strlen(S));
-            print_message((u_int8_t*)buffer, len);
-            handle_input(buffer, len);
+            print_message((u_int8_t*)buf, len);
+            handle_input(buf, len);
             write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
         }
-
-        free(line);
     }
 
     pthread_cleanup_pop(1);
+}
+
+#define NUMBER_THREAD 4
+
+void quit(int rc){
+    cprint(0, "quit\n");
+
+    pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
+    char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
+
+    for (int i = 0; i < NUMBER_THREAD; i++)
+        if (runnings[i]){
+            cprint(0, "cancelling %d\n", i + 1);
+            pthread_cancel(*thread_id[i]);
+        }
+
+    for (int i = 0; i < NUMBER_THREAD; i++){
+        cprint(0, "joining %d\n", i + 1);
+        pthread_join(*thread_id[i], NULL);
+    }
+
+    quit_handler(rc);
 }
 
 int main(int argc, char **argv) {
@@ -350,12 +374,10 @@ int main(int argc, char **argv) {
 
     cprint(STDOUT_FILENO, "Web interface on http://localhost:%d.\n", httpport);
 
-    signal(SIGINT, quit_handler);
+    signal(SIGINT, quit);
     cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
     void *ret;
-
-    #define NUMBER_THREAD 4
 
     pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
     char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
@@ -365,7 +387,8 @@ int main(int argc, char **argv) {
         rc = pthread_create(thread_id[i], 0, starters[i], runnings[i]);
         if (rc != 0){
             cperror("Could not create initial threads.\n");
-            return 1;
+            rc = 1;
+            goto quit;
         }
     }
 
@@ -379,6 +402,13 @@ int main(int argc, char **argv) {
                 cprint(0, "THREAD %d ended\n", i + 1);
                 pthread_join(*thread_id[i], &ret);
                 cprint(0, "The thread was joined.\n");
+
+                if (ret == PTHREAD_CANCELED || ret == NULL){
+                    cprint(0, "Thread cancelled.\n");
+                    pthread_mutex_unlock(&mutex_end_thread);
+                    sleep(10);
+                }
+
                 if (*(int*)ret == 0){ // normal shutdown
                     free(ret);
                     rc = 0;
@@ -404,12 +434,5 @@ int main(int argc, char **argv) {
 
     quit:
         pthread_mutex_unlock(&mutex_end_thread);
-        for (int i = 0; i < NUMBER_THREAD; i++)
-            if (runnings[i])
-                pthread_cancel(*thread_id[i]);
-
-        for (int i = 0; i < NUMBER_THREAD; i++)
-            pthread_join(*thread_id[i], NULL);
-
-    return rc;
+        quit(rc);
 }
