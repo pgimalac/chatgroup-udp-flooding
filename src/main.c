@@ -379,10 +379,11 @@ int main(int argc, char **argv) {
                 cprint(0, "THREAD %d ended\n", i + 1);
                 pthread_join(*thread_id[i], &ret);
                 cprint(0, "The thread was joined.\n");
-                if (*(int*)ret == 0) // normal shutdown
-                    return 0;
-
-                free(ret);
+                if (*(int*)ret == 0){ // normal shutdown
+                    free(ret);
+                    rc = 0;
+                    goto quit;
+                }
 
                 cprint(STDERR_FILENO, "A thread was stopped, trying to restart it\n");
                 rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);
@@ -391,7 +392,8 @@ int main(int argc, char **argv) {
                     rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);
                     if (rc){
                         cprint(STDERR_FILENO, "Could not restart the thread.\n");
-                        return 1;
+                        rc = 1;
+                        goto quit;
                     }
                 }
                 cprint(0, "Thread successfully restarted\n");
@@ -399,4 +401,15 @@ int main(int argc, char **argv) {
 
         pthread_mutex_unlock(&mutex_end_thread);
     }
+
+    quit:
+        pthread_mutex_unlock(&mutex_end_thread);
+        for (int i = 0; i < NUMBER_THREAD; i++)
+            if (runnings[i])
+                pthread_cancel(*thread_id[i]);
+
+        for (int i = 0; i < NUMBER_THREAD; i++)
+            pthread_join(*thread_id[i], NULL);
+
+    return rc;
 }
