@@ -20,6 +20,7 @@
 #include "tlv.h"
 #include "flooding.h"
 #include "websocket.h"
+#include "onsend.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
@@ -49,13 +50,11 @@ int init(){
     cond_end_thread = initiate_cond();
     send_cond = initiate_cond();
 
-    pthread_mutex_init(&neighbours_mutex, &attr);
     neighbours = hashset_init();
     if (neighbours == NULL){
         return -1;
     }
 
-    pthread_mutex_init(&potential_neighbours_mutex, &attr);
     potential_neighbours = hashset_init();
     if (potential_neighbours == NULL){
         hashset_destroy(neighbours);
@@ -77,7 +76,6 @@ int init(){
 
     cprint(0, "Create tmpdir %s.\n", fptmpdir);
 
-    pthread_mutex_init(&flooding_map_mutex, &attr);
     flooding_map = hashmap_init(12);
     if (flooding_map == NULL){
         hashset_destroy(neighbours);
@@ -85,7 +83,6 @@ int init(){
         return -1;
     }
 
-    pthread_mutex_init(&data_map_mutex, &attr);
     data_map = hashmap_init(12);
     if (data_map == NULL){
         hashset_destroy(neighbours);
@@ -94,7 +91,6 @@ int init(){
         return -1;
     }
 
-    pthread_mutex_init(&fragmentation_map_mutex, &attr);
     fragmentation_map = hashmap_init(12);
     if (fragmentation_map == NULL){
         hashset_destroy(neighbours);
@@ -265,6 +261,7 @@ void *send_thread(void *running){
     struct timespec tv = { 0 };
     pthread_mutex_t useless = PTHREAD_MUTEX_INITIALIZER;
 
+//    time_t start;
     while (1) {
         tv.tv_sec = MAX_TIMEOUT;
 
@@ -330,6 +327,7 @@ void *input_thread(void *running){
 
 void quit(int rc){
     cprint(0, "quit\n");
+    void *ret = NULL;
 
     pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
     char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
@@ -342,7 +340,9 @@ void quit(int rc){
 
     for (int i = 0; i < NUMBER_THREAD; i++){
         cprint(0, "joining %d\n", i + 1);
-        pthread_join(*thread_id[i], NULL);
+        pthread_join(*thread_id[i], &ret);
+        if (ret != PTHREAD_CANCELED)
+            free(ret);
     }
 
     quit_handler(rc);
@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, quit);
     cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
-    void *ret;
+    void *ret = NULL;
 
     pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
     char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
@@ -404,7 +404,7 @@ int main(int argc, char **argv) {
 
                 if (ret == PTHREAD_CANCELED || ret == NULL){
                     // cancel thread so there is a thread running 'quit'
-                    cprint(0, "Thread %i was cancelled.\n");
+                    cprint(0, "Thread %d was cancelled.\n", i);
                     pthread_mutex_unlock(&mutex_end_thread);
                     sleep(10);
                     return 1;
@@ -415,6 +415,7 @@ int main(int argc, char **argv) {
                     rc = 0;
                     goto quit;
                 }
+                free(ret);
 
                 cprint(STDERR_FILENO, "A thread was stopped, trying to restart it\n");
                 rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);

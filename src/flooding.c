@@ -102,6 +102,8 @@ void hello_potential_neighbours(struct timespec *tv) {
 
     list_t *to_delete = NULL;
 
+    pthread_mutex_lock(&potential_neighbours->mutex);
+
     for (i = 0; i < potential_neighbours->capacity; i++) {
         for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
@@ -148,6 +150,9 @@ void hello_potential_neighbours(struct timespec *tv) {
         }
     }
 
+    pthread_mutex_unlock(&potential_neighbours->mutex);
+
+
     while (to_delete != NULL){
         neighbour_t *n = list_pop(&to_delete);
 
@@ -189,6 +194,8 @@ int hello_neighbours(struct timespec *tv) {
     list_t *l, *to_delete = 0;
     char ipstr[INET6_ADDRSTRLEN];
 
+    pthread_mutex_lock(&neighbours->mutex);
+
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next, size++) {
             p = (neighbour_t*)l->val;
@@ -223,6 +230,8 @@ int hello_neighbours(struct timespec *tv) {
             }
         }
     }
+
+    pthread_mutex_unlock(&neighbours->mutex);
 
     while (to_delete) {
         p = (neighbour_t*)list_pop(&to_delete);
@@ -260,13 +269,15 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
     size_t i;
     list_t *l;
-    u_int8_t buffer[18], key[12];
+    u_int8_t buffer[18];
 
     hashmap_t *ns = hashmap_init(18);
     if (!ns) {
         perrorbis(ENOMEM, "hashmap_init");
         return -1;
     }
+
+    pthread_mutex_lock(&neighbours->mutex);
 
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
@@ -280,7 +291,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
             memset(dinfo, 0, sizeof(data_info_t));
 
             dinfo->neighbour = p;
-            dinfo->time = now + rand() % 1;
+            dinfo->time = now + rand() % 2;
 
             bytes_from_neighbour(p, buffer);
             rc = hashmap_add(ns, buffer, dinfo);
@@ -295,13 +306,13 @@ int flooding_add_message(const u_int8_t *data, int size) {
         }
     }
 
-    memcpy(key, data + 2, 12);
+    pthread_mutex_unlock(&neighbours->mutex);
 
     datime = malloc(sizeof(datime_t));
     datime->data = voidndup(data, size);
     datime->last = now;
 
-    rc = hashmap_add(flooding_map, key, ns);
+    rc = hashmap_add(flooding_map, data + 2, ns);
     if (rc == 2)
         cprint(STDERR_FILENO, "%s:%d Tried to add a map in the flooding_map but it was already in.\n",
             __FILE__, __LINE__);
@@ -310,7 +321,7 @@ int flooding_add_message(const u_int8_t *data, int size) {
     if (rc != 1)
         hashmap_destroy(ns, 1);
 
-    rc = hashmap_add(data_map, key, datime);
+    rc = hashmap_add(data_map, data + 2, datime);
     if (rc == 2)
         cprint(STDERR_FILENO, "%s:%d Tried to add a data in data_map but it was already in.\n",
             __FILE__, __LINE__);
@@ -438,6 +449,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
         }
     }
 
+
     neighbour_t *obj;
     while ((obj = list_pop(&to_delete)) != NULL){
         assert (inet_ntop(AF_INET6, &obj->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
@@ -463,6 +475,8 @@ int message_flooding(struct timespec *tv) {
     list_t *l, *msg_done = 0;
     char *dataid;
     hashmap_t *map;
+
+    pthread_mutex_lock(&flooding_map->mutex);
 
     for (i = 0; i < flooding_map->capacity; i++) {
         for (l = flooding_map->tab[i]; l; l = l->next) {
@@ -494,6 +508,8 @@ int message_flooding(struct timespec *tv) {
         free(dataid);
     }
 
+    pthread_mutex_unlock(&flooding_map->mutex);
+
     return 0;
 }
 
@@ -501,6 +517,8 @@ int clean_old_data() {
     size_t i;
     list_t *l, *to_delete = 0;
     datime_t *datime;
+
+    pthread_mutex_lock(&data_map->mutex);
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
@@ -530,6 +548,8 @@ int clean_old_data() {
     if (i)
         cprint(0, "%lu old data removed.\n", i);
 
+    pthread_mutex_unlock(&data_map->mutex);
+
     return i;
 }
 
@@ -538,6 +558,8 @@ int clean_data_from_frags(frag_t *frag) {
     list_t *l, *to_delete = 0;
     datime_t *datime;
     u_int8_t *key;
+
+    pthread_mutex_lock(&data_map->mutex);
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
@@ -569,6 +591,8 @@ int clean_data_from_frags(frag_t *frag) {
         free(datime);
     }
 
+    pthread_mutex_unlock(&data_map->mutex);
+
     return i;
 }
 
@@ -577,6 +601,8 @@ int clean_old_frags() {
     list_t *l, *to_delete = 0;
     frag_t *frag;
     time_t now = time(0);
+
+    pthread_mutex_lock(&fragmentation_map->mutex);
 
     for (i = 0; i < fragmentation_map->capacity; i++) {
         for (l = fragmentation_map->tab[i]; l; l = l->next) {
@@ -601,6 +627,8 @@ int clean_old_frags() {
     if (i)
         cprint(0, "%lu old message fragments removed.\n", i);
 
+    pthread_mutex_unlock(&fragmentation_map->mutex);
+
     return i;
 }
 
@@ -611,6 +639,8 @@ int send_neighbour_to(neighbour_t *p) {
     neighbour_t *a;
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
+
+    pthread_mutex_lock(&neighbours->mutex);
 
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
@@ -643,6 +673,8 @@ int send_neighbour_to(neighbour_t *p) {
     assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
     cprint(0, "Send neighbours to (%s, %u).\n", ipstr, ntohs(p->addr->sin6_port));
 
+    pthread_mutex_unlock(&neighbours->mutex);
+
     return 0;
 }
 
@@ -654,6 +686,8 @@ void neighbour_flooding(short force) {
     list_t *l;
     neighbour_t *p;
 
+    pthread_mutex_lock(&neighbours->mutex);
+
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
@@ -662,4 +696,6 @@ void neighbour_flooding(short force) {
             }
         }
     }
+
+    pthread_mutex_unlock(&neighbours->mutex);
 }

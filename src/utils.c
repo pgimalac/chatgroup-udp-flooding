@@ -88,6 +88,7 @@ void free_message(message_t *msg) {
 
 typedef struct msg_queue {
     message_t *msg;
+    body_t *last;
     struct msg_queue *next, *prev;
 } msg_queue_t;
 
@@ -101,6 +102,7 @@ int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
 
 int push_tlv(body_t *tlv, neighbour_t *dst) {
     pthread_mutex_lock(&queue_mutex);
+//    print_bytes(tlv->content, tlv->size);
     msg_queue_t *p;
 
     p = queue;
@@ -122,13 +124,18 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
 
  add:
     p = malloc(sizeof(msg_queue_t));
-    if (!p) return -1;
+    if (!p){
+        pthread_mutex_unlock(&queue_mutex);
+        return -1;
+    }
 
     p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
     if (!p->msg){
         free(p);
+        pthread_mutex_unlock(&queue_mutex);
         return -2;
     }
+    p->last = NULL;
 
     if (!queue) {
         queue = p;
@@ -143,8 +150,12 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
     }
 
  insert:
-    tlv->next = p->msg->body;
-    p->msg->body = tlv;
+    tlv->next = NULL;
+    if (p->last != NULL)
+        p->last->next = tlv;
+    else
+        p->msg->body = tlv;
+    p->last = tlv;
     p->msg->body_length += tlv->size;
 
     pthread_mutex_unlock(&queue_mutex);
@@ -265,7 +276,7 @@ void print_bytes(const unsigned char *buffer, size_t len) {
 
     for (size_t i = 0; i < len; i++) {
         printf("%02hhx ", buffer[i]);
-        if ((i + 1) % 4 == 0) printf("\n");
+//        if ((i + 1) % 4 == 0) printf("\n");
     }
     printf("\n");
 }

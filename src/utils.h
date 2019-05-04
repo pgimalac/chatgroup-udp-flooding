@@ -12,7 +12,7 @@ pthread_mutex_t write_mutex, queue_mutex;
 pthread_cond_t send_cond;
 
 /**
- * Generic usefull functions
+ * Generic useful functions
  */
 
 pid_t httppid;

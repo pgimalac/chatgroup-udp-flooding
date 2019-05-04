@@ -71,7 +71,7 @@ int handle_reception () {
     memset(msg, 0, sizeof(message_t));
     rc = bytes_to_message(c, len, n, msg);
     if (rc != 0){
-        cprint(0, "Received an invalid message.\n");
+        cprint(0, "Received an invalid message, error code %d.\n", rc);
         handle_invalid_message(rc, n);
         free(msg);
         return -3;

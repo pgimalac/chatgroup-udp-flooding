@@ -119,6 +119,8 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     cprint(0, "Data received of type %u.\n", tlv[14]);
 
+    pthread_mutex_lock(&flooding_map->mutex);
+
     map = hashmap_get(flooding_map, tlv + 2);
 
     if (!map && !hashmap_contains(data_map, (void*)(tlv + 2))) {
@@ -138,12 +140,14 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                 frag = malloc(sizeof(frag_t));
                 if (!frag){
                     cperror("malloc");
+                    pthread_mutex_unlock(&flooding_map->mutex);
                     return;
                 }
                 frag->id = voidndup(fragid, 12);
                 if (!frag->id){
                     cperror("malloc");
                     free(frag);
+                    pthread_mutex_unlock(&flooding_map->mutex);
                     return;
                 }
 
@@ -158,6 +162,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                 if (!frag->buffer){
                     free(frag->id);
                     free(frag);
+                    pthread_mutex_unlock(&flooding_map->mutex);
                     return;
                 }
                 rc = hashmap_add(fragmentation_map, fragid, frag);
@@ -170,6 +175,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                     free(frag->id);
                     free(frag->buffer);
                     free(frag);
+                    pthread_mutex_unlock(&flooding_map->mutex);
                     return;
                 }
             }
@@ -198,6 +204,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
         rc = flooding_add_message(tlv, tlv[1] + 2);
         if (rc < 0) {
             cprint(STDERR_FILENO, "Problem while adding data to flooding map.\n");
+            pthread_mutex_unlock(&flooding_map->mutex);
             return;
         }
 
@@ -207,24 +214,33 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
     nonce_t nonce = *(nonce_t*)(tlv + 10);
     body = malloc(sizeof(body_t));
-    if (!body)
+    if (!body){
+        pthread_mutex_unlock(&flooding_map->mutex);
         return;
+    }
     rc = tlv_ack(&body->content, sender, nonce);
     if (rc < 0){
         perrorbis(ENOMEM, "tlv_ack");
         free(body);
+        pthread_mutex_unlock(&flooding_map->mutex);
         return;
     }
 
     body->size = rc;
     body->next = NULL;
 
-    push_tlv(body, n);
-
     if (map){
         bytes_from_neighbour(n, buffer);
         hashmap_remove(map, buffer, 1, 1);
+        if (map->size == 0){
+            hashmap_remove(flooding_map, tlv + 2, 1, 0);
+            hashmap_destroy(map, 1);
+        }
     }
+
+    push_tlv(body, n);
+
+    pthread_mutex_unlock(&flooding_map->mutex);
 }
 
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){

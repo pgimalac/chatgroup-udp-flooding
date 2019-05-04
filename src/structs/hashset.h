@@ -8,6 +8,7 @@
 typedef struct hashset_t {
     size_t size, capacity;
     list_t** tab;
+    pthread_mutex_t mutex;
 } hashset_t;
 
 /**

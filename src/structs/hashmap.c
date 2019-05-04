@@ -48,6 +48,12 @@ hashmap_t *hashmap_init(int keylen) {
         map->capacity = HASHMAP_INITIAL_CAPACITY;
         map->keylen = keylen;
 
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&map->mutex, &attr);
+        pthread_mutexattr_destroy(&attr);
+
         map->tab = calloc(map->capacity, sizeof(list_t *));
         if(!map->tab) {
             free (map);
@@ -61,37 +67,57 @@ hashmap_t *hashmap_init(int keylen) {
 static map_elem *get (hashmap_t *map, const void *key) {
     if (map == NULL) return NULL;
 
+    map_elem *elem = NULL;
+    pthread_mutex_lock(&map->mutex);
+
     map_elem *e;
     for (list_t *l = map->tab[hash_key(key, map->keylen) % map->capacity]; l; l = l->next) {
         e = (map_elem*)l->val;
-        if (memcmp(e->key, key, map->keylen) == 0) return e;
+        if (memcmp(e->key, key, map->keylen) == 0){
+            elem = e;
+            break;
+        }
     }
 
-    return 0;
+    pthread_mutex_unlock(&map->mutex);
+
+    return elem;
 }
 
 short hashmap_add(hashmap_t *map, const void *key, void *value) {
     if (map == 0) return 0;
 
+    pthread_mutex_lock(&map->mutex);
+
     map_elem *e = get(map, key);
     if (e) {
+        pthread_mutex_unlock(&map->mutex);
         return 2;
     }
-    if (map->size + 1 > HASHMAP_RATIO_UPPER_LIMIT * map->capacity)
-        if (!resize(map, map->capacity * 2)) return -1;
+    if (map->size + 1 > HASHMAP_RATIO_UPPER_LIMIT * map->capacity && !resize(map, map->capacity * 2)){
+        pthread_mutex_unlock(&map->mutex);
+        return -1;
+    }
 
     void * newkey = voidndup(key, map->keylen);
     e = elem(newkey, value);
     if (e == NULL){
         free(newkey);
+        pthread_mutex_unlock(&map->mutex);
         return 0;
     }
 
     if (!list_add(&map->tab[hash_key(key, map->keylen) % map->capacity], e)){
         free(newkey);
+        pthread_mutex_unlock(&map->mutex);
         return 0;
     }
     map->size++;
+
+/*    printf("KEY ADDED TO HASHMAP:\n");
+    print_bytes(key, map->keylen);
+*/
+    pthread_mutex_unlock(&map->mutex);
 
     return 1;
 }
@@ -134,20 +160,21 @@ static short map_list_remove (list_t **lst, const void *key, size_t keylen, shor
 short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if (!map) return 0;
 
-    int hash = hash_key(
-        key,
-        map->keylen) %
-        map->capacity;
-    if(map_list_remove(
-        &map->tab[hash],
-        key,
-        map->keylen,
-        k, v)) {
+    short ret = 0;
+    pthread_mutex_lock(&map->mutex);
+
+    int hash = hash_key(key, map->keylen) % map->capacity;
+    if(map_list_remove(&map->tab[hash], key, map->keylen, k, v)) {
         map->size--;
-        return 1;
+
+/*        printf("KEY REMOVED FROM HASHMAP:\n");
+        print_bytes(key, map->keylen);
+*/
+        ret = 1;
     }
 
-    return 0;
+    pthread_mutex_unlock(&map->mutex);
+    return ret;
 }
 
 short hashmap_contains (hashmap_t *map, const char *key) {
@@ -157,6 +184,8 @@ short hashmap_contains (hashmap_t *map, const char *key) {
 void hashmap_destroy(hashmap_t *map, short f) {
     if (map == 0) return;
 
+    pthread_mutex_lock(&map->mutex);
+
     for (size_t i = 0; i < map->capacity; i++)
         for (list_t* l = map->tab[i]; l; free(list_pop(&l)))
             if (f){
@@ -164,5 +193,7 @@ void hashmap_destroy(hashmap_t *map, short f) {
                 free(((map_elem*)l->val)->value);
             }
     free(map->tab);
+    pthread_mutex_unlock(&map->mutex);
+    pthread_mutex_destroy(&map->mutex);
     free(map);
 }

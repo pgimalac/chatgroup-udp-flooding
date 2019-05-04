@@ -1,11 +1,14 @@
 #ifndef __H_HASHMAP
 #define __H_HASHMAP
 
+#include <pthread.h>
+
 #include "list.h"
 
 typedef struct hashmap {
     size_t size, capacity, keylen;
     list_t **tab;
+    pthread_mutex_t mutex;
 } hashmap_t;
 
 typedef struct map_elem {

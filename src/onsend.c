@@ -64,7 +64,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
     if (!dinfo){
-        cprint(STDERR_FILENO, "%s:%d Tried to get a data from flooding_map but it wasn't in.\n",
+        cprint(STDERR_FILENO, "%s:%d Tried to get a neighbour data_info from flooding_map but it wasn't in.\n",
             __FILE__, __LINE__);
         return;
     }

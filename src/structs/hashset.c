@@ -23,6 +23,13 @@ hashset_t* hashset_init(){
     if (h){
         h->size = 0;
         h->capacity = HASHSET_INITIAL_CAPACITY;
+
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&h->mutex, &attr);
+        pthread_mutexattr_destroy(&attr);
+
         h->tab = calloc(h->capacity, sizeof(list_t*));
         if (!h->tab){
             free(h);
@@ -58,28 +65,45 @@ short hashset_contains(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)],
 neighbour_t *hashset_get(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port) {
     if (h == NULL || ip == NULL) return 0;
 
-    for (list_t* l = h->tab[hash_neighbour_data(ip, port) % h->capacity]; l != NULL; l = l->next)
-        if (port == GET_PORT(l->val) && memcmp(GET_IP(l->val), ip, sizeof(struct in6_addr)) == 0)
-            return (neighbour_t*)l->val;
+    pthread_mutex_lock(&h->mutex);
 
-    return 0;
+    neighbour_t *ret = NULL;
+    for (list_t* l = h->tab[hash_neighbour_data(ip, port) % h->capacity]; l != NULL; l = l->next)
+        if (port == GET_PORT(l->val) && memcmp(GET_IP(l->val), ip, sizeof(struct in6_addr)) == 0){
+            ret = (neighbour_t*)l->val;
+            break;
+        }
+
+    pthread_mutex_unlock(&h->mutex);
+
+    return ret;
 }
 
 short hashset_add(hashset_t *h, neighbour_t* n){
     if (h == NULL || n == NULL) return 0;
 
+    int ret;
+
+    pthread_mutex_lock(&h->mutex);
+
     u_int8_t *ip = GET_IP(n);
     u_int16_t port = GET_PORT(n);
     if(hashset_contains(h, ip, port)){
-        return 2;
+        ret = 2;
     } else {
         if (!list_add(&h->tab[hash_neighbour_data(ip, port) % h->capacity], n))
-            return 0;
-        h->size++;
-        if (h->size > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
-            resize(h, h->capacity * 2);
-        return 1;
+            ret = 0;
+        else {
+            h->size++;
+            if (h->size > HASHSET_RATIO_UPPER_LIMIT * h->capacity)
+                resize(h, h->capacity * 2);
+            ret = 1;
+        }
     }
+
+    pthread_mutex_unlock(&h->mutex);
+
+    return ret;
 }
 
 static void* hashset_list_remove(list_t** l, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
@@ -104,8 +128,9 @@ neighbour_t* hashset_remove_neighbour(hashset_t* h, const neighbour_t *n){
 }
 
 neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_addr)], u_int16_t port){
-    if (h == NULL)
-        return NULL;
+    if (h == NULL) return NULL;
+
+    pthread_mutex_lock(&h->mutex);
 
     int i = hash_neighbour_data(ip, port) % h->capacity;
     neighbour_t *n = hashset_list_remove(&h->tab[i], ip, port);
@@ -115,21 +140,34 @@ neighbour_t* hashset_remove(hashset_t *h, const u_int8_t ip[sizeof(struct in6_ad
             h->size > HASHSET_INITIAL_CAPACITY)
             resize(h, h->capacity / 2);
     }
+
+    pthread_mutex_unlock(&h->mutex);
+
     return n;
 }
 
 
 void hashset_iter(hashset_t *h, void(*f)(const neighbour_t*)) {
+    pthread_mutex_lock(&h->mutex);
+
     for (size_t i = 0; i < h->capacity; i++) {
         if (h->tab[i]) list_iter(h->tab[i], (void(*)(void*))f);
     }
+
+    pthread_mutex_unlock(&h->mutex);
 }
 
 void hashset_destroy(hashset_t *h){
     if (h == 0) return;
 
+    pthread_mutex_lock(&h->mutex);
+
     for (size_t i = 0; i < h->capacity; i++)
         list_destroy(h->tab[i], 1);
+
+    pthread_mutex_unlock(&h->mutex);
+
+    pthread_mutex_destroy(&h->mutex);
     free(h->tab);
     free(h);
 }
