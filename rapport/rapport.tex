@@ -19,7 +19,7 @@
 \begin{abstract}
   Ce rapport est un compte rendu du travail fournis pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'innondation décris par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
 
-  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{la fragmentation de gros messages(\ref{sec:frag}), l'agrégation de tlv, quelques optimisations de l'innondation et l'implémentation d'une interface web(\ref{sec:web})}.
+  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{la fragmentation de gros messages(\ref{sec:frag}), l'agrégation de tlv(\ref{sec:agrega}), quelques optimisations de l'innondation et l'implémentation d'une interface web(\ref{sec:web})}.
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
@@ -83,6 +83,20 @@ Nous envoyons et recevons des messages...
 
 Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacitée et sa resistance au paquets buggés.
 
+
+\textit{Les extentions suivantes sont présentées dans l'ordre dans lesquelles est ont été développées dans le projet.}
+
+\subsection{Agrégation de TLV\label{sec:agrega}}
+Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:implem}) de messages acccessible grâce à deux méthodes:
+
+\begin{description}
+\item[pull\_tlv] Retire un message à envoyer de la file des messages à envoyer.
+\item[push\_tlv] Cette fonction attends un TLV et un voisin en paramètre. Elle ajoute le tlv donné à un message si avec cet ajout la taille du message reste plus petite que le PMTU de ce voisin. Si un tlv ne peut être inséré dans aucun message, un nouveau message est ajouté à la fin de la file.
+\end{description}
+
+Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avions envisagé d'améliorer cette approximation en implémentant une découverte de PMTU mais y avons rennoncé. La raison étant principalement due à la nécessité d'utiliser des sockets connectées pour ce faire ; notre application n'utilise qu'une seule socket (sans compter l'interface web), l'utilisation de sockets connectées représentait donc un travail que nous n'étions pas près à fournir.
+
+
 \subsection{Fragmentation des gros messages\label{sec:frag}}
 Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing list du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être innondé même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient fait de reconstitué le message à l'arrivé. Le format des TLV est le suivant.
 
@@ -118,10 +132,11 @@ Le champ type permet de savoir comment interpréter le message reçu. Au cours d
 \item Image jpg
 \end{enumerate}
 
+Cette attribution de type nous permet notemment de différentier la reception d'un long texte de la reception d'une image. Si nous recevons une image nous pouvons alors l'afficher dans notre interface web.
+
 Nous rassemblons tous les messages fragmentés que nous recevons, une analyse du type pourrait être fait pour ne pas s'encombrer de gros messages dont ne feront rien une fois rassemblés.
 
 De rapides tests ont été fait avec \textrm{Alexandre Moine} et \textrm{Tristan François} pour s'assurer de l'interopérabilité de nos implémentations.
-
 
 \subsection{Interface web, protocole HTTP et WebSocket\label{sec:web}}
 
@@ -174,12 +189,15 @@ La communication entre le client web et notre serveur se fait à travers ce prot
 \item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentiel failles de sécuritées (injection de javascript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
 \end{enumerate}
 
-% interface web
-% tlv 221 ?
-% crypto ?
+\subsection{Extentions envisagées mais non développées}
 
+\begin{description}
+\item[Concurrence] % peut être déplacer dans extentions ?
+\item[Très très gros messages]
+\item[Sécurité cryptographique]
+\end{description}
 
-\section{Plus sur l'implémentation}
+\section{Plus sur l'implémentation\label{sec:implem}}
 Le fichier \textit{main} contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.\\
 
 Le sous-dossier \textbf{structs} contient les structures de données utilisées dans le projet: hashmap, hashset, liste chaînée, arraylist.\\
