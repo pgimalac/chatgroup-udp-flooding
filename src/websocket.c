@@ -37,6 +37,13 @@ int create_tcpserver(int port) {
         return -1;
     }
 
+    int opt = 1;
+    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
+    if (rc < 0){
+        perror("setsockopt");
+        return -3;
+    }
+
     rc = bind(s, (struct sockaddr*)&sin6, sizeof(struct sockaddr_in6));
     if (rc < 0) {
         perror("bind");
@@ -116,6 +123,8 @@ static int get_static_file(int s, const char *path, size_t len) {
         content_type = "Content-Type: image/jpg\r\n";
     } else if (memcmp(pt,".gif", len - (pt - path)) == 0) {
         content_type = "Content-Type: image/gif\r\n";
+    } else if (memcmp(pt,".svg", len - (pt - path)) == 0) {
+        content_type = "Content-Type: image/svg\r\n";
     } else {
         content_type = "Content-Type: text/html\r\n";
     }

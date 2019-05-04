@@ -53,7 +53,7 @@ const char *pseudos[28] = {
                 "HAL"
 };
 
-const char *ext[] = { 0, 0, "gif", "jpg", "png" };
+const char *ext[] = { 0, 0, "gif", "jpg", "png", "svg" };
 
 // =========== COMMANDS part ===========
 
