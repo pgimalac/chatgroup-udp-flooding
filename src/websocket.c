@@ -37,6 +37,13 @@ int create_tcpserver(int port) {
         return -1;
     }
 
+    int opt = 1;
+    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
+    if (rc < 0){
+        perror("setsockopt");
+        return -3;
+    }
+
     rc = bind(s, (struct sockaddr*)&sin6, sizeof(struct sockaddr_in6));
     if (rc < 0) {
         perror("bind");

@@ -17,9 +17,9 @@
 \maketitle
 
 \begin{abstract}
-  Ce rapport est un compte rendu du travail fournis pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'innondation décris par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
+  Ce rapport est un compte rendu du travail fourni pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'inondation décrit par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
 
-  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{la fragmentation de gros messages(\ref{sec:frag}), l'agrégation de tlv, quelques optimisations de l'innondation et l'implémentation d'une interface web(\ref{sec:web})}.
+  Plusieurs extentions ont été développées parmis lesquelles \textbf{la fragmentation de gros messages(\ref{sec:frag}), l'agrégation de tlv, quelques optimisations de l'inondation et l'implémentation d'une interface web(\ref{sec:web})}.
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
@@ -30,9 +30,9 @@ Un \textrm{Makefile} est fournis pour compiler le projet:  \textit{'make all'}.\
 L'exécutable produit s'appelle \textit{chat}.
 \begin{itemize}
 \item \textrm{-- - port} ou \textrm{-p} suivi du numéro de port définit le port sur lequel lancer le server de chat. Si aucun port n'est précisé, il est alors choisit aléatoirement.
-\item \textrm{- -webport} suivi du port sur lequel faire lancer le serveur web de l'application. Si aucun port n'est précisé, alors il est choisit aléatoirement entre 8080 et 8089\footnote{le protocole TCP demande un délais de 30 secondes pour ouvrir une connection sur un port qui vient d'être fermé. Si on ferme puis relance l'application instantanément sur ce même port il est possible que le programme échoue.}.
-\item \textrm{- -pseudo} suivit d'un pseudonyme. Un pseudonyme aléatoire est choisi dans une liste s'il n'en est pas précisé n'est pas fourni.
-\item \textrm{- -logs} ou \textrm{-l} suivit du chemin relatife vers un fichier ou écrire les logs. Si le fichier n'existe pas il est crée. Si aucun fichier de log n'est précisé, les logs de l'application sont affichés sur la sortie standard d'erreur.
+\item \textrm{- -webport} suivi du port sur lequel faire lancer le serveur web de l'application. Si aucun port n'est précisé, alors il est choisit aléatoirement entre 8080 et 8089.
+\item \textrm{- -pseudo} suivit d'un pseudonyme. Un pseudonyme aléatoire est choisi dans une liste s'il n'est pas précisé.
+\item \textrm{- -logs} ou \textrm{-l} suivit du chemin relatif vers un fichier où écrire les logs. Si le fichier n'existe pas il est créé. Si aucun fichier de log n'est précisé, les logs de l'application sont affichés sur la sortie standard d'erreur.
 \end{itemize}
 
 La commande suivante lance donc un serveur de chat sur le port 1212 accessible depuis une interface web sur le port 8089 (\href{localhost:8089}{localhost:8089}) et l'utilisateur de interface dans le terminal a pour pseudonyme Bob.
@@ -41,31 +41,30 @@ La commande suivante lance donc un serveur de chat sur le port 1212 accessible d
 ./chat --port 1212 --web-port 8089 --pseudo Bob
 \end{verbatim}
 
-Aucune de ces options n'est nécessaire pour lancer le programme.
+Aucune option n'est necéssaire pour lancer le programme.
 
 \section{Interface}
 
-L'interface dans le terminal est en ligne de commande, il intéragit donc en lisant les commande écrites sur l'entrée standard. \textbf{Une commande commence toujours par /}. Les commandes que propose notre application sont les suivantes:
+L'interface dans le terminal est en ligne de commande, elle interagit donc en lisant les commandes écrites sur l'entrée standard. \textbf{Une commande commence toujours par /}. Les commandes que propose notre application sont les suivantes:
 \begin{description}
 \item[add <addr> <port>] ajoute aux voisins potentiels les adresses associées à \textit{addr} et \textit{port}.
 \item[name <name>] change le pseudonyme en \textit{name}.
 \item[random] change le pseudonyme de manière aléatoire.
 \item[print] affiche la liste des voisins et voisins potentiels.
-\item[juliusz] équivalent à ``/add jch.irif.fr 1212''
+\item[juliusz] équivalent à ``/add jch.irif.fr 1212''.
 \item[neighbour] force l'envoi de tlv neighbour.
 \item[clear] efface le terminal (fonctionne au moins sur bash et zsh).
 \item[chid] change l'id de manière aléatoire.
-\item[transfert <type> <path>] envoie le fichier \textit{path} avec le protocole de fragmentation. Quelque soit le fichier, il est envoyé avec le type donné. La description des types est données dans la section \ref{sec:frag}
+\item[transfert <type> <path>] envoie le fichier \textit{path} avec le protocole de fragmentation. Quel que soit le fichier, il est envoyé avec le type donné. La description des types est données dans la section \ref{sec:frag}.
 \item[help] affiche l'ensemble des commandes.
 \item[quit] quitte programme, envoie des tlv goaway au passage.
 \end{description}
 
-Tout ce qui n'est pas une commande, ie. tout ce qui ne commence pas par un \textrm{/}, est un message qui sera envoyé sur le réseau. Le préfixe \textit{pseudo: } sera automatiquement ajouté devant le message.
+Tout ce qui n'est pas une commande, ie. tout ce qui ne commence pas par un \textrm{/}, est un message qui sera envoyé sur le réseau. Le préfixe \textit{pseudo: } sera automatiquement ajouté devant le message.\\
 
-Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{Les couleurs peuvent être changées dans \textrm{interface.h}}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.
+Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{Les couleurs peuvent être changées dans \textrm{interface.h}}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
 
-
-Pour ajouter l'implémentation de juliusz et envoyer les deux messages \textit{Bob: Bonjours tout le monde !} et \textit{Je suis très heureux de vous voir.}, il faudra donc entrer les commandes suivantes.
+Pour ajouter en voisin l'interface de Juliusz et envoyer les deux messages \textit{Bob: Bonjours tout le monde !} et \textit{Bob: Je suis très heureux de vous voir.}, il faudra donc entrer les commandes suivantes.
 
 \begin{verbatim}
 /add jch.irif.fr 1212
@@ -81,10 +80,12 @@ Une interface web a aussi été implémentée, mais étant une extention nous en
 Le sujet minimal a été entièrement implémenté.
 Nous envoyons et recevons des messages...
 
-Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacitée et sa resistance au paquets buggés.
+Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa resistance aux paquets buggés.
 
 \subsection{Fragmentation des gros messages\label{sec:frag}}
-Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing list du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être innondé même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient fait de reconstitué le message à l'arrivé. Le format des TLV est le suivant.
+Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing list du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être innondés même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient faite de reconstituer le message à l'arrivée.
+
+Le format des TLV est le suivant:
 
 \begin{verbatim}
          0                   1                   2                   3
@@ -106,7 +107,7 @@ Nous avons implémenté le protocole de fragmentation de gros messages proposé 
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 \end{verbatim}
 
-On reconnaît la structure d'un TLV Data auquel on a ajouté les les champs \textit{Nonce du message fragmenté}, \textit{Type}, \textit{Taille totale du message}, \textit{Position du fragment} et \textit{Fragment}. Aussi le message est correctement innondé par les pairs qui n'ont pas implémenté le protocole, le \textit{Nonce} du data étant différent pour chaque message. Les fragments d'un même message peuvent être rassemblés grace au champ \textit{Nonce du message fragmenté} partagé par tous les fragments de ce dernier.
+On reconnaît la structure d'un TLV Data auquel on a ajouté les champs \textit{Nonce du message fragmenté}, \textit{Type}, \textit{Taille totale du message}, \textit{Position du fragment} et \textit{Fragment}. Aussi le message est correctement inondé par les pairs qui n'ont pas implémenté le protocole, le \textit{Nonce} du data étant différent pour chaque message. Les fragments d'un même message peuvent être rassemblés grâce au champ \textit{Nonce du message fragmenté} partagé par tous les fragments de ce dernier.
 
 Le champ type permet de savoir comment interpréter le message reçu. Au cours de nos échanges sur la mailing list, nous avons proposé les attributions suivantes qui ont été acceptés.
 
@@ -118,18 +119,20 @@ Le champ type permet de savoir comment interpréter le message reçu. Au cours d
 \item Image jpg
 \end{enumerate}
 
-Nous rassemblons tous les messages fragmentés que nous recevons, une analyse du type pourrait être fait pour ne pas s'encombrer de gros messages dont ne feront rien une fois rassemblés.
+Nous rassemblons tous les messages fragmentés que nous recevons, une analyse du type pourrait être faite pour ne pas s'encombrer de gros messages dont ne feront rien une fois rassemblés.
 
 De rapides tests ont été fait avec \textrm{Alexandre Moine} et \textrm{Tristan François} pour s'assurer de l'interopérabilité de nos implémentations.
 
 
 \subsection{Interface web, protocole HTTP et WebSocket\label{sec:web}}
 
-Après avoir jetté un coup d'oeil à l'implémentation de l'interface web de julius, nous avons remarqué qu'il utilisait le protocole WebSocket pour communiquer entre son interface web (\href{http://jch.irif.fr:8082/}{http://jch.irif.fr:8082/}) et son application, accesible sur le port 1212. Nous aimions surtout l'idée d'implémenter un interface graphique, non pas grâce à l'utilisation d'une bilibothèque graphique lourde et compliquée, mais à travers l'implémentation d'un protocole réseau. De plus, le besoin d'une interface graphique se faisant ressentir étant donné la quantitée astronomique de logs que nous affichons, il nous a semblé que cette solution permettait de le faire tout en restant dans les bornes de ce cours.
+Après avoir jetté un coup d'oeil à l'implémentation de l'interface web de julius, nous avons remarqué qu'il utilisait le protocole WebSocket pour communiquer entre son interface web (\href{http://jch.irif.fr:8082/}{http://jch.irif.fr:8082/}) et son application, accessible sur le port 1212. Nous aimions surtout l'idée d'implémenter une interface graphique, non pas grâce à l'utilisation d'une bibliothèque graphique lourde et compliquée, mais à travers l'implémentation d'un protocole réseau. De plus, le besoin d'une interface graphique se faisait ressentir à cause de la quantitée astronomique de logs que nous affichions, il nous a donc semblé que cette solution permettait de le faire tout en restant dans les bornes de ce cours.\\
 
-Nous avons donc implémenté serveur \textrm{HTTP}\footnote{\href{https://tools.ietf.org/html/rfc2616}{RFC2616}} très basique pour afficher une page web, créer la connection WebSocket et charger des images depuis un dossier temporaire. Il n'est pas très sécurisé et n'implémente pas tous les détails du protocole, nous sommes au courant, mais l'objectif étant d'avoir une interface graphique simple dans le navgiateur et surtout d'implémenter le protocole WebSocket, nous avons mis de côté ces points là.
+Nous avons donc implémenté un serveur \textrm{HTTP}\footnote{\href{https://tools.ietf.org/html/rfc2616}{RFC2616}} très basique pour afficher une page web, créer la connection WebSocket et charger des images depuis un dossier temporaire. Il n'est pas très sécurisé et n'implémente pas tous les détails du protocole, nous sommes au courant, mais l'objectif étant d'avoir une interface graphique simple dans le navigateur et surtout d'implémenter le protocole WebSocket, nous avons mis de côté ces points là.\\
 
-Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connection WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connection \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On recoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connection TCP n'est plus fermée avant que l'un des deux pairs le decide.
+Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connection WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connection \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connection TCP n'est plus fermée avant que l'un des deux pairs ne le decide.\\
+
+\newpage
 
 Une trame WebSocket est au format suivant
 
@@ -154,10 +157,10 @@ Une trame WebSocket est au format suivant
          +---------------------------------------------------------------+
 \end{verbatim}
 
-Le bit \textrm{FIN} est à 1 si sa charge utilise (payload) est le dernier fragment de la séquence de fragments. \textrm{opcode} est un entier sur 4 bits qui encode le type du message
+Le bit \textrm{FIN} est à 1 si sa charge utile (payload) est le dernier fragment de la séquence de fragments. \textrm{opcode} est un entier sur 4 bits qui encode le type du message.
 
 \begin{description}
-\item[0x0] La chage utile est la suite de celle de la trame précédente
+\item[0x0] La charge utile est la suite de celle de la trame précédente
 \item[0x1] Texte
 \item[0x2] Données binaires
   ...
@@ -170,16 +173,12 @@ L'échange de ping et de pong permet de s'assurer que le pair reçoit encore les
 
 La communication entre le client web et notre serveur se fait à travers ce protocole.
 \begin{enumerate}
-\item Le client envoie du texte à travers la socket qui est interprété comme celle de l'interface en terminal (sauf en ce qui concerne l'ajout du pseudo au debut).
-\item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentiel failles de sécuritées (injection de javascript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
+\item Le client envoie du texte à travers la socket qui est interprétée comme celle de l'interface du terminal (sauf en ce qui concerne l'ajout du pseudo au debut).
+\item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentielles failles de sécuritées (injection de javascript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
 \end{enumerate}
 
-% interface web
-% tlv 221 ?
-% crypto ?
-
-
 \section{Plus sur l'implémentation}
+\subsection{Organisation}
 Le fichier \textit{main} contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.\\
 
 Le sous-dossier \textbf{structs} contient les structures de données utilisées dans le projet: hashmap, hashset, liste chaînée, arraylist.\\
@@ -194,13 +193,14 @@ La plupart des structures utilisées pour l'implémentation du protocole sont d�
 
 Le fichier \textit{util} contient des fonctions diverses utilisées tout au long du projet.
 
-
+\subsection{Structures utilisées}
 Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
 
 Les fragments de messages sont stockés dans une hashmap. [voir extensions]
 
 Les messages à envoyer sont stockés dans une liste circulaire.
 
+\subsection{Boucle principale}
 La boucle principale fait dans l'ordre:
 \begin{enumerate}
 \item gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon on leur envoie un hello long.
