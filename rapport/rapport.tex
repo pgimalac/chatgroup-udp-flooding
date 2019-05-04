@@ -19,7 +19,7 @@
 \begin{abstract}
   Ce rapport est un compte rendu du travail fourni pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'inondation décrit par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
 
-  Plusieurs extentions ont été développées parmis lesquelles \textbf{la fragmentation de gros messages(\ref{sec:frag}), l'agrégation de tlv, quelques optimisations de l'inondation et l'implémentation d'une interface web(\ref{sec:web})}.
+  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l'innondation} et \textbf{l'implémentation d'une interface web(\ref{sec:web})}.
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
@@ -82,6 +82,20 @@ Nous envoyons et recevons des messages...
 
 Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa resistance aux paquets buggés.
 
+
+\textit{Les extentions suivantes sont présentées dans l'ordre dans lesquelles elles est ont été développées dans le projet.}
+
+\subsection{Agrégation de TLV\label{sec:agrega}}
+Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:implem}) de messages acccessible grâce à deux méthodes:
+
+\begin{description}
+\item[pull\_tlv] Retire un message à envoyer de la file des messages à envoyer.
+\item[push\_tlv] Cette fonction attends un TLV et un voisin en paramètre. Elle ajoute le tlv donné à un message si avec cet ajout la taille du message reste plus petite que le PMTU de ce voisin. Si un tlv ne peut être inséré dans aucun message, un nouveau message est ajouté à la fin de la file.
+\end{description}
+
+Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avions envisagé d'améliorer cette approximation en implémentant une découverte de PMTU mais y avons rennoncé. La raison étant principalement due à la nécessité d'utiliser des sockets connectées pour ce faire ; notre application n'utilise qu'une seule socket (sans compter l'interface web), l'utilisation de sockets connectées représentait donc un travail que nous n'étions pas près à fournir.
+
+
 \subsection{Fragmentation des gros messages\label{sec:frag}}
 Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing list du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être innondés même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient faite de reconstituer le message à l'arrivée.
 
@@ -111,18 +125,20 @@ On reconnaît la structure d'un TLV Data auquel on a ajouté les champs \textit{
 
 Le champ type permet de savoir comment interpréter le message reçu. Au cours de nos échanges sur la mailing list, nous avons proposé les attributions suivantes qui ont été acceptés.
 
-\begin{enumerate}
-\item Texte UTF-8
-\item Non attribué
-\item Image gif
-\item Image png
-\item Image jpg
-\end{enumerate}
+\begin{description}
+\item[0] Texte UTF-8
+\item[1] Non attribué
+\item[2] Image gif
+\item[3] Image jpg
+\item[4] Image png
+\item[5] SVG
+\end{description}
+
+Cette attribution de type nous permet notemment de différentier la reception d'un long texte de la reception d'une image. Si nous recevons une image nous pouvons alors l'afficher dans notre interface web.
 
 Nous rassemblons tous les messages fragmentés que nous recevons, une analyse du type pourrait être faite pour ne pas s'encombrer de gros messages dont ne feront rien une fois rassemblés.
 
 De rapides tests ont été fait avec \textrm{Alexandre Moine} et \textrm{Tristan François} pour s'assurer de l'interopérabilité de nos implémentations.
-
 
 \subsection{Interface web, protocole HTTP et WebSocket\label{sec:web}}
 
@@ -130,10 +146,7 @@ Après avoir jetté un coup d'oeil à l'implémentation de l'interface web de ju
 
 Nous avons donc implémenté un serveur \textrm{HTTP}\footnote{\href{https://tools.ietf.org/html/rfc2616}{RFC2616}} très basique pour afficher une page web, créer la connection WebSocket et charger des images depuis un dossier temporaire. Il n'est pas très sécurisé et n'implémente pas tous les détails du protocole, nous sommes au courant, mais l'objectif étant d'avoir une interface graphique simple dans le navigateur et surtout d'implémenter le protocole WebSocket, nous avons mis de côté ces points là.\\
 
-Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connection WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connection \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connection TCP n'est plus fermée avant que l'un des deux pairs ne le decide.\\
-
-\newpage
-
+Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connection WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connection \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connection TCP n'est plus fermée avant que l'un des deux pairs ne le decide.
 Une trame WebSocket est au format suivant
 
 \begin{verbatim}
@@ -176,6 +189,14 @@ La communication entre le client web et notre serveur se fait à travers ce prot
 \item Le client envoie du texte à travers la socket qui est interprétée comme celle de l'interface du terminal (sauf en ce qui concerne l'ajout du pseudo au debut).
 \item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentielles failles de sécuritées (injection de javascript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
 \end{enumerate}
+
+\subsection{Extentions envisagées mais non développées}
+
+\begin{description}
+\item[Concurrence] % peut être déplacer dans extentions ?
+\item[Très très gros messages]
+\item[Sécurité cryptographique]
+\end{description}
 
 \section{Plus sur l'implémentation}
 \subsection{Organisation}

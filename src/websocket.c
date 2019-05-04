@@ -123,6 +123,8 @@ static int get_static_file(int s, const char *path, size_t len) {
         content_type = "Content-Type: image/jpg\r\n";
     } else if (memcmp(pt,".gif", len - (pt - path)) == 0) {
         content_type = "Content-Type: image/gif\r\n";
+    } else if (memcmp(pt,".svg", len - (pt - path)) == 0) {
+        content_type = "Content-Type: image/svg\r\n";
     } else {
         content_type = "Content-Type: text/html\r\n";
     }
