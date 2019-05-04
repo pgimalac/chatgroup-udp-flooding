@@ -232,7 +232,7 @@ static int opt_log(char *file) {
 
 static int opt_pseudo(char *name) {
     if (strlen(name) == 0) {
-        fprintf(stderr, "Pseudo can not be empty,\n");
+        fprintf(stderr, "Pseudo cannot be empty,\n");
         return -1;
     }
 
@@ -295,13 +295,14 @@ int main(int argc, char **argv) {
     int rc;
 
     logfd = 2;
+
+    rc = init();
+    if (rc != 0) return rc;
+
     rc = parse_args(argc, argv);
     if (rc < 0) return rc;
 
     if (!pseudo_set) setRandomPseudo();
-
-    rc = init();
-    if (rc != 0) return rc;
 
     cprint(0, "local id: %lx\n", id);
 
