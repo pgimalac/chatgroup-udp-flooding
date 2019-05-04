@@ -259,7 +259,7 @@ int parse_args(int argc, char **argv) {
     int rc, c, option_index, padding;
     while (1) {
 
-        c = getopt_long(argc, argv, "p:l::", options, &option_index);
+        c = getopt_long(argc, argv, "p:l:", options, &option_index);
 
         if (c == -1)
             break;
