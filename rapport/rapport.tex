@@ -83,7 +83,7 @@ Nous envoyons et recevons des messages...
 Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa resistance aux paquets buggés.
 
 
-\textit{Les extentions suivantes sont présentées dans l'ordre dans lesquelles elles est ont été développées dans le projet.}
+\textit{Les extentions suivantes sont présentées dans l'ordre dans lequel elles ont été implémentées dans le projet.}
 
 \subsection{Agrégation de TLV\label{sec:agrega}}
 Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:implem}) de messages acccessible grâce à deux méthodes:
@@ -198,7 +198,7 @@ La communication entre le client web et notre serveur se fait à travers ce prot
 \item[Sécurité cryptographique]
 \end{description}
 
-\section{Plus sur l'implémentation}
+\section{Plus sur l'implémentation\label{sec:implem}}
 \subsection{Organisation}
 Le fichier \textit{main} contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.\\
 
@@ -217,7 +217,7 @@ Le fichier \textit{util} contient des fonctions diverses utilisées tout au long
 \subsection{Structures utilisées}
 Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
 
-Les fragments de messages sont stockés dans une hashmap. [voir extensions]
+Les fragments de messages sont stockés dans une hashmap. \hyperref[sec:frag]{\textbf{[voir extensions]}}
 
 Les messages à envoyer sont stockés dans une liste circulaire.
 
@@ -230,7 +230,7 @@ La boucle principale fait dans l'ordre:
 \item envoi de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
 \item on retire un par un les messages de la liste de messages et on les envoie.
 \item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
-\item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) [voir extensions].
+\item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{\textbf{[voir extensions]}}.
 \item appel à \textit{select} sur STDIN et la socket utilisée, en donnant un timeout qui est le minimum des prochains moments où l'une des actions ci-dessus sera nécéssaire.
 \item si STDIN est à lire, traitement de l'entrée standard (commande ou envoi de message).
 \item s'il y a un message reçu, on va lire la socket un certains nombre de fois (pour éviter une congestion s'il y a beaucoup de messages reçus). Ce nombre est compris entre le nombre de voisins et deux fois le nombre de voisins et varie en fonction du nombre de messages reçus à chaque tour de boucle.
