@@ -21,7 +21,7 @@
 
 char pseudo[PSEUDO_LENGTH + 1];
 
-const int pseudo_length = 25;
+const int pseudo_length = 28;
 const char *pseudos[28] = {
                 "Raskolnikov",
                 "Mlle Swann",
