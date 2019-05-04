@@ -16,7 +16,11 @@
           height: 24em;
           width: 80%;
           border: 1px solid;
-          overflow: auto;
+          overflow-x: hidden;
+          overflow-y: auto;
+      }
+      #box p, #box img{
+          max-width: 100%;
       }
       #inputform {
           width: 100%;
@@ -24,6 +28,7 @@
       #input {
           width: 80%;
           border: 1px solid;
+          font-family: inherit;
       }
       .connected {
           color: green;
@@ -40,10 +45,13 @@
           background-color: red;
           font-weight: bold;
       }
-      .noerror {
+      .noerror, #commands {
           display: none;
       }
-
+      #commands {
+          width: 80%;
+          border: 1px solid black;
+      }
       #errspan {
           margin-left: 1em;
       }
@@ -58,30 +66,32 @@
       <input id="nick" type="text" name="nick"/>
       <input type="submit" value="Set nickname"/>
     </form>
+    <button id="cmdbtn">Show commands</button>
+    <div id="commands">
+      <form id="addrform" >
+        <p>Ajouter un voisin:</p>
+        <p><label>
+          Adresse:
+          <input id="addr" type="text" name="addr">
+        </label></p>
+        <p><label>
+          Port:
+          <input id="port" type="text" name="port">
+        </label></p>
+        <p><input id="addrbutton" type="submit" value="Ajouter"></p>
+      </form>
+      <form id="fileform">
+        <p>Envoyer un (petit) fichier: <span id="errfile" class="error"></span></p>
+        <input id="file" type="file" name="file">
+        <input id="filebutton" type="submit" value="Ajouter">
+      </form>
+    </div>
     <p></p>
     <div id="box"></div>
     <form id="inputform">
       <textarea id="input" type="text" name="input" placeholder="Type your message here..."></textarea>
       <input id="inputbutton" type="submit" value="Send"/>
     </form>
-    <form id="addrform" >
-      <p>Ajouter un voisin:</p>
-      <label>
-        Adresse:
-        <input id="addr" type="text" name="addr">
-      </label>
-      <label>
-        Port:
-        <input id="port" type="text" name="port">
-      </label>
-      <input id="addrbutton" type="submit" value="Ajouter">
-    </form>
-    <form id="fileform">
-      <p>Envoyer un (petit) fichier: <span id="errfile" class="error"></span></p>
-      <input id="file" type="file" name="file">
-      <input id="filebutton" type="submit" value="Ajouter">
-    </form>
-
     <script type="text/javascript">
       'use strict';
       var socket = null;
@@ -166,7 +176,8 @@
       }
 
       function handleInput(e) {
-          e.preventDefault();
+          console.log('send')
+          if (e) e.preventDefault();
           if(!nick) {
               displayError('Please pick a nickname');
               return false;
@@ -181,6 +192,13 @@
           }
           inputform.reset();
       }
+
+      document.getElementById('input').addEventListener('keypress', function (e) {
+          if (e.key == 'Enter') {
+              e.preventDefault();
+              return handleInput();
+          }
+      });
 
       document.getElementById('inputform').addEventListener('submit', handleInput);
 
@@ -240,6 +258,18 @@
           }
       }
       document.getElementById('nickform').addEventListener('submit', handleNick);
+
+      var cmdbtn = document.getElementById('cmdbtn')
+      cmdbtn.addEventListener('click', function(e) {
+          var cmd = document.getElementById('commands')
+          if (!cmd.style.display || cmd.style.display == 'none') {
+              cmd.style.display = 'block';
+              cmdbtn.innerHTML = 'Hide commands';
+          } else {
+              cmd.style.display = 'none';
+              cmdbtn.innerHTML = 'Show commands';
+          }
+      })
     </script>
   </body>
 </html>
