@@ -62,7 +62,7 @@ L'interface dans le terminal est en ligne de commande, elle interagit donc en li
 
 Tout ce qui n'est pas une commande, ie. tout ce qui ne commence pas par un \textrm{/}, est un message qui sera envoyé sur le réseau. Le préfixe \textit{pseudo: } sera automatiquement ajouté devant le message.\\
 
-Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{Les couleurs peuvent être changées dans \textrm{interface.h}}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
+Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{L'affichage peut être totalement personnalisé dans \textrm{interface.h}: couleurs de police et de fond, italique, gras, texte clignotant,...}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
 
 Pour ajouter en voisin l'interface de Juliusz et envoyer les deux messages \textit{Bob: Bonjours tout le monde !} et \textit{Bob: Je suis très heureux de vous voir.}, il faudra donc entrer les commandes suivantes.
 
@@ -93,7 +93,7 @@ Les messages a envoyer sont stocké dans une file (plus de détails dans la sect
 \item[push\_tlv] Cette fonction attends un TLV et un voisin en paramètre. Elle ajoute le tlv donné à un message si avec cet ajout la taille du message reste plus petite que le PMTU de ce voisin. Si un tlv ne peut être inséré dans aucun message, un nouveau message est ajouté à la fin de la file.
 \end{description}
 
-Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avions envisagé d'améliorer cette approximation en implémentant une découverte de PMTU mais y avons rennoncé. La raison étant principalement due à la nécessité d'utiliser des sockets connectées pour ce faire ; notre application n'utilise qu'une seule socket (sans compter l'interface web), l'utilisation de sockets connectées représentait donc un travail que nous n'étions pas près à fournir.
+Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avions envisagé d'améliorer cette approximation en implémentant une découverte de PMTU mais y avons rennoncé. La raison étant principalement due à la nécessité d'utiliser des sockets connectées pour ce faire ; notre application n'utilise qu'une seule socket (sans compter l'interface web), l'utilisation de sockets connectées représentait donc un travail que nous n'étions pas prêts à fournir.
 
 
 \subsection{Fragmentation des gros messages\label{sec:frag}}
@@ -193,8 +193,8 @@ La communication entre le client web et notre serveur se fait à travers ce prot
 \subsection{Extentions envisagées mais non développées}
 
 \begin{description}
-\item[Concurrence] % peut être déplacer dans extentions ?
-\item[Très très gros messages]
+\item[Concurrence:] pour être précis cela a été implémenté sur une branche mais pas avec assez de succès pour être rendu % peut être déplacer dans extentions ?
+\item[Très très gros messages:] taille des messages sur 4 octets
 \item[Sécurité cryptographique]
 \end{description}
 

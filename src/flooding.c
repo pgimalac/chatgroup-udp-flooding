@@ -325,20 +325,16 @@ int flooding_add_message(const u_int8_t *data, int size) {
 }
 
 int flooding_send_msg(const char *dataid, list_t **msg_done) {
-    size_t i, size;
     int rc;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     assert(now != -1);
 
     list_t *l;
     data_info_t *dinfo;
-    datime_t *datime;
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
-    u_int8_t *data;
-    hashmap_t *map;
 
-    datime = hashmap_get(data_map, dataid);
+    datime_t *datime = hashmap_get(data_map, dataid);
     if (!datime) {
         cprint(STDERR_FILENO, "%s:%d Data_map did not contained a dataid it was supposed to contain.\n",
             __FILE__, __LINE__);
@@ -346,10 +342,10 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     datime->last = now;
-    data = datime->data;
-    size = data[1] + 2;
+    u_int8_t *data = datime->data;
+    size_t size = data[1] + 2;
 
-    map = hashmap_get(flooding_map, dataid);
+    hashmap_t *map = hashmap_get(flooding_map, dataid);
     if (!map){
         cprint(STDERR_FILENO, "%s:%d Flooding_map did not contained a dataid it was supposed to contain.\n",
             __FILE__, __LINE__);
@@ -357,7 +353,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     list_t *to_delete = NULL;
-    for (i = 0; i < map->capacity; i++) {
+    for (size_t i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
 
@@ -405,9 +401,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                         __FILE__, __LINE__);
                 }
 
-                if (!list_add(&to_delete, dinfo->neighbour)){
+                if (!list_add(&to_delete, dinfo->neighbour))
                     cperror("list_add");
-                }
                 continue;
             }
 
@@ -445,11 +440,11 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     }
 
     neighbour_t *obj;
+    u_int8_t buf[18];
     while ((obj = list_pop(&to_delete)) != NULL){
         assert (inet_ntop(AF_INET6, &obj->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
         cprint(0, "Remove (%s, %u) from map.\n", ipstr, ntohs(obj->addr->sin6_port));
 
-        u_int8_t buf[18];
         bytes_from_neighbour(obj, buf);
         rc = hashmap_remove(map, buf, 1, 1);
         if (rc == 0)

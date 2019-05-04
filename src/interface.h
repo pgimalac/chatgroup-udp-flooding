@@ -7,9 +7,19 @@
 #define forbiden " \n\t\r"
 
 #define EFFACER "\e[1;1H\e[2J"
-#define RESET "\e[0m\e[0m"
+#define RESET "\e[0m"
 
 #define BLINK "\e[5m"
+#define BOLD "\e[1m"
+#define DIM "\e[2m"
+// reverse foreground and background
+#define REV "\e[7m"
+#define ITALIC_B "\e[3m"
+#define ITALIC_E "\e[23m"
+#define HIGHLIGHT_B "\e[7m"
+#define HIGHLIGHT_E "\e[27m"
+#define UNDERLINE_B "\e[4m"
+#define UNDERLINE_E "\e[24m"
 
 /* foregrounds */
 #define BLACKf "\e[30m"
