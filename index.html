@@ -2,8 +2,13 @@
 <html lang="en">
   <head>
     <title>Chat</title>
-    <link rel="author" href="https://www.irif.fr/~jch/"/>
+    <meta charset="utf-8">
     <style type="text/css">
+      html, body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, Helvetica, sans-serif;
+      }
       #nick {
           margin-left: 2em;
       }
@@ -35,7 +40,6 @@
           background-color: red;
           font-weight: bold;
       }
-
       .noerror {
           display: none;
       }
@@ -57,7 +61,7 @@
     <p></p>
     <div id="box"></div>
     <form id="inputform">
-      <input id="input" type="text" name="input"/>
+      <textarea id="input" type="text" name="input" placeholder="Type your message here..."></textarea>
       <input id="inputbutton" type="submit" value="Send"/>
     </form>
     <form id="addrform" >
@@ -73,7 +77,7 @@
       <input id="addrbutton" type="submit" value="Ajouter">
     </form>
     <form id="fileform">
-      <p>Envoyer un (petit) fichier:</p>
+      <p>Envoyer un (petit) fichier: <span id="errfile" class="error"></span></p>
       <input id="file" type="file" name="file">
       <input id="filebutton" type="submit" value="Ajouter">
     </form>
@@ -192,17 +196,26 @@
           addrform.reset();
       });
 
+
+      var errfile = document.getElementById('errfile');
+
       document.getElementById('fileform').addEventListener('submit', function (e) {
           e.preventDefault();
+          errfile.innerHTML = '';
 
           var files = document.getElementById('file').files;
           var fileform = document.getElementById('fileform');
           for (var i = 0; i < files.length; i++) {
               if (files[i].size > (1 << 16)) {
-                  console.error('file too big');
+                  errfile.classList.remove('connected')
+                  errfile.classList.add('error')
+                  errfile.innerHTML = 'File is too big';
                   continue;
               }
-              // TODO: send file
+              socket.send(files[i]);
+              errfile.classList.remove('error')
+              errfile.classList.add('connected')
+              errfile.innerHTML = 'File sucessfuly send.'
           }
           fileform.reset();
       });

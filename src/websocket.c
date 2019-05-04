@@ -274,6 +274,43 @@ int handle_http () {
 #define OPPING 0x09
 #define OPPONG 0x0a
 
+static const int png_sig_len = 8;
+static const int8_t png_sig[] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+
+static const int gif_sig_len[] = {6, 6};
+static const int8_t gif_sig[] =
+    {
+     0x47, 0x49, 0x46, 0x38, 0x37, 0x61,
+     0x47, 0x49, 0x46, 0x38, 0x39, 0x61
+    };
+
+static const int jpg_sig_len[] = {4, 12, 4};
+static const int8_t jpg_sig[] =
+    { 0xFF, 0xD8, 0xFF, 0xDB,
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0xFF, 0xD8, 0xFF, 0xEE
+    };
+
+static uint8_t file_type(const int8_t *buffer, size_t len) {
+    if (len < 4) return 0;
+
+    if (memcmp(buffer, png_sig, png_sig_len) == 0) {
+        return 4;
+    }
+
+    for (int i = 0, offset = 0; i < 2; offset += gif_sig_len[i++]) {
+        if (memcmp(buffer, gif_sig + offset, gif_sig_len[i]) == 0)
+            return 2;
+    }
+
+    for (int i = 0, offset = 0; i < 2; offset += jpg_sig_len[i++]) {
+        if (memcmp(buffer, jpg_sig + offset, jpg_sig_len[i]) == 0)
+            return 3;
+    }
+
+    return -1;
+}
+
 typedef struct fragws {
     uint8_t opcode;
     uint8_t offset;
@@ -323,7 +360,7 @@ static int send_pong (int s, const int8_t *payload, size_t buflen) {
 }
 
 int handle_ws(int s) {
-    int rc, status = 0;
+    int rc, status = 0, type;
     uint8_t fin, opcode, mask, len[8], maskkey[4];
     int8_t *decoded, *payload, *buffer;
     int64_t payloadlen = 0;
@@ -436,8 +473,14 @@ int handle_ws(int s) {
             break;
 
         case OPBIN: //bin
-            cprint(STDOUT_FILENO, "%*s\n", frag->buflen, frag->buffer);
-            handle_input((char*)frag->buffer, frag->buflen);
+            type = file_type(frag->buffer, frag->buflen);
+            if (type < 0) {
+                cprint(0, "Received unknown file type from web app.\n");
+            } else {
+                send_data(type, (char*)frag->buffer, frag->buflen);
+                print_file(type, (u_int8_t*)frag->buffer, frag->buflen);
+            }
+
             break;
 
         case OPCLOSE: // close
