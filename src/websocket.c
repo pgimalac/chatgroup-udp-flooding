@@ -22,7 +22,7 @@
 #include "websocket.h"
 
 int pagelen = 0;
-char page[8192];
+char page[16384];
 
 int create_tcpserver(int port) {
     int rc, s, fd;
@@ -62,7 +62,7 @@ int create_tcpserver(int port) {
         return -1;
     }
 
-    pagelen = read(fd, page, 8192);
+    pagelen = read(fd, page, 16384);
     if (pagelen < 0) {
         perror("read");
         return -1;
