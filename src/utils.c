@@ -13,7 +13,7 @@
 #include "interface.h"
 #include "tlv.h"
 
-#define TIMEVAL_PMTU 10
+#define TIMEVAL_PMTU 120
 
 void* voidndup(const void *o, int n){
     if (n <= 0) return NULL;

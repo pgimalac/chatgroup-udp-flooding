@@ -70,7 +70,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
         cprint(0, "Reduce PMTU to %u\n", dst->pmtu);
     }
 
-    time_t delay = (rand() % (1 << dinfo->send_count)) + (1 << (dinfo->send_count + 1));
+    time_t delay = (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
     dinfo->time = now + delay;
     delta = dinfo->time - now;
     datime = hashmap_get(data_map, tlv + 2);
