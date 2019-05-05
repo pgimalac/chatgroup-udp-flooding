@@ -11,6 +11,9 @@
 
 #include "utils.h"
 #include "interface.h"
+#include "tlv.h"
+
+#define TIMEVAL_PMTU 10
 
 void* voidndup(const void *o, int n){
     if (n <= 0) return NULL;
@@ -100,6 +103,62 @@ int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
 
 int push_tlv(body_t *tlv, neighbour_t *dst) {
     msg_queue_t *p;
+    time_t now = time(0);
+
+    // has to be > dst->pmtu so nothing will be add to it
+    u_int16_t new_pmtu = dst->pmtu + dst->pmtu / (dst->pmtu_discovery_test + 1);
+    if (new_pmtu > dst->pmtu && tlv->content[0] == BODY_DATA
+        && (now - dst->last_pmtu_discover) > TIMEVAL_PMTU) {
+        u_int16_t count, offset = 0, payloadlen = new_pmtu - tlv->size;
+        body_t *padn = 0, *t;
+        uint16_t len;
+
+        cprint(0, "Test new pmtu of size %u\n", new_pmtu);
+        dst->pmtu_discovery_test++;
+
+        count = payloadlen / 257 + (payloadlen % 257 ? 1 : 0);
+        for (size_t i = 0; i < count; i++) {
+            t = malloc(sizeof(body_t));
+            if (!t) return -3;
+            len = (payloadlen - offset) > 257 ? 257 : payloadlen - offset;
+            if (len == 1) {
+                t->size = tlv_pad1(&t->content);
+            } else {
+                t->size = tlv_padn(&t->content, len - 2);
+            }
+
+            t->next = padn;
+            padn = t;
+            offset += t->size;
+        }
+
+        p = malloc(sizeof(msg_queue_t));
+        if (!p) return -1; // free padn
+
+        p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
+        if (!p->msg){
+            free(p); // free padn
+            return -2;
+        }
+
+        if (!queue) {
+            queue = p;
+            queue->next = queue;
+            queue->prev = queue;
+        } else {
+            p->next = queue;
+            p->prev = queue->prev;
+            queue->prev->next = p;
+            queue->prev = p;
+            queue = p;
+        }
+
+        tlv->next = padn;
+        p->msg->body = tlv;
+        p->msg->body_length = new_pmtu;
+
+        return new_pmtu;
+    }
 
     p = queue;
     if (!p) {

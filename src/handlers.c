@@ -247,11 +247,23 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     else {
         datime->last = time(0);
         assert(datime->last != -1);
+
     }
 
     bytes_from_neighbour(n, buffer);
-    if (!hashmap_remove(map, buffer, 1, 1))
+    data_info_t *dinfo = hashmap_get(map, buffer);
+    if (!dinfo) {
         cprint(0, "Not necessary ack\n");
+        return;
+    }
+
+    if (n->pmtu < dinfo->pmtu_discover) {
+        cprint(0, "Upgrade PMTU for this neighbour to %u\n", dinfo->pmtu_discover);
+        n->pmtu = dinfo->pmtu_discover;
+        n->pmtu_discovery_test = 0;
+    }
+
+    hashmap_remove(map, buffer, 1, 1);
 }
 
 static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){

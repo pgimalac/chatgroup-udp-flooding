@@ -284,7 +284,8 @@ int flooding_add_message(const u_int8_t *data, int size) {
             memset(dinfo, 0, sizeof(data_info_t));
 
             dinfo->neighbour = p;
-            dinfo->time = now + rand() % 1;
+            dinfo->time = now + rand() % 2;
+            dinfo->pmtu_discover = 0;
 
             bytes_from_neighbour(p, buffer);
             rc = hashmap_add(ns, buffer, dinfo);
@@ -330,7 +331,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
     assert(now != -1);
 
-    list_t *l;
+    list_t *l, *to_delete = 0;
     data_info_t *dinfo;
     datime_t *datime;
     body_t *body;
@@ -356,7 +357,6 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
         return -2;
     }
 
-    list_t *to_delete = NULL;
     for (i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
             dinfo = (data_info_t*)((map_elem*)l->val)->value;
@@ -433,6 +433,9 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     free(body->content);
                     free(body);
                 }
+
+                dinfo->pmtu_discover = rc;
+
                 continue;
             }
 

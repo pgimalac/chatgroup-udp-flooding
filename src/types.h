@@ -21,6 +21,8 @@ typedef struct neighbour {
     time_t last_long_hello;
     time_t last_hello_send;
     time_t last_neighbour_send;
+    time_t last_pmtu_discover;
+    u_int8_t pmtu_discovery_test;
     size_t pmtu, short_hello_count;
     unsigned char status;
     u_int8_t *tutor_id;
@@ -56,6 +58,7 @@ typedef struct data_info {
     neighbour_t *neighbour;
     size_t send_count;
     time_t time;
+    u_int16_t pmtu_discover; // 0 if not, n othewise
 } data_info_t;
 
 typedef struct datime {

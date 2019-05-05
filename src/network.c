@@ -196,12 +196,15 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
         return 0;
     }
 
+    time_t now = time(0);
+    assert (now != -1);
+
     memset(n, 0, sizeof(neighbour_t));
     n->pmtu = DEF_PMTU;
     n->short_hello_count = 0;
     n->addr = addr;
-    n->last_neighbour_send = time(0);
-    assert (n->last_neighbour_send != -1);
+    n->last_neighbour_send = now;
+    n->last_pmtu_discover = now;
     n->status = NEIGHBOUR_POT;
     n->tutor_id = 0;
 

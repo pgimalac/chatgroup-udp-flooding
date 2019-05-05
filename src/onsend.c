@@ -24,6 +24,7 @@ static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
 
 static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
     cprint(0, "* Containing PadN %u\n", tlv[1]);
+    dst->last_pmtu_discover = time(0);
 }
 
 static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
@@ -64,18 +65,22 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     dinfo = hashmap_get(map, buffer);
     ++dinfo->send_count;
 
-    if (now != -1){
-        dinfo->time = now + (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
-        delta = dinfo->time - now;
-        datime = hashmap_get(data_map, tlv + 2);
-        if (!datime)
-            cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
-        else
-            datime->last = now;
-
-        if (delta < tv->tv_sec)
-            tv->tv_sec = delta;
+    if (dinfo->send_count > 3) {
+        dst->pmtu = (dst->pmtu * 75) / 100; // linear regression instead ?
+        cprint(0, "Reduce PMTU to %u\n", dst->pmtu);
     }
+
+    time_t delay = (rand() % (1 << dinfo->send_count)) + (1 << (dinfo->send_count + 1));
+    dinfo->time = now + delay;
+    delta = dinfo->time - now;
+    datime = hashmap_get(data_map, tlv + 2);
+    if (!datime)
+        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
+    else
+        datime->last = now;
+
+    if (delta < tv->tv_sec)
+        tv->tv_sec = delta;
 }
 
 static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
@@ -138,4 +143,3 @@ int send_message(int sock, message_t *msg, struct timeval *tv) {
 
     return 0;
 }
-
