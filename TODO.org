@@ -18,7 +18,7 @@
    fork ? threads ?
 ** TODO Agregation [1/2]
 *** DONE multiple tlv in messages
-*** TODO pmtu calculus
+*** DONE pmtu calculus
 ** DONE Optimisation [2/3]
 *** DONE neighbours flooding
 *** DONE randomize data send

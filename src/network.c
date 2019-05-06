@@ -160,6 +160,13 @@ int start_server(int port) {
         return -3;
     }
 
+    num = 1;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_DONTFRAG, &num, sizeof(num));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
     rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
     if (rc < 0) {
         cperror("bind");

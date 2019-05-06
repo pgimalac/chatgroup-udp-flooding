@@ -105,7 +105,7 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
     msg_queue_t *p;
     time_t now = time(0);
 
-    // has to be > dst->pmtu so nothing will be add to it
+    // has to be > dst->pmtu so nothing will be added to it
     u_int16_t new_pmtu = dst->pmtu + dst->pmtu / (dst->pmtu_discovery_test + 1);
     if (new_pmtu > dst->pmtu && tlv->content[0] == BODY_DATA
         && (now - dst->last_pmtu_discover) > TIMEVAL_PMTU) {
@@ -120,7 +120,7 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
         for (size_t i = 0; i < count; i++) {
             t = malloc(sizeof(body_t));
             if (!t) return -3;
-            len = (payloadlen - offset) > 257 ? 257 : payloadlen - offset;
+            len = min(payloadlen - offset, 257);
             if (len == 1) {
                 t->size = tlv_pad1(&t->content);
             } else {
