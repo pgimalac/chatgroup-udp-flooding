@@ -235,35 +235,35 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
     cprint(0, "Ack from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
-    hashmap_t *map = hashmap_get(flooding_map, (void*)(tlv + 2));
-    if (!map) {
-        cprint(0, "Not necessary ack\n");
-        return;
-    }
-
-    datime = hashmap_get(data_map, tlv + 2);
-    if (!datime)
-        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
-    else {
-        datime->last = time(0);
-        assert(datime->last != -1);
-
-    }
-
+    hashmap_t *map = hashmap_get(flooding_map, tlv + 2);
     bytes_from_neighbour(n, buffer);
-    data_info_t *dinfo = hashmap_get(map, buffer);
-    if (!dinfo) {
-        cprint(0, "Not necessary ack\n");
-        return;
+    datime = hashmap_get(data_map, tlv + 2);
+
+    if (map) {
+        if (!datime)
+            cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
+        else {
+            datime->last = time(0);
+            assert(datime->last != -1);
+
+        }
+
+        hashmap_remove(map, buffer, 1, 1);
     }
 
-    if (n->pmtu < dinfo->pmtu_discover) {
-        cprint(0, "Upgrade PMTU for this neighbour to %u\n", dinfo->pmtu_discover);
-        n->pmtu = dinfo->pmtu_discover;
+    time_t now = time(0);
+    msg_pmtu_t *msg_pmtu = hashmap_get(pmtu_map, buffer);
+    if (msg_pmtu && memcmp(msg_pmtu->dataid, tlv + 2, 12) == 0) {
+        cprint(0, "Upgrade PMTU for this neighbour to %u\n", msg_pmtu->pmtu);
+        n->pmtu = msg_pmtu->pmtu;
         n->pmtu_discovery_max = n->pmtu << 1;
+        hashmap_remove(pmtu_map, buffer, 1, 1);
+    } else if (!msg_pmtu && (now - n->last_pmtu_discovery) > TIMEVAL_PMTU) {
+        body_t *pmtu_data = malloc(sizeof(body_t));
+        pmtu_data->size = datime->data[1] + 2;
+        pmtu_data->content = voidndup(datime->data, pmtu_data->size);
+        pmtu_discovery(pmtu_data, n);
     }
-
-    hashmap_remove(map, buffer, 1, 1);
 }
 
 static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){

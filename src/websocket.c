@@ -74,7 +74,7 @@ int create_tcpserver(int port) {
 }
 
 const char *NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\nThis page don't exist";
-const char *INVALID = "HTTP/1.1 400 Bas Request\r\n\r\n";
+const char *INVALID = "HTTP/1.1 400 Bad Request\r\n\r\n";
 const char *STATUSLINE = "HTTP/1.1 200 OK\r\n";
 const char *MAGICSTRINGWS = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const size_t MSWSL = strlen("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");

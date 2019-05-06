@@ -285,7 +285,6 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
             dinfo->neighbour = p;
             dinfo->time = now + rand() % 2;
-            dinfo->pmtu_discover = 0;
 
             bytes_from_neighbour(p, buffer);
             rc = hashmap_add(ns, buffer, dinfo);
@@ -433,8 +432,6 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     free(body->content);
                     free(body);
                 }
-
-                dinfo->pmtu_discover = rc;
 
                 continue;
             }

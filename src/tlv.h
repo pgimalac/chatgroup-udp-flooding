@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 
 #include "types.h"
+#include "hashmap.h"
 
 #define HEADER_OFFSET 2
 
@@ -35,6 +36,10 @@
 #define GOAWSIZEINC -105
 #define WARNSIZEINC -106
 
+#define TIMEVAL_PMTU 30
+#define TIMEVAL_DEC_PMTU 5
+hashmap_t *pmtu_map;
+
 int tlv_pad1(u_int8_t **buffer);
 int tlv_padn(u_int8_t **buffer, u_int8_t n);
 int tlv_hello_short(u_int8_t **buffer, chat_id_t source);
@@ -49,5 +54,10 @@ void handle_tlv(const body_t *tlv, neighbour_t *);
 void handle_invalid_message(int rc, neighbour_t *n);
 int check_tlv_size(const u_int8_t* tlv);
 int check_message_size(const u_int8_t* buffer, int buflen);
+
+int push_tlv(body_t *tlv, neighbour_t *dst);
+message_t *pull_message();
+int pmtu_discovery(body_t *tlv, neighbour_t *dst);
+int decrease_pmtu();
 
 #endif

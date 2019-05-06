@@ -212,7 +212,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     n->short_hello_count = 0;
     n->addr = addr;
     n->last_neighbour_send = now;
-    n->last_pmtu_discover = now;
+    n->last_pmtu_discovery = now;
     n->status = NEIGHBOUR_POT;
     n->tutor_id = 0;
 

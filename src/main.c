@@ -81,10 +81,20 @@ int init() {
         return -1;
     }
 
+    pmtu_map = hashmap_init(18);
+    if (!pmtu_map) {
+        hashset_destroy(neighbours);
+        hashset_destroy(potential_neighbours);
+        hashmap_destroy(flooding_map, 0);
+        hashmap_destroy(data_map, 0);
+        hashmap_destroy(fragmentation_map, 0);
+        return -1;
+    }
+
     return 0;
 }
 
-#define MAXSIZE (1 << 16)
+#define MAXSIZE ((1 << 16) + 4)
 int handle_reception () {
     int rc;
     u_int8_t c[MAXSIZE] = { 0 };
@@ -362,6 +372,7 @@ int main(int argc, char **argv) {
             free_message(msg);
         }
 
+        decrease_pmtu();
         clean_old_data();
         clean_old_frags();
         cprint(0, "Timeout before next send loop %ld.\n\n", tv.tv_sec);

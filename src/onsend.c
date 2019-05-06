@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "tlv.h"
 #include "onsend.h"
 #include "interface.h"
 #include "utils.h"
@@ -23,8 +24,8 @@ static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
 }
 
 static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
-    cprint(0, "* Containing PadN %u\n", tlv[1]);
-    dst->last_pmtu_discover = time(0);
+    cprint(0, "* Containing Padn %u\n", tlv[1]);
+    dst->last_pmtu_discovery = time(0);
 }
 
 static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timeval *tv) {
@@ -56,21 +57,28 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
 
     map = hashmap_get(flooding_map, tlv + 2);
     if (!map){
-        cprint(STDERR_FILENO, "%s:%d Tried to get an element from flooding_map but it wasn't in.\n",
-            __FILE__, __LINE__);
+        // cprint(STDERR_FILENO, "%s:%d Tried to get an element from flooding_map but it wasn't in.\n",
+        // __FILE__, __LINE__);
         return;
     }
 
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
+    if (!dinfo) {
+        return;
+    }
+
     ++dinfo->send_count;
 
     if (dinfo->send_count > 1 && dinfo->send_count < 4) {
-        dst->pmtu_discovery_max = (dst->pmtu + dst->pmtu_discovery_max) / 2;
-        cprint(0, "Reduce PMTU upper bound to %u.\n", dst->pmtu_discovery_max);
+        msg_pmtu_t *msg_pmtu = hashmap_get(pmtu_map, buffer);
+        if (msg_pmtu && memcmp(msg_pmtu->dataid, tlv + 2, 12) == 0) {
+            dst->pmtu_discovery_max = (dst->pmtu + dst->pmtu_discovery_max) / 2;
+            cprint(0, "Decrease PMTU upper bound to %u.\n", dst->pmtu_discovery_max);
+        }
     } else if (dinfo->send_count >= 4) {
         dst->pmtu_discovery_max = (dst->pmtu_discovery_max * 75) / 100;
-        cprint(0, "Reduce PMTU upper bound to %u.\n", dst->pmtu);
+        cprint(0, "Decrease PMTU upper bound to %u.\n", dst->pmtu);
     }
 
     time_t delay = (rand() % (1 << (dinfo->send_count + 2))) + (1 << (dinfo->send_count + 1));
