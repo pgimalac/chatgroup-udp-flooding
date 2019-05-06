@@ -19,7 +19,7 @@
 \begin{abstract}
   Ce rapport est un compte rendu du travail fourni pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'inondation décrit par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
 
-  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l'innondation} et \textbf{l'implémentation d'une interface web(\ref{sec:web})}.
+  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l'innondation}, \textbf{l'implémentation d'une interface web(\ref{sec:web})} et \textbf{la découverte du PMTU(\ref{sec:pmtu})}.
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
@@ -88,14 +88,14 @@ Nous avons soumis notre implémentation à des séries de tests implacables pour
 \textit{Les extentions suivantes sont présentées dans l'ordre dans lesquelles elles est ont été développées dans le projet.}
 
 \subsection{Agrégation de TLV\label{sec:agrega}}
-Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:implem}) de messages acccessible grâce à deux méthodes:
+Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:struct}) de messages acccessible grâce à deux méthodes:
 
 \begin{description}
 \item[pull\_tlv] Retire un message à envoyer de la file des messages à envoyer.
 \item[push\_tlv] Cette fonction attends un TLV et un voisin en paramètre. Elle ajoute le tlv donné à un message si avec cet ajout la taille du message reste plus petite que le PMTU de ce voisin. Si un tlv ne peut être inséré dans aucun message, un nouveau message est ajouté à la fin de la file.
 \end{description}
 
-Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avions envisagé d'améliorer cette approximation en implémentant une découverte de PMTU mais y avons rennoncé. La raison étant principalement due à la nécessité d'utiliser des sockets connectées pour ce faire ; notre application n'utilise qu'une seule socket (sans compter l'interface web), l'utilisation de sockets connectées représentait donc un travail que nous n'étions pas près à fournir.
+Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avons plus tard implémenté la découverte de PMTU (section \ref{sec:pmtu}).
 
 
 \subsection{Fragmentation des gros messages\label{sec:frag}}
@@ -192,6 +192,15 @@ La communication entre le client web et notre serveur se fait à travers ce prot
 \item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentielles failles de sécuritées (injection de javascript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
 \end{enumerate}
 
+\subsection{Découverte de PMTU\label{sec:pmtu}}
+
+Pour pouvoir implémenter l'agrégation de messages, nous maintenons pour chaque voisin un entier non signé de 2 octets représentant le \textrm{PMTU}\footnote{Path Maximum Unit Transfert} avec celui-ci. Pour implémenter la découverte de \textrm{PMTU}, il nous suffisait donc de trouver un moyen de déterminer si un message de taille donnée était correctement reçu.
+
+Nous avons ensuite remarqué que lorsqu'un TLV Data est reçu, il est toujours suivit d'un ACK en réponse. L'idée est donc de prendre régulièrement des Data et de les envoyer dans message que nous comblons avec des PADn afin d'accèder à la taille voulue. Si la donnée est reçue nous recevons un ACK, nous en déduisons donc que la taille du message est plus petite que le \textrm{PMTU}, si nous ne reçevons pas de ACK nous supposons que nous sommes au dessus du \textrm{PMTU}. Ainsi nous pouvons faire une recherche dichitomique du PMTU.
+
+On note que si le ACK se perds alors que le message est reçu, on se contente de baisser la borne supérieure du PMTU.
+
+
 \subsection{Extentions envisagées mais non développées}
 
 \begin{description}
@@ -216,7 +225,7 @@ La plupart des structures utilisées pour l'implémentation du protocole sont d�
 
 Le fichier \textit{util} contient des fonctions diverses utilisées tout au long du projet.
 
-\subsection{Structures utilisées}
+\subsection{Structures utilisées\label{sec:struct}}
 Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
 
 Les fragments de messages sont stockés dans une hashmap. [voir extensions]
