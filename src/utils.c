@@ -327,6 +327,7 @@ void cprint(int fd, char *str, ...){
     write(fd, buffer, len);
 
     PRINT_STRING(RESET);
+    PRINT_STRING(RESET);
 }
 
 void perrorbis(int err, const char *str){

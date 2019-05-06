@@ -62,7 +62,7 @@ L'interface dans le terminal est en ligne de commande, elle interagit donc en li
 
 Tout ce qui n'est pas une commande, ie. tout ce qui ne commence pas par un \textrm{/}, est un message qui sera envoyé sur le réseau. Le préfixe \textit{pseudo: } sera automatiquement ajouté devant le message.\\
 
-Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{Les couleurs peuvent être changées dans \textrm{interface.h}}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
+Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{L'affichage peut être totalement personnalisé dans \textrm{interface.h}: couleurs de police et de fond, italique, gras, texte clignotant,...}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
 
 Pour ajouter en voisin l'interface de Juliusz et envoyer les deux messages \textit{Bob: Bonjours tout le monde !} et \textit{Bob: Je suis très heureux de vous voir.}, il faudra donc entrer les commandes suivantes.
 
@@ -85,7 +85,7 @@ Envoi de Gowaay a la fin
 Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa resistance aux paquets buggés.
 
 
-\textit{Les extentions suivantes sont présentées dans l'ordre dans lesquelles elles est ont été développées dans le projet.}
+\textit{Les extentions suivantes sont présentées dans l'ordre dans lequel elles ont été implémentées dans le projet.}
 
 \subsection{Agrégation de TLV\label{sec:agrega}}
 Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:struct}) de messages acccessible grâce à deux méthodes:
@@ -204,12 +204,12 @@ On note que si le ACK se perds alors que le message est reçu, on se contente de
 \subsection{Extentions envisagées mais non développées}
 
 \begin{description}
-\item[Concurrence] % peut être déplacer dans extentions ?
-\item[Très très gros messages]
+\item[Concurrence:] pour être précis cela a été implémenté sur une branche mais pas avec assez de succès pour être rendu % peut être déplacer dans extentions ?
+\item[Très très gros messages:] taille des messages sur 4 octets
 \item[Sécurité cryptographique]
 \end{description}
 
-\section{Plus sur l'implémentation}
+\section{Plus sur l'implémentation\label{sec:implem}}
 \subsection{Organisation}
 Le fichier \textit{main} contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.\\
 
@@ -228,7 +228,7 @@ Le fichier \textit{util} contient des fonctions diverses utilisées tout au long
 \subsection{Structures utilisées\label{sec:struct}}
 Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
 
-Les fragments de messages sont stockés dans une hashmap. [voir extensions]
+Les fragments de messages sont stockés dans une hashmap. \hyperref[sec:frag]{\textbf{[voir extensions]}}
 
 Les messages à envoyer sont stockés dans une liste circulaire.
 
@@ -241,7 +241,7 @@ La boucle principale fait dans l'ordre:
 \item envoi de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
 \item on retire un par un les messages de la liste de messages et on les envoie.
 \item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
-\item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) [voir extensions].
+\item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{\textbf{[voir extensions]}}.
 \item appel à \textit{select} sur STDIN et la socket utilisée, en donnant un timeout qui est le minimum des prochains moments où l'une des actions ci-dessus sera nécéssaire.
 \item si STDIN est à lire, traitement de l'entrée standard (commande ou envoi de message).
 \item s'il y a un message reçu, on va lire la socket un certains nombre de fois (pour éviter une congestion s'il y a beaucoup de messages reçus). Ce nombre est compris entre le nombre de voisins et deux fois le nombre de voisins et varie en fonction du nombre de messages reçus à chaque tour de boucle.

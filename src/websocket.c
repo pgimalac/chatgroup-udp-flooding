@@ -15,8 +15,8 @@
 
 #include "base64.h"
 #include "utils.h"
-#include "list.h"
-#include "hashmap.h"
+#include "structs/list.h"
+#include "structs/hashmap.h"
 #include "flooding.h"
 #include "interface.h"
 #include "websocket.h"
