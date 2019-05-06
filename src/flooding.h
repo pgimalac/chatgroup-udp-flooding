@@ -5,6 +5,8 @@
 
 #define MAX_NB_NEIGHBOUR 100
 
+u_int32_t nonce;
+
 void send_data(u_int8_t type, const char *buffer, u_int16_t size);
 
 void hello_potential_neighbours(struct timeval *tv);

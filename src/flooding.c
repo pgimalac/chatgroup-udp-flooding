@@ -58,7 +58,7 @@ void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
         memcpy(offset, buffer + count, len);
         offset += len;
 
-        data.size = tlv_data(&data.content, id, random_uint32(), 220, content, len + 9);
+        data.size = tlv_data(&data.content, id, nonce++, 220, content, len + 9);
         flooding_add_message(data.content, data.size);
         free(data.content);
         count += len;
@@ -74,7 +74,7 @@ void send_data(u_int8_t type, const char *buffer, u_int16_t size){
     }
 
     body_t data = { 0 };
-    int rc = tlv_data(&data.content, id, random_uint32(), type, buffer, size);
+    int rc = tlv_data(&data.content, id, nonce++, type, buffer, size);
 
     if (rc < 0){
         if (rc == -1)
