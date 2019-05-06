@@ -35,7 +35,7 @@ void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
     uint16_t nsize = htons(size), pos;
     body_t data = { 0 };
     char content[256], *offset;
-    u_int32_t nonce_frag = random_uint32();
+    u_int32_t nonce_frag = nonce++;
 
     cprint(0, "Fragment message of total size %u bytes.\n", size);
 
