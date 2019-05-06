@@ -65,12 +65,15 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     dinfo = hashmap_get(map, buffer);
     ++dinfo->send_count;
 
-    if (dinfo->send_count > 3) {
-        dst->pmtu = (dst->pmtu * 75) / 100; // linear regression instead ?
-        cprint(0, "Reduce PMTU to %u\n", dst->pmtu);
+    if (dinfo->send_count > 1 && dinfo->send_count < 4) {
+        dst->pmtu_discovery_max = (dst->pmtu + dst->pmtu_discovery_max) / 2;
+        cprint(0, "Reduce PMTU upper bound to %u.\n", dst->pmtu_discovery_max);
+    } else if (dinfo->send_count >= 4) {
+        dst->pmtu_discovery_max = (dst->pmtu_discovery_max * 75) / 100;
+        cprint(0, "Reduce PMTU upper bound to %u.\n", dst->pmtu);
     }
 
-    time_t delay = (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
+    time_t delay = (rand() % (1 << (dinfo->send_count + 2))) + (1 << (dinfo->send_count + 1));
     dinfo->time = now + delay;
     delta = dinfo->time - now;
     datime = hashmap_get(data_map, tlv + 2);

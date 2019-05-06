@@ -260,7 +260,7 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     if (n->pmtu < dinfo->pmtu_discover) {
         cprint(0, "Upgrade PMTU for this neighbour to %u\n", dinfo->pmtu_discover);
         n->pmtu = dinfo->pmtu_discover;
-        n->pmtu_discovery_test = 0;
+        n->pmtu_discovery_max = n->pmtu << 1;
     }
 
     hashmap_remove(map, buffer, 1, 1);

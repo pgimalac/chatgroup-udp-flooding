@@ -84,10 +84,11 @@ int init() {
     return 0;
 }
 
+#define MAXSIZE (1 << 16)
 int handle_reception () {
     int rc;
-    u_int8_t c[4096] = { 0 };
-    size_t len = 4096;
+    u_int8_t c[MAXSIZE] = { 0 };
+    size_t len = MAXSIZE;
     struct sockaddr_in6 addr = { 0 };
 
     rc = recv_message(sock, &addr, c, &len);
@@ -353,6 +354,8 @@ int main(int argc, char **argv) {
                 free(msg->dst->addr);
                 free(msg->dst->tutor_id);
                 free(msg->dst);
+            } else if (rc == EMSGSIZE) {
+                cprint(0, "Message is too large.\n");
             } else if (rc != 0) {
                 perrorbis(rc, "SENDMSG");
             }

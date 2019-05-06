@@ -13,7 +13,7 @@
 #include "interface.h"
 #include "tlv.h"
 
-#define TIMEVAL_PMTU 120
+#define TIMEVAL_PMTU 30
 
 void* voidndup(const void *o, int n){
     if (n <= 0) return NULL;
@@ -105,16 +105,14 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
     msg_queue_t *p;
     time_t now = time(0);
 
-    // has to be > dst->pmtu so nothing will be added to it
-    u_int16_t new_pmtu = dst->pmtu + dst->pmtu / (dst->pmtu_discovery_test + 1);
-    if (new_pmtu > dst->pmtu && tlv->content[0] == BODY_DATA
+    u_int16_t new_pmtu = (dst->pmtu + dst->pmtu_discovery_max) / 2;
+    if (tlv->content[0] == BODY_DATA
         && (now - dst->last_pmtu_discover) > TIMEVAL_PMTU) {
         u_int16_t count, offset = 0, payloadlen = new_pmtu - tlv->size;
         body_t *padn = 0, *t;
         uint16_t len;
 
         cprint(0, "Test new pmtu of size %u\n", new_pmtu);
-        dst->pmtu_discovery_test++;
 
         count = payloadlen / 257 + (payloadlen % 257 ? 1 : 0);
         for (size_t i = 0; i < count; i++) {

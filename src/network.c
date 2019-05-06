@@ -208,6 +208,7 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
 
     memset(n, 0, sizeof(neighbour_t));
     n->pmtu = DEF_PMTU;
+    n->pmtu_discovery_max = DEF_PMTU << 1;
     n->short_hello_count = 0;
     n->addr = addr;
     n->last_neighbour_send = now;

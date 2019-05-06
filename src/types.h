@@ -22,7 +22,7 @@ typedef struct neighbour {
     time_t last_hello_send;
     time_t last_neighbour_send;
     time_t last_pmtu_discover;
-    u_int8_t pmtu_discovery_test;
+    u_int16_t pmtu_discovery_max;
     size_t pmtu, short_hello_count;
     unsigned char status;
     u_int8_t *tutor_id;
