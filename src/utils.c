@@ -56,6 +56,7 @@ u_int64_t random_uint64 () {
     u_int8_t *buff = random_buffer(8);
     if (!buff) return 0;
     memcpy(&ret, buff, 8);
+    free(buff);
     return ret;
 }
 
@@ -64,6 +65,7 @@ u_int32_t random_uint32 () {
     u_int8_t *buff = random_buffer(4);
     if (!buff) return 0;
     memcpy(&ret, buff, 4);
+    free(buff);
     return ret;
 }
 

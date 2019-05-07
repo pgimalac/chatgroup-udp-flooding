@@ -4,6 +4,12 @@
 #include "types.h"
 
 #define MAX_NB_NEIGHBOUR 100
+#define MAX_TIMEOUT 30
+#define NBSH 5
+#define SYM_TIMEOUT 120
+#define NEIGHBOUR_TIMEOUT 120
+#define CLEAN_TIMEOUT 45
+#define FRAG_TIMEOUT 60
 
 u_int32_t nonce;
 

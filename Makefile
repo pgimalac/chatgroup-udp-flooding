@@ -5,7 +5,8 @@ FOLDER_STRUCTS = src/structs/
 FOLDER_ALL = $(FOLDER_SRC) $(FOLDER_STRUCTS)
 
 FILES_SRC = utils.c interface.c base64.c websocket.c onsend.c \
-			tlv_queue.c tlv.c network.c checkers.c flooding.c handlers.c main.c
+			tlv_queue.c tlv.c network.c checkers.c send.c \
+			hello.c clean.c neighbour.c flooding.c handlers.c main.c
 
 FILES_STRUCTS = array.c list.c hashmap.c hashset.c
 
