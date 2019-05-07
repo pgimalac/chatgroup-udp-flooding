@@ -8,6 +8,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "utils.h"
 #include "interface.h"
@@ -24,34 +27,44 @@ void* voidndup(const void *o, int n){
     return cpy;
 }
 
-void init_random() {
-    int seed = time(0);
-    assert(seed != -1);
-    srand(seed);
+u_int8_t *random_buffer (int size) {
+    int fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0) {
+        perrorbis(fd, "open");
+        return 0;
+    }
+
+    u_int8_t *buff = malloc(size);
+    int rc = read(fd, buff, size);
+    if (rc < 0) {
+        perrorbis(rc, "read");
+        free(buff);
+        return 0;
+    }
+
+    if (rc < size) {
+        cprint(STDERR_FILENO, "Not enough entropy.\n");
+        free(buff);
+        return 0;
+    }
+
+    return buff;
 }
 
 u_int64_t random_uint64 () {
-    static const char rand_max_size = __builtin_ctz(~RAND_MAX);
-    // change for other compilers compatibility ?
-    // RAND_MAX = 2 ^ rand_max_size
-
-    u_int64_t r = rand();
-    for (int i = 64; i > 0; i -= rand_max_size)
-        r = (r << rand_max_size) + rand();
-
-    return r;
+    u_int64_t ret;
+    u_int8_t *buff = random_buffer(8);
+    if (!buff) return 0;
+    memcpy(&ret, buff, 8);
+    return ret;
 }
 
 u_int32_t random_uint32 () {
-    static const char rand_max_size = __builtin_ctz(~RAND_MAX);
-    // change for other compilers compatibility ?
-    // RAND_MAX = 2 ^ rand_max_size
-
-    u_int32_t r = rand();
-    for (int i = 32; i > 0; i -= rand_max_size)
-        r = (r << rand_max_size) + rand();
-
-    return r;
+    u_int64_t ret;
+    u_int8_t *buff = random_buffer(4);
+    if (!buff) return 0;
+    memcpy(&ret, buff, 4);
+    return ret;
 }
 
 unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port) {

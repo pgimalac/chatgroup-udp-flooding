@@ -27,7 +27,6 @@
 static int port = 0, pseudo_set = 0;
 
 int init() {
-    init_random();
     nonce = 1;
 
     id = random_uint64();

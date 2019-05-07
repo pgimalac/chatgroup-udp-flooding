@@ -17,7 +17,7 @@ pid_t httppid;
 
 void* voidndup(const void*, int);
 
-void init_random();
+u_int8_t *random_buffer(int size);
 
 u_int64_t random_uint64();
 
