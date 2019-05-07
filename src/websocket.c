@@ -474,8 +474,10 @@ int handle_ws(int s) {
 
         case OPBIN: //bin
             type = file_type(frag->buffer, frag->buflen);
-            if (type < 0) {
-                cprint(0, "Received unknown file type from web app.\n");
+            if (type >= 255) {
+                cprint(0, "Received unknown file type from web app. Assume this is text.\n");
+                send_data(0, (char*)frag->buffer, frag->buflen);
+                print_file(0, (u_int8_t*)frag->buffer, frag->buflen);
             } else {
                 send_data(type, (char*)frag->buffer, frag->buflen);
                 print_file(type, (u_int8_t*)frag->buffer, frag->buflen);
@@ -540,8 +542,9 @@ int print_web(const uint8_t *buffer, size_t buflen) {
         memcpy(frame + 2, &mask, 4);
 
         for (j = 0; j < len; j++) {
-            frame[j + 6] = buffer[j] ^ frame[2 + (j % 4)];
+            frame[j + 6] = buffer[j + count] ^ frame[2 + (j % 4)];
         }
+        count += len;
 
         // last frame FIN bit
         if (i == size - 1)
