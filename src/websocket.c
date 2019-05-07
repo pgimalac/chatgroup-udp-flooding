@@ -497,14 +497,15 @@ int print_web(const uint8_t *buffer, size_t buflen) {
 
         //print_bytes((char*)frame, 2 + 4 + len);
 
+        pthread_mutex_lock(&clientsockets_mutex);
         for (l = clientsockets; l; l = l->next) {
             s = *((int*)l->val);
             rc = write(s, frame, 2 + 4 + len);
             if (rc < 0) {
-                cperror("write");
-                return -1;
+                continue;
             }
         }
+        pthread_mutex_unlock(&clientsockets_mutex);
     }
 
     return 0;

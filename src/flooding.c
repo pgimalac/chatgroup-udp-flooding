@@ -162,7 +162,6 @@ void hello_potential_neighbours(struct timespec *tv) {
 
     pthread_mutex_unlock(&potential_neighbours->mutex);
 
-
     while (to_delete != NULL){
         neighbour_t *n = list_pop(&to_delete);
 
@@ -315,7 +314,6 @@ int flooding_add_message(const u_int8_t *data, int size, int user) {
 
         }
     }
-
     pthread_mutex_unlock(&neighbours->mutex);
 
     datime_t *datime = malloc(sizeof(datime_t));
@@ -373,6 +371,7 @@ static int flooding_send_msg(const char *dataid, list_t **msg_done) {
         return -2;
     }
 
+    pthread_mutex_lock(&map->mutex);
     list_t *to_delete = NULL;
     for (i = 0; i < map->capacity; i++) {
         for (l = map->tab[i]; l; l = l->next) {
@@ -477,6 +476,7 @@ static int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
     if (map->size == 0 && !list_add(msg_done, voidndup(dataid, 12)))
         cperror("list_add");
+    pthread_mutex_unlock(&map->mutex);
 
     return tv;
 }
@@ -488,6 +488,7 @@ int message_flooding(struct timespec *tv) {
     char *dataid;
     hashmap_t *map;
 
+    pthread_mutex_lock(&data_map->mutex);
     pthread_mutex_lock(&flooding_map->mutex);
 
     for (i = 0; i < flooding_map->capacity; i++) {
@@ -495,13 +496,11 @@ int message_flooding(struct timespec *tv) {
             dataid = (char*)((map_elem*)l->val)->key;
 
             rc = flooding_send_msg(dataid, &msg_done);
-            if (rc < 0) {
+            if (rc < 0)
                 continue;
-            }
 
-            if (rc < tv->tv_sec) {
+            if (rc < tv->tv_sec)
                 tv->tv_sec = rc;
-            }
         }
     }
 
@@ -521,6 +520,7 @@ int message_flooding(struct timespec *tv) {
     }
 
     pthread_mutex_unlock(&flooding_map->mutex);
+    pthread_mutex_unlock(&data_map->mutex);
 
     return 0;
 }
@@ -644,15 +644,13 @@ int clean_old_frags() {
     return i;
 }
 
-int send_neighbour_to(neighbour_t *p) {
+static int send_neighbour_to(neighbour_t *p) {
     size_t i;
     int rc;
     list_t *l;
     neighbour_t *a;
     body_t *body;
     char ipstr[INET6_ADDRSTRLEN];
-
-    pthread_mutex_lock(&neighbours->mutex);
 
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
@@ -684,8 +682,6 @@ int send_neighbour_to(neighbour_t *p) {
 
     assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
     cprint(0, "Send neighbours to (%s, %u).\n", ipstr, ntohs(p->addr->sin6_port));
-
-    pthread_mutex_unlock(&neighbours->mutex);
 
     return 0;
 }

@@ -37,8 +37,6 @@ int add_neighbour(const char *hostname, const char *service);
 
 int start_server(int port);
 
-int recv_message(int sock, struct sockaddr_in6 *peer_addr, u_int8_t *buf, size_t *buflen);
-
 int bytes_to_message(const u_int8_t *buf, size_t buflen, neighbour_t*, message_t*);
 
 void quit_handler(int sig);

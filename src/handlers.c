@@ -38,6 +38,9 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     cprint(0, "Receive %s hello from (%s, %u).\n",
            is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
 
+    pthread_mutex_lock(&neighbours->mutex);
+    pthread_mutex_lock(&potential_neighbours->mutex);
+
     n->id = src_id;
 
     if (is_long && dest_id != id) {
@@ -45,9 +48,8 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
         return;
     }
 
-    if (n->status == NEIGHBOUR_SYM && src_id != n->id) {
+    if (n->status == NEIGHBOUR_SYM && src_id != n->id)
         cprint(0, "He has now id %lx.\n", src_id);
-    }
 
     if (n->status == NEIGHBOUR_POT) {
         cprint(0, "Remove from potential %lx and add to symetrical.\n", src_id);
@@ -62,6 +64,8 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
             free(n->addr);
             free(n->tutor_id);
             free(n);
+            pthread_mutex_unlock(&potential_neighbours->mutex);
+            pthread_mutex_unlock(&neighbours->mutex);
             return;
         }
         if (!hashset_remove(potential_neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port))
@@ -74,6 +78,9 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     if (is_long) {
         n->last_long_hello = now;
     }
+
+    pthread_mutex_unlock(&potential_neighbours->mutex);
+    pthread_mutex_unlock(&neighbours->mutex);
 }
 
 static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
@@ -119,6 +126,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     cprint(0, "Data received of type %u.\n", tlv[14]);
 
+    pthread_mutex_lock(&data_map->mutex);
     pthread_mutex_lock(&flooding_map->mutex);
 
     map = hashmap_get(flooding_map, tlv + 2);
@@ -145,6 +153,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                     cperror("malloc");
                     free(frag);
                     pthread_mutex_unlock(&flooding_map->mutex);
+                    pthread_mutex_unlock(&data_map->mutex);
                     return;
                 }
 
@@ -160,6 +169,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                     free(frag->id);
                     free(frag);
                     pthread_mutex_unlock(&flooding_map->mutex);
+                    pthread_mutex_unlock(&data_map->mutex);
                     return;
                 }
                 rc = hashmap_add(fragmentation_map, fragid, frag);
@@ -173,6 +183,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                     free(frag->buffer);
                     free(frag);
                     pthread_mutex_unlock(&flooding_map->mutex);
+                    pthread_mutex_unlock(&data_map->mutex);
                     return;
                 }
             }
@@ -202,11 +213,14 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
         if (rc < 0) {
             cprint(STDERR_FILENO, "Problem while adding data to flooding map.\n");
             pthread_mutex_unlock(&flooding_map->mutex);
+            pthread_mutex_unlock(&data_map->mutex);
             return;
         }
 
         map = hashmap_get(flooding_map, tlv + 2);
     }
+
+    pthread_mutex_unlock(&data_map->mutex);
 
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
     nonce_t nonce = *(nonce_t*)(tlv + 10);
@@ -304,12 +318,10 @@ static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
 }
 
 static void handle_warning(const u_int8_t *tlv, neighbour_t *n){
-    if (tlv[1] == 0) {
+    if (tlv[1] == 0)
         cprint(0, "Receive empty warning.\n");
-        return;
-    }
-
-    cprint(0, "Warning: %*s\n", tlv[1], tlv + 2);
+    else
+        cprint(0, "Warning: %*s\n", tlv[1], tlv + 2);
 }
 
 static void handle_unknown(const u_int8_t *tlv, neighbour_t *n){

@@ -30,6 +30,56 @@ struct sockaddr_in6 local_addr;
  *
  */
 
+static int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
+    if (!out || !buflen) return 0;
+
+    int rc;
+    struct in6_pktinfo *info = 0;
+    struct iovec iov[1];
+    struct msghdr hdr = { 0 };
+    struct cmsghdr *cmsg;
+    union {
+        unsigned char cmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+        struct cmsghdr align;
+    } u;
+
+    iov[0].iov_base = out;
+    iov[0].iov_len = *buflen;
+
+    hdr.msg_name = addr;
+    hdr.msg_namelen = sizeof(*addr);
+    hdr.msg_iov = iov;
+    hdr.msg_iovlen = 1;
+    hdr.msg_control = (struct cmsghdr*)u.cmsgbuf;
+    hdr.msg_controllen = sizeof(u.cmsgbuf);
+
+    rc = recvmsg(sock, &hdr, 0);
+    if (rc < 0) return errno;
+    *buflen = rc;
+
+    cmsg = CMSG_FIRSTHDR(&hdr);
+    while(cmsg) {
+        if ((cmsg->cmsg_level == IPPROTO_IPV6) &&
+            (cmsg->cmsg_type == IPV6_PKTINFO)) {
+            info = (struct in6_pktinfo*)CMSG_DATA(cmsg);
+            break;
+        }
+        cmsg = CMSG_NXTHDR(&hdr, cmsg);
+    }
+
+    if(info == NULL) {
+        /* ce cas ne devrait pas arriver */
+        cprint(STDERR_FILENO, "IPV6_PKTINFO non trouvé\n");
+        return -2;
+    }
+
+    char ipstr[INET6_ADDRSTRLEN];
+    assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    cprint(0, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
+
+    return 0;
+}
+
 int handle_reception () {
     int rc;
     u_int8_t c[4096] = { 0 };
@@ -310,56 +360,6 @@ int add_neighbour(const char *hostname, const char *service) {
     }
 
     freeaddrinfo(r);
-
-    return 0;
-}
-
-int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
-    if (!out || !buflen) return 0;
-
-    int rc;
-    struct in6_pktinfo *info = 0;
-    struct iovec iov[1];
-    struct msghdr hdr = { 0 };
-    struct cmsghdr *cmsg;
-    union {
-        unsigned char cmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
-        struct cmsghdr align;
-    } u;
-
-    iov[0].iov_base = out;
-    iov[0].iov_len = *buflen;
-
-    hdr.msg_name = addr;
-    hdr.msg_namelen = sizeof(*addr);
-    hdr.msg_iov = iov;
-    hdr.msg_iovlen = 1;
-    hdr.msg_control = (struct cmsghdr*)u.cmsgbuf;
-    hdr.msg_controllen = sizeof(u.cmsgbuf);
-
-    rc = recvmsg(sock, &hdr, 0);
-    if (rc < 0) return errno;
-    *buflen = rc;
-
-    cmsg = CMSG_FIRSTHDR(&hdr);
-    while(cmsg) {
-        if ((cmsg->cmsg_level == IPPROTO_IPV6) &&
-            (cmsg->cmsg_type == IPV6_PKTINFO)) {
-            info = (struct in6_pktinfo*)CMSG_DATA(cmsg);
-            break;
-        }
-        cmsg = CMSG_NXTHDR(&hdr, cmsg);
-    }
-
-    if(info == NULL) {
-        /* ce cas ne devrait pas arriver */
-        cprint(STDERR_FILENO, "IPV6_PKTINFO non trouvé\n");
-        return -2;
-    }
-
-    char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    cprint(0, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
 
     return 0;
 }
