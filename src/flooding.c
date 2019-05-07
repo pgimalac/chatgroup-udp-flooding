@@ -28,10 +28,20 @@
 
 #define FRAG_TIMEOUT 80
 
+body_t *create_body(){
+    body_t *b = malloc(sizeof(body_t));
+    memset(b, 0, sizeof(body_t));
+    pthread_mutex_lock(&globalnum_mutex);
+    b->num = globalnum++;
+    pthread_mutex_unlock(&globalnum_mutex);
+    return b;
+}
+
 void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
     uint16_t nsize = htons(size), pos;
     body_t data = { 0 };
+
     char content[256], *offset;
     u_int32_t nonce_frag = random_uint32();
 
@@ -57,7 +67,7 @@ void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
         offset += len;
 
         data.size = tlv_data(&data.content, id, random_uint32(), 220, content, len + 9);
-        flooding_add_message(data.content, data.size);
+        flooding_add_message(data.content, data.size, 1);
         free(data.content);
         count += len;
     }
@@ -84,7 +94,7 @@ void send_data(u_int8_t type, const char *buffer, u_int16_t size){
 
     data.size = rc;
 
-    if (flooding_add_message(data.content, data.size) != 0)
+    if (flooding_add_message(data.content, data.size, 1) != 0)
         cperror("tlv_data");
 
     free(data.content);
@@ -124,7 +134,7 @@ void hello_potential_neighbours(struct timespec *tv) {
             max = 1 << (p->short_hello_count + 4);
 
             if (delta >= max) {
-                hello = malloc(sizeof(body_t));
+                hello = create_body();
                 if (hello == NULL){
                     cperror("malloc");
                     continue;
@@ -160,7 +170,7 @@ void hello_potential_neighbours(struct timespec *tv) {
             neighbour_t *m = hashset_get(neighbours, n->tutor_id, *(u_int16_t*)(n->tutor_id + 16));
             char msg[256] = { 0 };
             if (m) {
-                hello = malloc(sizeof(body_t));
+                hello = create_body();
                 if (hello){
                     assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
                                   ipstr, INET6_ADDRSTRLEN) != NULL);
@@ -202,7 +212,7 @@ int hello_neighbours(struct timespec *tv) {
             if (now - p->last_hello < SYM_TIMEOUT) {
                 delta = now - p->last_hello_send;
                 if (delta >= MAX_TIMEOUT) {
-                    body_t *hello = malloc(sizeof(body_t));
+                    body_t *hello = create_body();
                     if (hello == NULL){
                         cperror("malloc");
                         continue;
@@ -259,16 +269,13 @@ int hello_neighbours(struct timespec *tv) {
     return size;
 }
 
-int flooding_add_message(const u_int8_t *data, int size) {
+int flooding_add_message(const u_int8_t *data, int size, int user) {
     neighbour_t *p;
     data_info_t *dinfo;
-    datime_t *datime;
     time_t now = time(0);
     assert(now != -1);
     int rc;
 
-    size_t i;
-    list_t *l;
     u_int8_t buffer[18];
 
     hashmap_t *ns = hashmap_init(18);
@@ -279,8 +286,8 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
     pthread_mutex_lock(&neighbours->mutex);
 
-    for (i = 0; i < neighbours->capacity; i++) {
-        for (l = neighbours->tab[i]; l; l = l->next) {
+    for (size_t i = 0; i < neighbours->capacity; i++) {
+        for (list_t *l = neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
 
             dinfo = malloc(sizeof(data_info_t));
@@ -291,7 +298,10 @@ int flooding_add_message(const u_int8_t *data, int size) {
             memset(dinfo, 0, sizeof(data_info_t));
 
             dinfo->neighbour = p;
-            dinfo->time = now + rand() % 2;
+            if (user)
+                dinfo->time = now;
+            else
+                dinfo->time = now + rand() % 2;
 
             bytes_from_neighbour(p, buffer);
             rc = hashmap_add(ns, buffer, dinfo);
@@ -308,9 +318,17 @@ int flooding_add_message(const u_int8_t *data, int size) {
 
     pthread_mutex_unlock(&neighbours->mutex);
 
-    datime = malloc(sizeof(datime_t));
+    datime_t *datime = malloc(sizeof(datime_t));
     datime->data = voidndup(data, size);
     datime->last = now;
+
+    pthread_mutex_lock(&data_map->mutex);
+    rc = hashmap_add(data_map, data + 2, datime);
+    if (rc == 2)
+        cprint(STDERR_FILENO, "%s:%d Tried to add a data in data_map but it was already in.\n",
+            __FILE__, __LINE__);
+    else if (rc == 0)
+        perrorbis(ENOMEM, "hashset_add");
 
     rc = hashmap_add(flooding_map, data + 2, ns);
     if (rc == 2)
@@ -320,18 +338,12 @@ int flooding_add_message(const u_int8_t *data, int size) {
         perrorbis(ENOMEM, "hashmap_add");
     if (rc != 1)
         hashmap_destroy(ns, 1);
-
-    rc = hashmap_add(data_map, data + 2, datime);
-    if (rc == 2)
-        cprint(STDERR_FILENO, "%s:%d Tried to add a data in data_map but it was already in.\n",
-            __FILE__, __LINE__);
-    else if (rc == 0)
-        perrorbis(ENOMEM, "hashset_add");
+    pthread_mutex_unlock(&data_map->mutex);
 
     return 0;
 }
 
-int flooding_send_msg(const char *dataid, list_t **msg_done) {
+static int flooding_send_msg(const char *dataid, list_t **msg_done) {
     size_t i, size;
     int rc;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
@@ -374,7 +386,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
             }
 
             if (now >= dinfo->time && dinfo->send_count >= 5) {
-                body = malloc(sizeof(body_t));
+                body = create_body();
                 rc = tlv_goaway(&body->content, GO_AWAY_HELLO,
                                        "You did not answer to data for too long.", 40);
                 if (rc < 0){
@@ -417,7 +429,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
             }
 
             if (now >= dinfo->time) {
-                body = malloc(sizeof(body_t));
+                body = create_body();
                 if (!body){
                     cperror("malloc");
                     continue;
@@ -426,7 +438,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                 body->content = voidndup(data, size);
                 if (!body->content) {
                     free(body);
-                    cperror("malloc");
+                    perrorbis(ENOMEM, "malloc");
                     continue;
                 }
 
@@ -645,7 +657,7 @@ int send_neighbour_to(neighbour_t *p) {
     for (i = 0; i < neighbours->capacity; i++) {
         for (l = neighbours->tab[i]; l; l = l->next) {
             a = (neighbour_t*)l->val;
-            body = malloc(sizeof(body_t));
+            body = create_body();
             if (!body){
                 cperror("malloc");
                 continue;

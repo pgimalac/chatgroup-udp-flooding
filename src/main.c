@@ -38,6 +38,7 @@ static pthread_cond_t initiate_cond(){
 int init(){
     init_random();
     id = random_uint64();
+    globalnum = 0;
 
     rl_catch_signals = 0;
 
@@ -46,6 +47,7 @@ int init(){
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
     // to avoid any deadlock
 
+    pthread_mutex_init(&globalnum_mutex, &attr);
     pthread_mutex_init(&mutex_end_thread, &attr);
     cond_end_thread = initiate_cond();
     send_cond = initiate_cond();
@@ -226,7 +228,9 @@ void *rec_thread(void *running){
         FD_ZERO(&readfds);
         FD_SET(sock, &readfds);
 
+        fprintf(stderr, "REC THREAD: before select.\n");
         rc = select(sock + 1, &readfds, 0, 0, 0);
+        fprintf(stderr, "REC THREAD: after select.\n");
 
         if (rc < 0) {
             cperror("select");
@@ -237,6 +241,7 @@ void *rec_thread(void *running){
             continue;
 
         if (FD_ISSET(sock, &readfds)) {
+            fprintf(stderr, "REC THREAD: start reception loop.\n");
             for (i = 0; i < number_recv; i++)
                 if (handle_reception() == -1){
                     if (number_recv > neighbours->size + 1)
@@ -244,6 +249,7 @@ void *rec_thread(void *running){
                     break;
                 }
 
+            fprintf(stderr, "REC THREAD: end reception loop.\n");
             if (i == number_recv && number_recv < 2 * neighbours->size)
                 number_recv++;
         }
@@ -265,20 +271,34 @@ void *send_thread(void *running){
     while (1) {
         tv.tv_sec = MAX_TIMEOUT;
 
+        //fprintf(stderr, "SEND THREAD: before hello neighbours.\n");
         size = hello_neighbours(&tv);
-        if (size < MAX_NB_NEIGHBOUR)
+        //fprintf(stderr, "SEND THREAD: after hello neighbours.\n");
+        if (size < MAX_NB_NEIGHBOUR){
+            //fprintf(stderr, "SEND THREAD: before hello pot. neighbours.\n");
             hello_potential_neighbours(&tv);
-
-        message_flooding(&tv);
-        neighbour_flooding(0);
-
-        while((msg = pull_message())) {
-            send_message(sock, msg, &tv);
-            free_message(msg);
+            //fprintf(stderr, "SEND THREAD: after hello pot. neighbours.\n");
         }
 
+        //fprintf(stderr, "SEND THREAD: before message flooding.\n");
+        message_flooding(&tv);
+        //fprintf(stderr, "SEND THREAD: before neighbour flooding.\n");
+        neighbour_flooding(0);
+        //fprintf(stderr, "SEND THREAD: after flooding.\n");
+
+        //fprintf(stderr, "SEND THREAD: before pull loop.\n");
+        while((msg = pull_message())) {
+            //fprintf(stderr, "SEND THREAD: before send message.\n");
+            send_message(sock, msg, &tv);
+            //fprintf(stderr, "SEND THREAD: after send message.\n");
+            free_message(msg);
+        }
+        //fprintf(stderr, "SEND THREAD: end pull loop.\n");
+
         clean_old_data();
+        //fprintf(stderr, "SEND THREAD: after clean data.\n");
         clean_old_frags();
+        //fprintf(stderr, "SEND THREAD: after clean frags.\n");
 
         pthread_mutex_lock(&useless);
         pthread_cond_timedwait(&send_cond, &useless, &tv);
@@ -295,7 +315,9 @@ void *input_thread(void *running){
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
 
     while (1){
+        fprintf(stderr, "INPUT THREAD: before readline.\n");
         char *line = readline("");
+        fprintf(stderr, "INPUT THREAD: after readline.\n");
 
         if (line == NULL){ // end of stdin reached
             int *ret = malloc(sizeof(int));
@@ -305,19 +327,19 @@ void *input_thread(void *running){
 
         size_t len = strlen(line);
         char *buffer = purify(line, &len);
+        fprintf(stderr, "INPUT THREAD: after purify.\n");
 
         #define S "\e1M\e[1A\e[K"
 
-        char *buf = alloca(len);
-        memcpy(buf, buffer, len);
-        free(line);
-
         if (len > 0) {
-            write(STDOUT_FILENO, S, strlen(S));
-            print_message((u_int8_t*)buf, len);
-            handle_input(buf, len);
-            write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
+            fprintf(stderr, "INPUT THREAD: before input handle.\n");
+            cprint(STDOUT_FILENO, S, strlen(S));
+            print_message((u_int8_t*)buffer, len);
+            handle_input(buffer, len);
+            cprint(STDOUT_FILENO, CLBEG, strlen(CLBEG));
+            fprintf(stderr, "INPUT THREAD: after input handle.\n");
         }
+        free(line);
     }
 
     pthread_cleanup_pop(1);
@@ -406,7 +428,7 @@ int main(int argc, char **argv) {
                     // cancel thread so there is a thread running 'quit'
                     cprint(0, "Thread %d was cancelled.\n", i);
                     pthread_mutex_unlock(&mutex_end_thread);
-                    sleep(10);
+                    sleep(3);
                     return 1;
                 }
 

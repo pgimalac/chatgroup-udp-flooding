@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "types.h"
 #include "network.h"
@@ -114,7 +115,6 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     int rc;
     unsigned int size = tlv[1] - 13;
     hashmap_t *map;
-    body_t *body;
     u_int8_t buffer[18];
 
     cprint(0, "Data received of type %u.\n", tlv[14]);
@@ -123,15 +123,12 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     map = hashmap_get(flooding_map, tlv + 2);
 
-    if (!map && !hashmap_contains(data_map, (void*)(tlv + 2))) {
+    if (!map && !hashmap_contains(data_map, (void*)tlv + 2)) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
             print_message((u_int8_t*)tlv + 15, size);
             print_web(tlv + 15, size);
         } else if (tlv[14] == DATA_FRAG) {
-            if (size < 9)
-                cprint(0, "Data fragment was corrupted (too short).\n");
-
             char fragid[12] = { 0 };
             memcpy(fragid, tlv + 2, 8);
             memcpy(fragid + 8, tlv + 15, 4);
@@ -201,7 +198,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
             }
         }
 
-        rc = flooding_add_message(tlv, tlv[1] + 2);
+        rc = flooding_add_message(tlv, tlv[1] + 2, 0);
         if (rc < 0) {
             cprint(STDERR_FILENO, "Problem while adding data to flooding map.\n");
             pthread_mutex_unlock(&flooding_map->mutex);
@@ -213,7 +210,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
     nonce_t nonce = *(nonce_t*)(tlv + 10);
-    body = malloc(sizeof(body_t));
+    body_t *body = create_body();
     if (!body){
         pthread_mutex_unlock(&flooding_map->mutex);
         return;
@@ -239,14 +236,12 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     }
 
     push_tlv(body, n);
-
     pthread_mutex_unlock(&flooding_map->mutex);
 }
 
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
     u_int8_t buffer[18];
-    datime_t *datime;
 
     assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
     cprint(0, "Ack from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
@@ -257,7 +252,7 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
         return;
     }
 
-    datime = hashmap_get(data_map, tlv + 2);
+    datime_t *datime = hashmap_get(data_map, tlv + 2);
     if (!datime)
         cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
     else {
@@ -346,9 +341,8 @@ void handle_invalid_message(int rc, neighbour_t *n){
         return;
     }
     int size;
-    body_t *msg = malloc(sizeof(body_t));
+    body_t *msg = create_body();
     char *string = NULL;
-    memset(msg, 0, sizeof(body_t));
     if (rc == -9){ // warning
         string = "You sent an empty message.";
 

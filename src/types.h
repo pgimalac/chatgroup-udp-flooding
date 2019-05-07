@@ -32,6 +32,7 @@ typedef struct neighbour {
 typedef struct body {
     u_int8_t *content;
     size_t size;
+    u_int32_t num;
     struct body *next;
 } body_t;
 

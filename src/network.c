@@ -20,6 +20,7 @@
 #include "interface.h"
 #include "websocket.h"
 #include "onsend.h"
+#include "flooding.h"
 
 // user address
 struct sockaddr_in6 local_addr;
@@ -138,13 +139,11 @@ int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message
     body_t *body, *bptr;
 
     while (i < buflen) {
-        body = malloc(sizeof(body_t));
+        body = create_body();
         if (!body){
             cperror("malloc");
             break;
         }
-
-        memset(body, 0, sizeof(body_t));
 
         if (src[i] == BODY_PAD1) body->size = 1;
         else body->size = 2 + src[i + 1];

@@ -129,7 +129,7 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
         return -1;
     }
 
-    p->msg = create_message(MAGIC, VERSION, 0, 0, dst);
+    p->msg = create_message(MAGIC, VERSION, 0, NULL, dst);
     if (!p->msg){
         free(p);
         pthread_mutex_unlock(&queue_mutex);
@@ -151,11 +151,28 @@ int push_tlv(body_t *tlv, neighbour_t *dst) {
 
  insert:
     tlv->next = NULL;
-    if (p->last != NULL)
-        p->last->next = tlv;
-    else
+    if (p->last == NULL || p->msg->body->num > tlv->num){
+        tlv->next = p->msg->body;
         p->msg->body = tlv;
-    p->last = tlv;
+        if (p->last == NULL)
+            p->last = tlv;
+    } else if (p->last->num < tlv->num){
+        p->last->next = tlv;
+        p->last = tlv;
+    } else {
+        body_t *b = NULL;
+        for (b = p->msg->body; b->next != NULL; b++)
+            if (b->next->num > tlv->num)
+                break;
+        if (b == NULL){ // cannot happen if everything is done as it should be
+            cprint(STDERR_FILENO, "%s:%d Tried to insert a tlv but the good position could not be found.\n", __FILE__, __LINE__);
+            pthread_mutex_unlock(&queue_mutex);
+            free(p);
+            return -3;
+        }
+        tlv->next = b->next;
+        b->next = tlv;
+    }
     p->msg->body_length += tlv->size;
 
     pthread_mutex_unlock(&queue_mutex);

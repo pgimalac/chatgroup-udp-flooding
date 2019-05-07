@@ -1,9 +1,10 @@
-#include "tlv.h"
-#include "network.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "tlv.h"
+#include "network.h"
+#include "flooding.h"
 
 int tlv_pad(u_int8_t **buffer){
     *buffer = malloc(1);
@@ -73,9 +74,9 @@ int tlv_neighbour(u_int8_t **buffer, const struct in6_addr *addr, u_int16_t port
     return size;
 }
 
-int tlv_data(u_int8_t **buffer,
-             chat_id_t sender, nonce_t nonce,
+int tlv_data(u_int8_t **buffer, chat_id_t sender, u_int32_t nonce,
              u_int8_t type, const char *data, u_int8_t datalen){
+
     u_int32_t true_size = datalen + sizeof(sender) + sizeof(nonce) + sizeof(type);
     if (true_size > 255)
         return -2;
