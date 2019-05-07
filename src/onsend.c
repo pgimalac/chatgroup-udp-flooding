@@ -56,7 +56,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
 
     map = hashmap_get(flooding_map, tlv + 2);
     if (!map){
-        cprint(STDERR_FILENO, "%s:%d Tried to get an element from flooding_map but it wasn't in.\n",
+        cprint(0, "Data already acked.\n",
             __FILE__, __LINE__);
         return;
     }
@@ -64,7 +64,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     bytes_from_neighbour(dst, buffer);
     dinfo = hashmap_get(map, buffer);
     if (!dinfo){
-        cprint(STDERR_FILENO, "%s:%d Tried to get a neighbour data_info from flooding_map but it wasn't in.\n",
+        cprint(0, "Data already acked.\n",
             __FILE__, __LINE__);
         return;
     }
