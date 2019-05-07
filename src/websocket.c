@@ -528,9 +528,9 @@ int print_web(const uint8_t *buffer, size_t buflen) {
     uint8_t frame[1024];
     uint32_t mask;
 
-    size_t len, i, j, count = 0, size = (buflen < 125 ? 1 : buflen / 125);
+    size_t len, i, j, count = 0;
 
-    for (i = 0; i < size; i++) {
+    for (i = 0, count = 0; count < buflen; i++) {
         memset(frame, 0, 1024);
         frame[0] = i == 0 ? OPTXT : OPCONT;
         frame[1] = MSKBIT;
@@ -547,7 +547,7 @@ int print_web(const uint8_t *buffer, size_t buflen) {
         count += len;
 
         // last frame FIN bit
-        if (i == size - 1)
+        if (len < 125)
             frame[0] ^= FINBIT;
 
         //print_bytes((char*)frame, 2 + 4 + len);
