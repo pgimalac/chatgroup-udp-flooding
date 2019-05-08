@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -107,7 +106,7 @@ static void nameRandom(const char *buffer, size_t len){
 
 static void __print(const neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(STDOUT_FILENO, "    @ %s / %d\n", ipstr, ntohs(n->addr->sin6_port));
 }
 

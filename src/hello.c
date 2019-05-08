@@ -3,7 +3,6 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include <assert.h>
 #include <stdlib.h>
 
 #include <sys/stat.h>
@@ -21,7 +20,6 @@ void hello_potential_neighbours(struct timeval *tv) {
     int rc;
     size_t i;
     time_t max, delta, now = time(0);
-    assert(now != -1);
     list_t *l;
     neighbour_t *p;
     body_t *hello;
@@ -34,7 +32,7 @@ void hello_potential_neighbours(struct timeval *tv) {
             p = (neighbour_t*)l->val;
 
             if (p->short_hello_count >= NBSH) {
-                assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+                inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Remove (%s, %u) from potential neighbour list.\n",
                        ipstr, ntohs(p->addr->sin6_port));
                 cprint(0, "He did not answer to short hello for too long.\n");
@@ -79,13 +77,14 @@ void hello_potential_neighbours(struct timeval *tv) {
         neighbour_t *n = list_pop(&to_delete);
 
         if (n->tutor_id) {
-            neighbour_t *m = hashset_get(neighbours, n->tutor_id, *(u_int16_t*)(n->tutor_id + 16));
+            neighbour_t *m = hashset_get(neighbours, n->tutor_id,
+                                         *(u_int16_t*)(n->tutor_id + 16));
             char msg[256] = { 0 };
             if (m) {
                 hello = malloc(sizeof(body_t));
                 if (hello){
-                    assert (inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
-                                  ipstr, INET6_ADDRSTRLEN) != NULL);
+                    inet_ntop(AF_INET6, n->addr->sin6_addr.s6_addr,
+                              ipstr, INET6_ADDRSTRLEN);
 
                     sprintf(msg, "You recommended (%s, %u) but I can't reach it.",
                             ipstr, ntohs(*(u_int16_t*)(n->tutor_id + 16)));
@@ -111,7 +110,6 @@ int hello_neighbours(struct timeval *tv) {
     int rc;
     size_t i, size = 0;
     time_t now = time(0), delta;
-    assert(now != -1);
 
     list_t *l, *to_delete = 0;
     char ipstr[INET6_ADDRSTRLEN];
@@ -155,7 +153,8 @@ int hello_neighbours(struct timeval *tv) {
 
     while (to_delete) {
         p = (neighbour_t*)list_pop(&to_delete);
-        if (!hashset_remove(neighbours, p->addr->sin6_addr.s6_addr, p->addr->sin6_port))
+        if (!hashset_remove(neighbours, p->addr->sin6_addr.s6_addr,
+                            p->addr->sin6_port))
             cprint(STDERR_FILENO, "%s:%d Tried to remove a neighbour that wasn't actually one.\n",
                 __FILE__, __LINE__);
         rc = hashset_add(potential_neighbours, p);
@@ -170,7 +169,7 @@ int hello_neighbours(struct timeval *tv) {
             return -1;
         }
 
-        assert (inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
         cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
             ipstr, ntohs(p->addr->sin6_port));
         cprint(0, "He did not send long hello for too long \n");

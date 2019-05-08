@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <assert.h>
 
 #include "interface.h"
 #include "utils.h"

@@ -3,7 +3,6 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include <assert.h>
 #include <stdlib.h>
 
 #include <sys/stat.h>
@@ -22,7 +21,6 @@ int flooding_add_message(const u_int8_t *data, int size) {
     data_info_t *dinfo;
     datime_t *datime;
     time_t now = time(0);
-    assert(now != -1);
     int rc;
 
     size_t i;
@@ -90,7 +88,6 @@ int flooding_add_message(const u_int8_t *data, int size) {
 int flooding_send_msg(const char *dataid, list_t **msg_done) {
     int rc;
     time_t tv = MAX_TIMEOUT, delta, now = time(0);
-    assert(now != -1);
 
     list_t *l, *to_delete = 0;
     data_info_t *dinfo;
@@ -143,7 +140,8 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     free(body);
                 }
 
-                assert (inet_ntop(AF_INET6, &dinfo->neighbour->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+                inet_ntop(AF_INET6, &dinfo->neighbour->addr->sin6_addr,
+                          ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
                     ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
                 cprint(0, "He did not answer to data for too long.\n");
@@ -205,7 +203,7 @@ int flooding_send_msg(const char *dataid, list_t **msg_done) {
     neighbour_t *obj;
     u_int8_t buf[18];
     while ((obj = list_pop(&to_delete)) != NULL){
-        assert (inet_ntop(AF_INET6, &obj->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        inet_ntop(AF_INET6, &obj->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
         cprint(0, "Remove (%s, %u) from map.\n", ipstr, ntohs(obj->addr->sin6_port));
 
         bytes_from_neighbour(obj, buf);

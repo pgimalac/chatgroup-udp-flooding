@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <errno.h>
-#include <assert.h>
 #include <ctype.h>
 
 #include "utils.h"
@@ -114,7 +113,7 @@ int pmtu_discovery (body_t *tlv, neighbour_t *dst) {
     uint16_t len;
     char ipstr[INET6_ADDRSTRLEN];
 
-    assert (inet_ntop(AF_INET6, &dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
 
     cprint(0, "Test new pmtu of size %u with (%s,%u)\n",
            new_pmtu, ipstr, ntohs(dst->addr->sin6_port));
