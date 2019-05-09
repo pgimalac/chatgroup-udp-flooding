@@ -64,12 +64,12 @@ int create_tcpserver(int port) {
     }
 
     pagelen = read(fd, page, 16384);
+    int err = errno;
+    close(fd);
     if (pagelen < 0) {
-        perror("read");
+        perrorbis(err, "read");
         return -1;
     }
-
-    close(fd);
 
     return s;
 }
