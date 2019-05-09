@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "base64.h"
 #include "utils.h"
@@ -131,12 +132,13 @@ static int get_static_file(int s, const char *path, size_t len) {
 
     cprint(0, "Try to load file %s.\n", fp);
     fd = open(fp, O_RDONLY);
+    int err = errno;
 
     free(npath);
     free(fp);
 
     if (fd < 0) {
-        cperror("open");
+        perrorbis(err, "open");
         return not_found(s);
     }
 

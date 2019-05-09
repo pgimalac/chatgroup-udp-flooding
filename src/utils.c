@@ -30,7 +30,7 @@ void* voidndup(const void *o, int n){
 u_int8_t *random_buffer (int size) {
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
-        perrorbis(fd, "open");
+        cperror("open");
         return 0;
     }
 

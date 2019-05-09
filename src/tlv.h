@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 
 #include "types.h"
-#include "hashmap.h"
+#include "structs/hashmap.h"
 
 #define HEADER_OFFSET 2
 

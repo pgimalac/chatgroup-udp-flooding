@@ -166,10 +166,11 @@ static void transfert(const char *path, size_t buflen) {
 
     cprint(STDOUT_FILENO, "Send file %s on network.\n", npath);
     fd = open(npath, O_RDONLY);
+    int err = errno;
     free(npath);
 
     if (fd < 0) {
-        cperror("open");
+        perrorbis(err, "open");
         return;
     }
 
