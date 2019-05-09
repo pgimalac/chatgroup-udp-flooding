@@ -17,6 +17,13 @@
 #include "tlv.h"
 
 
+static int random_fd = -1;
+
+void init_random(){
+    random_fd = open("/dev/urandom", O_RDONLY);
+    srand(time(0));
+}
+
 void* voidndup(const void *o, int n){
     if (n <= 0) return NULL;
     void *cpy = malloc(n);
@@ -27,47 +34,24 @@ void* voidndup(const void *o, int n){
     return cpy;
 }
 
-u_int8_t *random_buffer (int size) {
-    int fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0) {
-        cperror("open");
-        return 0;
-    }
-
-    u_int8_t *buff = malloc(size);
-    int rc = read(fd, buff, size);
-    int err = errno;
-    close(fd);
-    if (rc < 0) {
-        perrorbis(err, "read");
-        free(buff);
-        return 0;
-    }
-
-    if (rc < size) {
-        cprint(STDERR_FILENO, "Not enough entropy.\n");
-        free(buff);
-        return 0;
-    }
-
-    return buff;
+static void random_buffer(u_int8_t *buffer, int size){
+    int rc = -1;
+    if (random_fd != -1)
+        rc = read(random_fd, buffer, size);
+    if (rc < size)
+        for (int i = 0; i < size; i++)
+            buffer[size] = rand();
 }
 
 u_int64_t random_uint64 () {
     u_int64_t ret;
-    u_int8_t *buff = random_buffer(8);
-    if (!buff) return 0;
-    memcpy(&ret, buff, 8);
-    free(buff);
+    random_buffer((u_int8_t*)&ret, sizeof(ret));
     return ret;
 }
 
 u_int32_t random_uint32 () {
-    u_int64_t ret;
-    u_int8_t *buff = random_buffer(4);
-    if (!buff) return 0;
-    memcpy(&ret, buff, 4);
-    free(buff);
+    u_int32_t ret;
+    random_buffer((u_int8_t*)&ret, sizeof(ret));
     return ret;
 }
 

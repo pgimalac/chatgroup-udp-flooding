@@ -15,9 +15,9 @@ char tmpdir[255];
 
 pid_t httppid;
 
-void* voidndup(const void*, int);
+void init_random();
 
-u_int8_t *random_buffer(int size);
+void* voidndup(const void*, int);
 
 u_int64_t random_uint64();
 
