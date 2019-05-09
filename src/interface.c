@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "types.h"
 #include "interface.h"
@@ -175,12 +176,13 @@ static void transfert(const char *path, size_t buflen) {
     }
 
     rc = read(fd, buffer, MAX_BUF_SIZE);
+    err = errno;
+    close(fd);
     if (rc < 0) {
-        cperror("read");
+        perrorbis(err, "read");
         return;
     }
 
-    close(fd);
 
     cprint(0, "Transfering file %u.\n", rc);
     send_data(type, buffer, rc);
