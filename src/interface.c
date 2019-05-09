@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "types.h"
 #include "interface.h"
@@ -165,20 +166,22 @@ static void transfert(const char *path, size_t buflen) {
 
     cprint(STDOUT_FILENO, "Send file %s on network.\n", npath);
     fd = open(npath, O_RDONLY);
+    int err = errno;
     free(npath);
 
     if (fd < 0) {
-        cperror("open");
+        perrorbis(err, "open");
         return;
     }
 
     rc = read(fd, buffer, MAX_BUF_SIZE);
+    err = errno;
+    close(fd);
     if (rc < 0) {
-        cperror("read");
+        perrorbis(err, "read");
         return;
     }
 
-    close(fd);
 
     cprint(0, "Transfering file %u.\n", rc);
     send_data(type, buffer, rc);

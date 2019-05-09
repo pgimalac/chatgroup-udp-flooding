@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "base64.h"
 #include "utils.h"
@@ -62,12 +63,12 @@ int create_tcpserver(int port) {
     }
 
     pagelen = read(fd, page, 16384);
+    int err = errno;
+    close(fd);
     if (pagelen < 0) {
-        perror("read");
+        perrorbis(err, "read");
         return -1;
     }
-
-    close(fd);
 
     return s;
 }
@@ -130,12 +131,13 @@ static int get_static_file(int s, const char *path, size_t len) {
 
     cprint(0, "Try to load file %s.\n", fp);
     fd = open(fp, O_RDONLY);
+    int err = errno;
 
     free(npath);
     free(fp);
 
     if (fd < 0) {
-        cperror("open");
+        perrorbis(err, "open");
         return not_found(s);
     }
 

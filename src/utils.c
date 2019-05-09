@@ -30,14 +30,16 @@ void* voidndup(const void *o, int n){
 u_int8_t *random_buffer (int size) {
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
-        perrorbis(fd, "open");
+        cperror("open");
         return 0;
     }
 
     u_int8_t *buff = malloc(size);
     int rc = read(fd, buff, size);
+    int err = errno;
+    close(fd);
     if (rc < 0) {
-        perrorbis(rc, "read");
+        perrorbis(err, "read");
         free(buff);
         return 0;
     }
