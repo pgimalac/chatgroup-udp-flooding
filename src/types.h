@@ -23,6 +23,8 @@ typedef struct neighbour {
     time_t last_long_hello;
     time_t last_hello_send;
     time_t last_neighbour_send;
+    time_t last_pmtu_discovery;
+    u_int16_t pmtu_discovery_max;
     size_t pmtu, short_hello_count;
     unsigned char status;
     u_int8_t *tutor_id;
@@ -75,5 +77,12 @@ typedef struct frag {
     u_int16_t recv;
     time_t last;
 } frag_t;
+
+typedef struct msg_pmtu {
+    u_int8_t dataid[12];
+    u_int16_t pmtu;
+    neighbour_t *n;
+    time_t time;
+} msg_pmtu_t;
 
 #endif

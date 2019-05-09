@@ -6,7 +6,7 @@
 #include "network.h"
 #include "flooding.h"
 
-int tlv_pad(u_int8_t **buffer){
+int tlv_pad1(u_int8_t **buffer){
     *buffer = malloc(1);
     if (*buffer == NULL)
         return -1;

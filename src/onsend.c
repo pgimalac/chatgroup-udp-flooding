@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "tlv.h"
 #include "onsend.h"
 #include "interface.h"
 #include "utils.h"
@@ -24,7 +25,8 @@ static void onsend_pad1(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
 }
 
 static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
-    cprint(0, "* Containing PadN %u\n", tlv[1]);
+    cprint(0, "* Containing Padn %u\n", tlv[1]);
+    dst->last_pmtu_discovery = time(0);
 }
 
 static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
@@ -50,7 +52,6 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     datime_t *datime;
     u_int8_t buffer[18];
     time_t now = time(0), delta;
-    assert(now != -1);
 
     cprint(0, "* Containing data.\n");
 
@@ -68,20 +69,31 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
             __FILE__, __LINE__);
         return;
     }
+
     ++dinfo->send_count;
 
-    if (now != -1){
-        dinfo->time = now + (rand() % (1 << dinfo->send_count)) + (1 << dinfo->send_count);
-        delta = dinfo->time - now;
-        datime = hashmap_get(data_map, tlv + 2);
-        if (!datime)
-            cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
-        else
-            datime->last = now;
-
-        if (delta < tv->tv_sec)
-            tv->tv_sec = delta;
+    if (dinfo->send_count > 1 && dinfo->send_count < 4) {
+        msg_pmtu_t *msg_pmtu = hashmap_get(pmtu_map, buffer);
+        if (msg_pmtu && memcmp(msg_pmtu->dataid, tlv + 2, 12) == 0) {
+            dst->pmtu_discovery_max = (dst->pmtu + dst->pmtu_discovery_max) / 2;
+            cprint(0, "Decrease PMTU upper bound to %u.\n", dst->pmtu_discovery_max);
+        }
+    } else if (dinfo->send_count >= 4) {
+        dst->pmtu_discovery_max = (dst->pmtu_discovery_max * 75) / 100;
+        cprint(0, "Decrease PMTU upper bound to %u.\n", dst->pmtu);
     }
+
+    time_t delay = (rand() % (1 << (dinfo->send_count + 2))) + (1 << (dinfo->send_count + 1));
+    dinfo->time = now + delay;
+    delta = dinfo->time - now;
+    datime = hashmap_get(data_map, tlv + 2);
+    if (!datime)
+        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
+    else
+        datime->last = now;
+
+    if (delta < tv->tv_sec)
+        tv->tv_sec = delta;
 }
 
 static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
@@ -119,7 +131,7 @@ int send_message(int sock, message_t *msg, struct timespec *tv) {
 
     msg->body_length = htons(msg->body_length);
 
-    assert (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "> Send message to (%s, %u).\n", ipstr, ntohs(msg->dst->addr->sin6_port));
 
     for (p = msg->body; p; p = p->next) {
@@ -143,4 +155,3 @@ int send_message(int sock, message_t *msg, struct timespec *tv) {
 
     return 0;
 }
-

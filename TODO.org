@@ -9,12 +9,7 @@
 <<<<<<< HEAD
 *** TODO MARTIAN neighbours
 *** TODO not my id
-* Bonus [4/13]
-=======
-*** DONE MARTIAN neighbours
-*** DONE not my id
-* Bonus [3/13]
->>>>>>> 8ead6ba01d941bede6b9ea5b10508be783a07d0a
+* Bonus [4/14]
 ** TODO commands to print own id, ip, port
 ** DONE command to change id
 ** TODO Error managment
@@ -23,7 +18,7 @@
    fork ? threads ?
 ** TODO Agregation [1/2]
 *** DONE multiple tlv in messages
-*** TODO pmtu calculus
+*** DONE pmtu calculus
 ** DONE Optimisation [2/3]
 *** DONE neighbours flooding
 *** DONE randomize data send
@@ -41,10 +36,5 @@
 *** DONE Alexandre/Tristan-protocol
 *** DONE image, videos, etc... send & reception
 =======
-** TODO Fragmentation [0/3]
-*** DONE Alexandre/Tristan-protocol
-*** TODO image, videos, etc... send & reception
->>>>>>> 8ead6ba01d941bede6b9ea5b10508be783a07d0a
-*** TODO file transfert
 ** TODO TCP-Friendly
 ** TODO Firewalls & NAT

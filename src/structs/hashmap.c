@@ -114,9 +114,6 @@ short hashmap_add(hashmap_t *map, const void *key, void *value) {
     }
     map->size++;
 
-/*    printf("KEY ADDED TO HASHMAP:\n");
-    print_bytes(key, map->keylen);
-*/
     pthread_mutex_unlock(&map->mutex);
 
     return 1;
@@ -167,9 +164,6 @@ short hashmap_remove(hashmap_t *map, const void *key, short k, short v) {
     if(map_list_remove(&map->tab[hash], key, map->keylen, k, v)) {
         map->size--;
 
-/*        printf("KEY REMOVED FROM HASHMAP:\n");
-        print_bytes(key, map->keylen);
-*/
         ret = 1;
     }
 

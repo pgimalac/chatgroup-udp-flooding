@@ -17,9 +17,9 @@ pthread_cond_t send_cond;
 
 pid_t httppid;
 
-void* voidndup(const void*, int);
-
 void init_random();
+
+void* voidndup(const void*, int);
 
 u_int64_t random_uint64();
 
@@ -50,5 +50,7 @@ int min(int, int);
 int max(int a, int b);
 
 char *purify(char *buffer, size_t *len);
+
+int is_number(char *);
 
 #endif

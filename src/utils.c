@@ -9,9 +9,22 @@
 #include <assert.h>
 #include <pthread.h>
 #include <readline/readline.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "utils.h"
 #include "interface.h"
+#include "tlv.h"
+
+
+static int random_fd = -1;
+
+void init_random(){
+    random_fd = open("/dev/urandom", O_RDONLY);
+    srand(time(0));
+}
 
 void* voidndup(const void *o, int n){
     if (n <= 0) return NULL;
@@ -23,34 +36,25 @@ void* voidndup(const void *o, int n){
     return cpy;
 }
 
-void init_random() {
-    int seed = time(0);
-    assert(seed != -1);
-    srand(seed);
+static void random_buffer(u_int8_t *buffer, int size){
+    int rc = -1;
+    if (random_fd != -1)
+        rc = read(random_fd, buffer, size);
+    if (rc < size)
+        for (int i = 0; i < size; i++)
+            buffer[size] = rand();
 }
 
 u_int64_t random_uint64 () {
-    static const char rand_max_size = __builtin_ctz(~RAND_MAX);
-    // change for other compilers compatibility ?
-    // RAND_MAX = 2 ^ rand_max_size
-
-    u_int64_t r = rand();
-    for (int i = 64; i > 0; i -= rand_max_size)
-        r = (r << rand_max_size) + rand();
-
-    return r;
+    u_int64_t ret;
+    random_buffer((u_int8_t*)&ret, sizeof(ret));
+    return ret;
 }
 
 u_int32_t random_uint32 () {
-    static const char rand_max_size = __builtin_ctz(~RAND_MAX);
-    // change for other compilers compatibility ?
-    // RAND_MAX = 2 ^ rand_max_size
-
-    u_int32_t r = rand();
-    for (int i = 32; i > 0; i -= rand_max_size)
-        r = (r << rand_max_size) + rand();
-
-    return r;
+    u_int32_t ret;
+    random_buffer((u_int8_t*)&ret, sizeof(ret));
+    return ret;
 }
 
 unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port) {
@@ -84,131 +88,6 @@ void free_message(message_t *msg) {
     }
 
     free(msg);
-}
-
-typedef struct msg_queue {
-    message_t *msg;
-    body_t *last;
-    struct msg_queue *next, *prev;
-} msg_queue_t;
-
-msg_queue_t *queue = 0;
-
-int neighbour_eq(neighbour_t *n1, neighbour_t *n2) {
-    return n1 && n2
-        && memcmp(&n1->addr->sin6_addr, &n2->addr->sin6_addr, sizeof(struct in6_addr)) == 0
-        && n1->addr->sin6_port == n2->addr->sin6_port;
-}
-
-int push_tlv(body_t *tlv, neighbour_t *dst) {
-    pthread_mutex_lock(&queue_mutex);
-//    print_bytes(tlv->content, tlv->size);
-    msg_queue_t *p;
-
-    p = queue;
-    if (!p) {
-        goto add;
-    }
-
-    if (neighbour_eq(p->msg->dst, dst)
-        && p->msg->body_length + tlv->size < p->msg->dst->pmtu) {
-        goto insert;
-    }
-
-    for (p = p->next; p != queue; p = p->next) {
-        if (neighbour_eq(p->msg->dst, dst) &&
-            p->msg->body_length + tlv->size < p->msg->dst->pmtu) {
-            goto insert;
-        }
-    }
-
- add:
-    p = malloc(sizeof(msg_queue_t));
-    if (!p){
-        pthread_mutex_unlock(&queue_mutex);
-        return -1;
-    }
-
-    p->msg = create_message(MAGIC, VERSION, 0, NULL, dst);
-    if (!p->msg){
-        free(p);
-        pthread_mutex_unlock(&queue_mutex);
-        return -2;
-    }
-    p->last = NULL;
-
-    if (!queue) {
-        queue = p;
-        queue->next = queue;
-        queue->prev = queue;
-    } else {
-        p->next = queue;
-        p->prev = queue->prev;
-        queue->prev->next = p;
-        queue->prev = p;
-        queue = p;
-    }
-
- insert:
-    tlv->next = NULL;
-    if (p->last == NULL || p->msg->body->num > tlv->num){
-        tlv->next = p->msg->body;
-        p->msg->body = tlv;
-        if (p->last == NULL)
-            p->last = tlv;
-    } else if (p->last->num < tlv->num){
-        p->last->next = tlv;
-        p->last = tlv;
-    } else {
-        body_t *b = NULL;
-        for (b = p->msg->body; b->next != NULL; b++)
-            if (b->next->num > tlv->num)
-                break;
-        if (b == NULL){ // cannot happen if everything is done as it should be
-            cprint(STDERR_FILENO, "%s:%d Tried to insert a tlv but the good position could not be found.\n", __FILE__, __LINE__);
-            pthread_mutex_unlock(&queue_mutex);
-            free(p);
-            return -3;
-        }
-        tlv->next = b->next;
-        b->next = tlv;
-    }
-    p->msg->body_length += tlv->size;
-
-    pthread_mutex_unlock(&queue_mutex);
-    pthread_cond_broadcast(&send_cond);
-
-    return 0;
-}
-
-message_t *pull_message() {
-    pthread_mutex_lock(&queue_mutex);
-
-    message_t *msg;
-    msg_queue_t *q;
-
-    if (!queue){
-        pthread_mutex_unlock(&queue_mutex);
-        return 0;
-    }
-    if (queue == queue->next) {
-        msg = queue->msg;
-        free(queue);
-        queue = 0;
-        pthread_mutex_unlock(&queue_mutex);
-        return msg;
-    }
-
-    msg = queue->msg;
-    q = queue;
-
-    queue = q->next;
-    queue->prev = q->prev;
-    queue->prev->next = queue;
-
-    free(q);
-    pthread_mutex_unlock(&queue_mutex);
-    return msg;
 }
 
 message_t *create_message(u_int8_t m, u_int8_t v, u_int16_t s, body_t* b, neighbour_t* n){
@@ -306,6 +185,7 @@ void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]) {
 
 void cprint(int fd, char *str, ...){
     if (fd < 0) return;
+    if (logfd < 0 && fd == 0) return;
 
     char *B = "", *F = "";
     if (fd == 0){
@@ -443,7 +323,7 @@ void cprint(int fd, char *str, ...){
     }
     va_end(ap);
 
-    #define PRINT_STRING(S) write(fd, S, strlen(S))
+#define PRINT_STRING(S) write(fd, S, strlen(S))
 
     pthread_mutex_lock(&write_mutex);
 
@@ -493,4 +373,10 @@ char *purify(char *buffer, size_t *len) {
 
     *len -= i;
     return buffer + i;
+}
+
+int is_number(char *str) {
+    if (!str || !*str) return 0;
+    while (*str && isdigit(*str)) str++;
+    return *str == 0;
 }

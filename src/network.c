@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <time.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -30,7 +29,28 @@ struct sockaddr_in6 local_addr;
  *
  */
 
-static int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
+static int add_interface(struct in6_pktinfo *info) {
+    struct in6_pktinfo *interface;
+
+    for (list_t *l = interfaces; l; l = l->next) {
+        interface = (struct in6_pktinfo*)l->val;
+        if (memcmp(&interface->ipi6_addr, &info->ipi6_addr, 16) == 0
+            && interface->ipi6_ifindex == info->ipi6_ifindex)
+            return 1;
+    }
+
+    interface = malloc(sizeof(struct in6_pktinfo));
+    if (!interface)
+        return -1;
+
+    memcpy(&interface->ipi6_addr, &info->ipi6_addr, 16);
+    interface->ipi6_ifindex = info->ipi6_ifindex;
+
+    list_add(&interfaces, interface);
+    return 0;
+}
+
+int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
     if (!out || !buflen) return 0;
 
     int rc;
@@ -73,72 +93,14 @@ static int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size
         return -2;
     }
 
-    char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    cprint(0, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
+    char ipstr[INET6_ADDRSTRLEN], myipstr[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET6, &info->ipi6_addr, myipstr, INET6_ADDRSTRLEN);
+    cprint(0, "Receive message from (%s, %u) on interface (%s, %d) .\n",
+           ipstr, ntohs(addr->sin6_port), myipstr, info->ipi6_ifindex);
 
-    return 0;
-}
+    add_interface(info);
 
-int handle_reception () {
-    int rc;
-    u_int8_t c[4096] = { 0 };
-    size_t len = 4096;
-    struct sockaddr_in6 addr = { 0 };
-
-    rc = recv_message(sock, &addr, c, &len);
-    if (rc != 0) {
-        if (errno == EAGAIN)
-            return -1;
-        cperror("receive message");
-        return -2;
-    }
-
-    neighbour_t *n = hashset_get(neighbours,
-                    addr.sin6_addr.s6_addr,
-                    addr.sin6_port);
-
-    if (!n) {
-        n = hashset_get(potential_neighbours,
-                        addr.sin6_addr.s6_addr,
-                        addr.sin6_port);
-    }
-
-    if (!n) {
-        n = new_neighbour(addr.sin6_addr.s6_addr,
-                          addr.sin6_port, 0);
-        if (!n){
-            cprint(0, "An error occured while trying to create a new neighbour.\n");
-            return -4;
-        }
-        cprint(0, "Add to potential neighbours.\n");
-    }
-
-    message_t *msg = malloc(sizeof(message_t));
-    if (!msg){
-        cperror("malloc");
-        return -5;
-    }
-    memset(msg, 0, sizeof(message_t));
-    rc = bytes_to_message(c, len, n, msg);
-    if (rc != 0){
-        cprint(0, "Received an invalid message, error code %d.\n", rc);
-        handle_invalid_message(rc, n);
-        free(msg);
-        return -3;
-    }
-
-    cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
-
-    if (msg->magic != MAGIC) {
-        cprint(STDERR_FILENO, "Invalid magic value\n");
-    } else if (msg->version != VERSION) {
-        cprint(STDERR_FILENO, "Invalid version\n");
-    } else {
-        handle_tlv(msg->body, n);
-    }
-
-    free_message(msg);
     return 0;
 }
 
@@ -250,24 +212,39 @@ int start_server(int port) {
 
     local_addr.sin6_family = AF_INET6;
     local_addr.sin6_port = htons(port);
-    rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
-    if (rc < 0) {
-        cperror("bind");
-        return -2;
-    }
 
     char out[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN);
     if (local_addr.sin6_port)
         cprint(0, "Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
     else
         cprint(0, "Start server at %s on a random port.\n", out);
 
-    int one = 1;
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
+    int num = 1;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &num, sizeof(num));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
+    }
+
+    num = 0;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &num, sizeof(num));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    num = 1;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_DONTFRAG, &num, sizeof(num));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
+    if (rc < 0) {
+        cperror("bind");
+        return -2;
     }
 
     return s;
@@ -280,8 +257,7 @@ int start_server(int port) {
  *
  */
 
-neighbour_t *
-new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
+neighbour_t *new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
               unsigned int port, const neighbour_t *tutor) {
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (addr == NULL){
@@ -300,12 +276,15 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
         return 0;
     }
 
+    time_t now = time(0);
+
     memset(n, 0, sizeof(neighbour_t));
     n->pmtu = DEF_PMTU;
+    n->pmtu_discovery_max = DEF_PMTU << 1;
     n->short_hello_count = 0;
     n->addr = addr;
-    n->last_neighbour_send = time(0);
-    assert (n->last_neighbour_send != -1);
+    n->last_neighbour_send = now;
+    n->last_pmtu_discovery = now;
     n->status = NEIGHBOUR_POT;
     n->tutor_id = 0;
 
@@ -355,7 +334,7 @@ int add_neighbour(const char *hostname, const char *service) {
         if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, 0))
             continue;
 
-        assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
         cprint(0, "Add %s, %d to potential neighbours\n", ipstr, ntohs(addr->sin6_port));
     }
 
@@ -364,6 +343,9 @@ int add_neighbour(const char *hostname, const char *service) {
     return 0;
 }
 
+/**
+ * Quit handler
+ */
 void quit_handler (int sig) {
     int rc;
     size_t i;
@@ -390,7 +372,6 @@ void quit_handler (int sig) {
                 rc = send_message(sock, &msg, &tv);
                 if (rc != 0) {
                     perrorbis(rc, "send_message");
-                    assert (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
                     cprint(STDERR_FILENO, "Failed to send goaway to (%s, %u).\n", ipstr, ntohs(msg.dst->addr->sin6_port));
                 }
             }

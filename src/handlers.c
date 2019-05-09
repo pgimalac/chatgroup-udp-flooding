@@ -24,7 +24,6 @@ static void handle_padn(const u_int8_t *tlv, neighbour_t *n) {
 
 static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     time_t now = time(0);
-    assert(now != -1);
     int rc, is_long = tlv[1] == 16;
 
     chat_id_t src_id = 0, dest_id = 0;
@@ -34,7 +33,7 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
         memcpy(&dest_id, tlv + 2 + 8, sizeof(dest_id));
 
     char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "Receive %s hello from (%s, %u).\n",
            is_long ? "long" : "short" , ipstr, ntohs(n->addr->sin6_port));
 
@@ -91,10 +90,10 @@ static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
 
     memcpy(&port, tlv + sizeof(struct in6_addr) + 2, sizeof(port));
 
-    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "Receive potential neighbour from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
-    assert (inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "New potential neighbour (%s, %u).\n", ipstr, ntohs(port));
 
     p = hashset_get(neighbours, ip, port);
@@ -257,31 +256,41 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
     u_int8_t buffer[18];
 
-    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "Ack from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
-    hashmap_t *map = hashmap_get(flooding_map, (void*)(tlv + 2));
-    if (!map) {
-        cprint(0, "Not necessary ack\n");
-        return;
-    }
-
-    datime_t *datime = hashmap_get(data_map, tlv + 2);
-    if (!datime)
-        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
-    else {
-        datime->last = time(0);
-        assert(datime->last != -1);
-    }
-
+    hashmap_t *map = hashmap_get(flooding_map, tlv + 2);
     bytes_from_neighbour(n, buffer);
-    if (!hashmap_remove(map, buffer, 1, 1))
-        cprint(0, "Not necessary ack\n");
+    datime_t *datime = hashmap_get(data_map, tlv + 2);
+
+    if (map) {
+        if (!datime)
+            cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
+        else {
+            datime->last = time(0);
+        }
+
+        hashmap_remove(map, buffer, 1, 1);
+    }
+
+    time_t now = time(0);
+    msg_pmtu_t *msg_pmtu = hashmap_get(pmtu_map, buffer);
+    if (msg_pmtu && memcmp(msg_pmtu->dataid, tlv + 2, 12) == 0) {
+        cprint(0, "Upgrade PMTU for this neighbour to %u\n", msg_pmtu->pmtu);
+        n->pmtu = msg_pmtu->pmtu;
+        n->pmtu_discovery_max = n->pmtu << 1;
+        hashmap_remove(pmtu_map, buffer, 1, 1);
+    } else if (!msg_pmtu && (now - n->last_pmtu_discovery) > TIMEVAL_PMTU) {
+        body_t *pmtu_data = malloc(sizeof(body_t));
+        pmtu_data->size = datime->data[1] + 2;
+        pmtu_data->content = voidndup(datime->data, pmtu_data->size);
+        pmtu_discovery(pmtu_data, n);
+    }
 }
 
 static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "Go away from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
 
     switch(tlv[2]) {
@@ -406,7 +415,7 @@ void handle_invalid_message(int rc, neighbour_t *n){
             return;
         }
         msg->size = size;
-        assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
         cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
             ipstr, ntohs(n->addr->sin6_port));
 

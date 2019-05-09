@@ -11,18 +11,18 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
+#include <errno.h>
 
 #include "base64.h"
 #include "utils.h"
-#include "list.h"
-#include "hashmap.h"
+#include "structs/list.h"
+#include "structs/hashmap.h"
 #include "flooding.h"
 #include "interface.h"
 #include "websocket.h"
 
 int pagelen = 0;
-char page[8192];
+char page[16384];
 
 int create_tcpserver(int port) {
     int rc, s, fd;
@@ -35,6 +35,13 @@ int create_tcpserver(int port) {
     if (s < 0) {
         perror("socket");
         return -1;
+    }
+
+    int opt = 1;
+    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
+    if (rc < 0){
+        perror("setsockopt");
+        return -3;
     }
 
     rc = bind(s, (struct sockaddr*)&sin6, sizeof(struct sockaddr_in6));
@@ -55,19 +62,19 @@ int create_tcpserver(int port) {
         return -1;
     }
 
-    pagelen = read(fd, page, 8192);
+    pagelen = read(fd, page, 16384);
+    int err = errno;
+    close(fd);
     if (pagelen < 0) {
-        perror("read");
+        perrorbis(err, "read");
         return -1;
     }
-
-    close(fd);
 
     return s;
 }
 
 const char *NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\nThis page don't exist";
-const char *INVALID = "HTTP/1.1 400 Bas Request\r\n\r\n";
+const char *INVALID = "HTTP/1.1 400 Bad Request\r\n\r\n";
 const char *STATUSLINE = "HTTP/1.1 200 OK\r\n";
 const char *MAGICSTRINGWS = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const size_t MSWSL = strlen("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
@@ -116,18 +123,21 @@ static int get_static_file(int s, const char *path, size_t len) {
         content_type = "Content-Type: image/jpg\r\n";
     } else if (memcmp(pt,".gif", len - (pt - path)) == 0) {
         content_type = "Content-Type: image/gif\r\n";
+    } else if (memcmp(pt,".svg", len - (pt - path)) == 0) {
+        content_type = "Content-Type: image/svg\r\n";
     } else {
         content_type = "Content-Type: text/html\r\n";
     }
 
     cprint(0, "Try to load file %s.\n", fp);
     fd = open(fp, O_RDONLY);
+    int err = errno;
 
     free(npath);
     free(fp);
 
     if (fd < 0) {
-        cperror("open");
+        perrorbis(err, "open");
         return not_found(s);
     }
 
@@ -265,6 +275,43 @@ int handle_http () {
 #define OPPING 0x09
 #define OPPONG 0x0a
 
+static const int png_sig_len = 8;
+static const int8_t png_sig[] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+
+static const int gif_sig_len[] = {6, 6};
+static const int8_t gif_sig[] =
+    {
+     0x47, 0x49, 0x46, 0x38, 0x37, 0x61,
+     0x47, 0x49, 0x46, 0x38, 0x39, 0x61
+    };
+
+static const int jpg_sig_len[] = {4, 12, 4};
+static const int8_t jpg_sig[] =
+    { 0xFF, 0xD8, 0xFF, 0xDB,
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0xFF, 0xD8, 0xFF, 0xEE
+    };
+
+static uint8_t file_type(const int8_t *buffer, size_t len) {
+    if (len < 4) return 0;
+
+    if (memcmp(buffer, png_sig, png_sig_len) == 0) {
+        return 4;
+    }
+
+    for (int i = 0, offset = 0; i < 2; offset += gif_sig_len[i++]) {
+        if (memcmp(buffer, gif_sig + offset, gif_sig_len[i]) == 0)
+            return 2;
+    }
+
+    for (int i = 0, offset = 0; i < 2; offset += jpg_sig_len[i++]) {
+        if (memcmp(buffer, jpg_sig + offset, jpg_sig_len[i]) == 0)
+            return 3;
+    }
+
+    return -1;
+}
+
 typedef struct fragws {
     uint8_t opcode;
     uint8_t offset;
@@ -314,7 +361,7 @@ static int send_pong (int s, const int8_t *payload, size_t buflen) {
 }
 
 int handle_ws(int s) {
-    int rc, status = 0;
+    int rc, status = 0, type;
     uint8_t fin, opcode, mask, len[8], maskkey[4];
     int8_t *decoded, *payload, *buffer;
     int64_t payloadlen = 0;
@@ -427,8 +474,16 @@ int handle_ws(int s) {
             break;
 
         case OPBIN: //bin
-            cprint(STDOUT_FILENO, "%*s\n", frag->buflen, frag->buffer);
-            handle_input((char*)frag->buffer, frag->buflen);
+            type = file_type(frag->buffer, frag->buflen);
+            if (type >= 255) {
+                cprint(0, "Received unknown file type from web app. Assume this is text.\n");
+                send_data(0, (char*)frag->buffer, frag->buflen);
+                print_file(0, (u_int8_t*)frag->buffer, frag->buflen);
+            } else {
+                send_data(type, (char*)frag->buffer, frag->buflen);
+                print_file(type, (u_int8_t*)frag->buffer, frag->buflen);
+            }
+
             break;
 
         case OPCLOSE: // close
@@ -474,9 +529,9 @@ int print_web(const uint8_t *buffer, size_t buflen) {
     uint8_t frame[1024];
     uint32_t mask;
 
-    size_t len, i, j, count = 0, size = (buflen < 125 ? 1 : buflen / 125);
+    size_t len, i, j, count = 0;
 
-    for (i = 0; i < size; i++) {
+    for (i = 0, count = 0; count < buflen; i++) {
         memset(frame, 0, 1024);
         frame[0] = i == 0 ? OPTXT : OPCONT;
         frame[1] = MSKBIT;
@@ -488,14 +543,13 @@ int print_web(const uint8_t *buffer, size_t buflen) {
         memcpy(frame + 2, &mask, 4);
 
         for (j = 0; j < len; j++) {
-            frame[j + 6] = buffer[j] ^ frame[2 + (j % 4)];
+            frame[j + 6] = buffer[j + count] ^ frame[2 + (j % 4)];
         }
+        count += len;
 
         // last frame FIN bit
-        if (i == size - 1)
+        if (len < 125)
             frame[0] ^= FINBIT;
-
-        //print_bytes((char*)frame, 2 + 4 + len);
 
         pthread_mutex_lock(&clientsockets_mutex);
         for (l = clientsockets; l; l = l->next) {

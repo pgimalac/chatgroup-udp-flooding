@@ -8,11 +8,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "types.h"
 #include "interface.h"
@@ -53,7 +53,7 @@ const char *pseudos[28] = {
                 "HAL"
 };
 
-const char *ext[] = { 0, 0, "gif", "jpg", "png" };
+const char *ext[] = { 0, 0, "gif", "jpg", "png", "svg" };
 
 // =========== COMMANDS part ===========
 
@@ -105,7 +105,7 @@ static void nameRandom(const char *buffer, size_t len){
 
 static void __print(const neighbour_t *n){
     char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(STDOUT_FILENO, "    @ %s / %d\n", ipstr, ntohs(n->addr->sin6_port));
 }
 
@@ -156,7 +156,7 @@ static void transfert(const char *path, size_t buflen) {
     uint8_t type = path[0] - '0';
     char buffer[MAX_BUF_SIZE], *npath = calloc(buflen, 1);
     if (!npath) {
-        perror("calloc");
+        cperror("calloc");
         return;
     }
 
@@ -164,20 +164,22 @@ static void transfert(const char *path, size_t buflen) {
 
     cprint(STDOUT_FILENO, "Send file %s on network.\n", npath);
     fd = open(npath, O_RDONLY);
+    int err = errno;
     free(npath);
 
     if (fd < 0) {
-        cperror("open");
+        perrorbis(err, "open");
         return;
     }
 
     rc = read(fd, buffer, MAX_BUF_SIZE);
+    err = errno;
+    close(fd);
     if (rc < 0) {
-        cperror("read");
+        perrorbis(err, "read");
         return;
     }
 
-    close(fd);
 
     cprint(0, "Transfering file %u.\n", rc);
     send_data(type, buffer, rc);
@@ -297,6 +299,7 @@ void print_message(const u_int8_t* buffer, int size){
 
 void handle_input(char *buffer, size_t buflen) {
     char *purified = purify(buffer, &buflen);
+    if (!purified) return;
     if (purified[0] == COMMAND)
         handle_command(purified + 1, buflen - 1);
     else {
