@@ -9,7 +9,6 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#include <assert.h>
 #include <getopt.h>
 
 #include "tlv.h"
@@ -92,6 +91,8 @@ int init() {
         hashmap_destroy(fragmentation_map, 0);
         return -1;
     }
+
+    interfaces = 0;
 
     return 0;
 }
@@ -359,8 +360,8 @@ int main(int argc, char **argv) {
             if (rc == EAFNOSUPPORT || rc == ENETUNREACH){
                 hashset_remove_neighbour(potential_neighbours, msg->dst);
                 hashset_remove_neighbour(neighbours, msg->dst);
-                assert (inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
-                              ipstr, INET6_ADDRSTRLEN) != NULL);
+                inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
+                          ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
                     ipstr, msg->dst->addr->sin6_port);
                 free(msg->dst->addr);

@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <errno.h>
 
 #include "base64.h"

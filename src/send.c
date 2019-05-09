@@ -3,7 +3,6 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include <assert.h>
 #include <stdlib.h>
 
 #include <sys/stat.h>

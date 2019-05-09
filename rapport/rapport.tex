@@ -23,7 +23,7 @@
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
-Les dépendances de ce projet sont...
+L'application est développé en C pour ses systèmes UNIX respectant les normes POSIX. Elle utilise l'API socket, les fonctions de la \textrm{glibc} et la fonction \textrm{SHA1} de la bibliothèque \textrm{OpenSSL}.
 
 Un \textrm{Makefile} est fournis pour compiler le projet:  \textit{'make all'}.\\
 
@@ -78,9 +78,7 @@ Une interface web a aussi été implémentée, mais étant une extention nous en
 
 \subsection{Sujet minimal}
 Le sujet minimal a été entièrement implémenté.
-Nous envoyons et recevons des messages...
-
-Envoi de Gowaay a la fin
+Nous avons ajouté un handler lors de l'interruption du programme pour envoyer un TLV GoAway à tous les voisins indiquant que nous quittons le réseau.
 
 Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa resistance aux paquets buggés.
 
@@ -140,7 +138,7 @@ Cette attribution de type nous permet notemment de différentier la reception d'
 
 Nous rassemblons tous les messages fragmentés que nous recevons, une analyse du type pourrait être faite pour ne pas s'encombrer de gros messages dont ne feront rien une fois rassemblés.
 
-De rapides tests ont été fait avec \textrm{Alexandre Moine} et \textrm{Tristan François} pour s'assurer de l'interopérabilité de nos implémentations.
+Des tests ont été fait avec \textrm{Alexandre Moine} et \textrm{Tristan François} pour s'assurer de l'interopérabilité de nos implémentations.
 
 \subsection{Interface web, protocole HTTP et WebSocket\label{sec:web}}
 
@@ -204,26 +202,25 @@ On note que si le ACK se perds alors que le message est reçu, on se contente de
 \subsection{Extentions envisagées mais non développées}
 
 \begin{description}
-\item[Concurrence:] pour être précis cela a été implémenté sur une branche mais pas avec assez de succès pour être rendu % peut être déplacer dans extentions ?
-\item[Très très gros messages:] taille des messages sur 4 octets
-\item[Sécurité cryptographique]
+\item[Concurrence] Nous avons un gestion de la concurrence sans parallélisation ; nous essayions de lire et d'envoyer un nombre de message raisonnable pour notre nombre de voisins symétriques. Plus tard nous avons implémenté un version plus efficace qui parralélise la reception, l'envoie et l'interface web si possible. Cependant l'efficacité de cette version est trop questionnable pour être rendue\footnote{Cette version est sur la branche \textrm{threads} du projet git. Si vous souhaitez y jetter un coup d'oeil dites le nous pour que vous nous ajoutions au dépôt}.
+\item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à innonder pour transferer des fichiers de cette taille est tellement grand que cet usage semble peut approprié à ce genre d'application.
+\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extention cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extention et l'arrivée des examens nous à forcé à laisser tomber.
 \end{description}
 
 \section{Plus sur l'implémentation\label{sec:implem}}
 \subsection{Organisation}
-Le fichier \textit{main} contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.\\
 
-Le sous-dossier \textbf{structs} contient les structures de données utilisées dans le projet: hashmap, hashset, liste chaînée, arraylist.\\
+Les fichiers sources du projets sont dans le dossier \textrm{src}. Le code est répartit dans les fichiers selon l'ordre suivant:
 
-Le fichier \textit{interface} contient les fonctions liées à l'interface (changement de pseudonyme, gestion de commandes, affichages des messages).\\
-
-Les fichiers \textit{network} et \textit{flooding} contiennent les fonctions liées à l'inondation, à la réception et à l'envoi de messages.\\
-
-Les fichiers \textit{tlv}, \textit{checkers}, \textit{handlers}, \textit{onsend} contiennent des fonctions de gestion de tlv (création, vérification et gestion à la réception,...).\\
-
-La plupart des structures utilisées pour l'implémentation du protocole sont définies dans \textit{types.h}.\\
-
-Le fichier \textit{util} contient des fonctions diverses utilisées tout au long du projet.
+\begin{description}
+\item[types.h] contient les structures essentielles utilisées pour l'implémentation du protocole.
+\item[main.c] contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.
+\item[structs] contient les structures de données utilisées dans le projet: hashmap, hashset, liste chaînée, arraylist.
+\item[interface.c] contient les fonctions liées à l'interface (changement de pseudonyme, gestion de commandes, affichages des messages).
+\item[network.c, flooding.c] contiennent les fonctions liées à l'inondation, à la réception et à l'envoi de messages.
+\item[tlv, checkers, handlers, onsend] contiennent des fonctions de gestion de tlv (création, vérification et gestion à la réception,...).
+\item[util.c] contient des fonctions diverses utilisées tout au long du projet.
+\end{description}
 
 \subsection{Structures utilisées\label{sec:struct}}
 Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).

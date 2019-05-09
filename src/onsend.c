@@ -51,7 +51,6 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timeval *t
     datime_t *datime;
     u_int8_t buffer[18];
     time_t now = time(0), delta;
-    assert(now != -1);
 
     cprint(0, "* Containing data.\n");
 
@@ -130,7 +129,7 @@ int send_message(int sock, message_t *msg, struct timeval *tv) {
 
     msg->body_length = htons(msg->body_length);
 
-    assert (inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &msg->dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "> Send message to (%s, %u).\n", ipstr, ntohs(msg->dst->addr->sin6_port));
 
     for (p = msg->body; p; p = p->next) {

@@ -22,6 +22,7 @@
 int sock;
 chat_id_t id;
 hashset_t *neighbours, *potential_neighbours;
+list_t *interfaces;
 
 size_t message_to_iovec(message_t *msg, struct iovec **iov);
 

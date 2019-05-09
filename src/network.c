@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <time.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -140,7 +139,7 @@ int start_server(int port) {
     local_addr.sin6_port = htons(port);
 
     char out[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN) != NULL);
+    inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN);
     if (local_addr.sin6_port)
         cprint(0, "Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
     else
@@ -204,7 +203,6 @@ new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     }
 
     time_t now = time(0);
-    assert (now != -1);
 
     memset(n, 0, sizeof(neighbour_t));
     n->pmtu = DEF_PMTU;
@@ -263,12 +261,33 @@ int add_neighbour(const char *hostname, const char *service) {
         if (!new_neighbour(addr->sin6_addr.s6_addr, addr->sin6_port, 0))
             continue;
 
-        assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
+        inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
         cprint(0, "Add %s, %d to potential neighbours\n", ipstr, ntohs(addr->sin6_port));
     }
 
     freeaddrinfo(r);
 
+    return 0;
+}
+
+int add_interface(struct in6_pktinfo *info) {
+    struct in6_pktinfo *interface;
+
+    for (list_t *l = interfaces; l; l = l->next) {
+        interface = (struct in6_pktinfo*)l->val;
+        if (memcmp(&interface->ipi6_addr, &info->ipi6_addr, 16) == 0
+            && interface->ipi6_ifindex == info->ipi6_ifindex)
+            return 1;
+    }
+
+    interface = malloc(sizeof(struct in6_pktinfo));
+    if (!interface)
+        return -1;
+
+    memcpy(&interface->ipi6_addr, &info->ipi6_addr, 16);
+    interface->ipi6_ifindex = info->ipi6_ifindex;
+
+    list_add(&interfaces, interface);
     return 0;
 }
 
@@ -315,9 +334,13 @@ int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buf
         return -2;
     }
 
-    char ipstr[INET6_ADDRSTRLEN];
-    assert (inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
-    cprint(0, "Receive message from (%s, %u).\n", ipstr, ntohs(addr->sin6_port));
+    char ipstr[INET6_ADDRSTRLEN], myipstr[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET6, &info->ipi6_addr, myipstr, INET6_ADDRSTRLEN);
+    cprint(0, "Receive message from (%s, %u) on interface (%s, %d) .\n",
+           ipstr, ntohs(addr->sin6_port), myipstr, info->ipi6_ifindex);
+
+    add_interface(info);
 
     return 0;
 }
@@ -348,7 +371,6 @@ void quit_handler (int sig) {
                 rc = send_message(sock, &msg, &tv);
                 if (rc != 0) {
                     perrorbis(rc, "send_message");
-                    assert (inet_ntop(AF_INET6, &msg.dst->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN) != NULL);
                     cprint(STDERR_FILENO, "Failed to send goaway to (%s, %u).\n", ipstr, ntohs(msg.dst->addr->sin6_port));
                 }
             }
