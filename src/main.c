@@ -264,17 +264,7 @@ int main(int argc, char **argv) {
 
     cprint(STDOUT_FILENO, "Web interface on http://localhost:%d.\n", httpport);
 
-    struct sigaction sigact = { 0 };
-
-    sigact.sa_sigaction = crit_err_hdlr;
-    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    if (sigaction(SIGINT, &sigact, (struct sigaction *)NULL) != 0) {
-        fprintf(stderr, "error setting signal handler for %d (%s)\n",
-        SIGINT, strsignal(SIGINT));
-        exit(EXIT_FAILURE);
-    }
-
+    signal(SIGINT, quit);
     cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
     void *ret = NULL;

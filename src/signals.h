@@ -5,7 +5,6 @@
 #include <pthread.h>
 
 void quit(int rc);
-void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext);
 void cleaner(void *running);
 
 #endif

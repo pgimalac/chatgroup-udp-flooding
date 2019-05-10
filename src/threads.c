@@ -132,9 +132,10 @@ void *send_thread(void *running){
     pthread_mutex_t useless = PTHREAD_MUTEX_INITIALIZER;
     char ipstr[INET6_ADDRSTRLEN];
 
+
 //    time_t start;
     while (1) {
-        tv.tv_sec = MAX_TIMEOUT;
+        tv.tv_sec = time(0) + MAX_TIMEOUT;
 
         size = hello_neighbours(&tv);
         if (size < MAX_NB_NEIGHBOUR){
@@ -178,17 +179,6 @@ void *send_thread(void *running){
 
 #define BUFFER_INPUT_SIZE 4096
 void *input_thread(void *running){
-    struct sigaction sigact = { 0 };
-
-    sigact.sa_sigaction = crit_err_hdlr;
-    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    if (sigaction(SIGINT, &sigact, (struct sigaction *)NULL) != 0) {
-        fprintf(stderr, "error setting signal handler for %d (%s)\n",
-        SIGINT, strsignal(SIGINT));
-        exit(EXIT_FAILURE);
-    }
-
     *(char*)running = 1;
     pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);

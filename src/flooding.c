@@ -237,6 +237,7 @@ int message_flooding(struct timespec *tv) {
     list_t *l, *msg_done = 0;
     char *dataid;
     hashmap_t *map;
+    time_t now = time(0);
 
     pthread_mutex_lock(&data_map->mutex);
     pthread_mutex_lock(&flooding_map->mutex);
@@ -249,8 +250,8 @@ int message_flooding(struct timespec *tv) {
             if (rc < 0)
                 continue;
 
-            if (rc < tv->tv_sec)
-                tv->tv_sec = rc;
+            if (rc < tv->tv_sec - now)
+                tv->tv_sec = now + rc;
         }
     }
 

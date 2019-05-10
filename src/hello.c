@@ -69,8 +69,8 @@ void hello_potential_neighbours(struct timespec *tv) {
                     free(hello->content);
                     free(hello);
                 }
-            } else if (max - delta < tv->tv_sec) {
-                tv->tv_sec = max - delta;
+            } else if (max - delta < tv->tv_sec - now) {
+                tv->tv_sec = now + max - delta;
             }
         }
     }
@@ -146,8 +146,8 @@ int hello_neighbours(struct timespec *tv) {
                         free(hello->content);
                         free(hello);
                     }
-                } else if (MAX_TIMEOUT - delta < tv->tv_sec) {
-                    tv->tv_sec = MAX_TIMEOUT - delta;
+                } else if (MAX_TIMEOUT - delta < tv->tv_sec - now) {
+                    tv->tv_sec = now + MAX_TIMEOUT - delta;
                 }
             } else if (list_add(&to_delete, p) == 0){
                 cperror("list_add");

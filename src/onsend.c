@@ -88,8 +88,8 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     else
         datime->last = now;
 
-    if (delta < tv->tv_sec)
-        tv->tv_sec = delta;
+    if (delta < tv->tv_sec - now)
+        tv->tv_sec = now + delta;
 }
 
 static void onsend_ack(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
