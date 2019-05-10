@@ -26,11 +26,30 @@
 
 neighbour_t *new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
               unsigned int port, const neighbour_t *tutor) {
+    pthread_mutex_lock(&neighbours->mutex);
+    pthread_mutex_lock(&potential_neighbours->mutex);
+
+    char ipstr[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN);
+    if (hashset_contains(neighbours, ip, port)){
+        cprint(0, "Neighbour (%s, %u) already known (symetrical).\n", ipstr, ntohs(port));
+        return 0;
+    } else if (hashset_contains(potential_neighbours, ip, port)){
+        cprint(0, "Neighbour (%s, %u) already known (potential_neighbours).\n", ipstr, ntohs(port));
+        return 0;
+    } else if (max(neighbours->size, potential_neighbours->size) >= MAX_NB_NEIGHBOUR){
+        cprint(0, "Already too much neighbours so (%s, %u) wasn't added in the potentials.\n", ipstr, ntohs(port));
+        return 0;
+    }
+
     struct sockaddr_in6 *addr = malloc(sizeof(struct sockaddr_in6));
     if (addr == NULL){
         cperror("malloc");
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         return 0;
     }
+
     memset(addr, 0, sizeof(struct sockaddr_in6));
     addr->sin6_family = AF_INET6;
     addr->sin6_port = port;
@@ -40,6 +59,8 @@ neighbour_t *new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     if (n == NULL){
         cperror("malloc");
         free(addr);
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         return 0;
     }
 
@@ -71,6 +92,10 @@ neighbour_t *new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
         free(n);
     } else if (rc == 0)
         perrorbis(ENOMEM, "hashset_add");
+
+    pthread_mutex_unlock(&potential_neighbours->mutex);
+    pthread_mutex_unlock(&neighbours->mutex);
+
     return hashset_get(potential_neighbours, ip, port);
 }
 

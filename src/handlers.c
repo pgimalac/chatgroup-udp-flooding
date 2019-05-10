@@ -83,38 +83,19 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
 }
 
 static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
-    neighbour_t *p;
     const unsigned char *ip = (const unsigned char*)tlv + 2;
     u_int16_t port;
-    char ipstr[INET6_ADDRSTRLEN];
+    char ipstr[INET6_ADDRSTRLEN], ipstr2[INET6_ADDRSTRLEN];
 
     memcpy(&port, tlv + sizeof(struct in6_addr) + 2, sizeof(port));
 
     inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
-    cprint(0, "Receive potential neighbour from (%s, %u).\n", ipstr, ntohs(n->addr->sin6_port));
+    inet_ntop(AF_INET6, ip, ipstr2, INET6_ADDRSTRLEN);
+    cprint(0, "Receive potential neighbour from (%s, %u): (%s, %u).\n",
+            ipstr, ntohs(n->addr->sin6_port), ipstr2, port);
 
-    inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN);
-    cprint(0, "New potential neighbour (%s, %u).\n", ipstr, ntohs(port));
-
-    p = hashset_get(neighbours, ip, port);
-    if (p) {
-        cprint(0, "Neighbour (%s, %u) already known.\n", ipstr, ntohs(port));
-        return;
-    }
-
-    p = hashset_get(potential_neighbours, ip, port);
-    if (p) {
-        cprint(0, "Neighbour (%s, %u) already known.\n", ipstr, ntohs(port));
-        return;
-    }
-
-    if (max(neighbours->size, potential_neighbours->size) >= MAX_NB_NEIGHBOUR){
-        cprint(0, "Already too much neighbours so (%s, %u) wasn't added in the potentials.\n", ipstr, ntohs(port));
-        return;
-    }
-
-    if (!new_neighbour(ip, port, n))
-        cprint(STDERR_FILENO, "An error occured while adding peer to potential neighbours.\n");
+    new_neighbour(ip, port, n);
+    // no error handling: it is done inside new_neighbour
 }
 
 static void handle_data(const u_int8_t *tlv, neighbour_t *n){
@@ -280,8 +261,13 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
         n->pmtu = msg_pmtu->pmtu;
         n->pmtu_discovery_max = n->pmtu << 1;
         hashmap_remove(pmtu_map, buffer, 1, 1);
-    } else if (!msg_pmtu && (now - n->last_pmtu_discovery) > TIMEVAL_PMTU) {
+    } else if (datime && !msg_pmtu && (now - n->last_pmtu_discovery) > TIMEVAL_PMTU) {
         body_t *pmtu_data = malloc(sizeof(body_t));
+        if (!pmtu_data){
+            cperror("malloc");
+            return;
+        }
+
         pmtu_data->size = datime->data[1] + 2;
         pmtu_data->content = voidndup(datime->data, pmtu_data->size);
         pmtu_discovery(pmtu_data, n);
