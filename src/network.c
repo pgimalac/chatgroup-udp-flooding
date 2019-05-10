@@ -117,7 +117,6 @@ int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message
 
 int start_server(int port) {
     int rc, s;
-    struct ipv6_mreq mreq = { 0 };
     memset(&local_addr, 0, sizeof(local_addr));
 
     s = socket(PF_INET6, SOCK_DGRAM, 0);
@@ -169,17 +168,7 @@ int start_server(int port) {
         return -3;
     }
 
-    int ifindex = if_nametoindex("wlp2s0b1");
-    if (ifindex < 0) {
-        cperror("if_nametoindex");
-        return -3;
-    }
-
-    multicast->addr->sin6_scope_id = ifindex;
-    memcpy(&mreq.ipv6mr_multiaddr, &multicast->addr->sin6_addr, 16);
-    mreq.ipv6mr_interface = ifindex;
-
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &one, sizeof(one));
+    rc = setsockopt(s, IPPROTO_IPV6, SO_REUSEADDR, &one, sizeof(one));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
@@ -191,26 +180,19 @@ int start_server(int port) {
         return -3;
     }
 
-    /* rc = setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &zero, sizeof(zero)); */
-    /* if (rc < 0) { */
-    /*     cperror("setsockopt"); */
-    /*     return -3; */
-    /* } */
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &zero, sizeof(zero));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    join_group_on_all_interfaces(s);
 
     rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
     if (rc < 0) {
         cperror("bind");
         return -2;
     }
-
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq));
-    if (rc < 0) {
-        cperror("setsockopt");
-        return -3;
-    }
-
-    inet_ntop(AF_INET6, &mreq.ipv6mr_multiaddr, out, INET6_ADDRSTRLEN);
-    cprint(STDOUT_FILENO, "Join multicast group %s.\n", out);
 
     return s;
 }

@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
                 inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
                           ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
-                    ipstr, msg->dst->addr->sin6_port);
+                       ipstr, htons(msg->dst->addr->sin6_port));
                 free(msg->dst->addr);
                 free(msg->dst->tutor_id);
                 free(msg->dst);
