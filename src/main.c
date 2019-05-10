@@ -125,60 +125,6 @@ int init() {
     return 0;
 }
 
-#define MAXSIZE ((1 << 16) + 4)
-int handle_reception () {
-    int rc;
-    u_int8_t c[MAXSIZE] = { 0 };
-    size_t len = MAXSIZE;
-    struct sockaddr_in6 addr = { 0 };
-
-    rc = recv_message(sock, &addr, c, &len);
-    if (rc != 0) {
-        if (errno == EAGAIN)
-            return -1;
-        cperror("receive message");
-        return -2;
-    }
-
-    neighbour_t *n = hashset_get(neighbours,
-                    addr.sin6_addr.s6_addr,
-                    addr.sin6_port);
-
-    if (!n) {
-        n = hashset_get(potential_neighbours,
-                        addr.sin6_addr.s6_addr,
-                        addr.sin6_port);
-    }
-
-    if (!n) {
-        n = new_neighbour(addr.sin6_addr.s6_addr,
-                          addr.sin6_port, 0);
-        if (!n){
-            cprint(0, "An error occured while trying to create a new neighbour.\n");
-            return -4;
-        }
-        cprint(0, "Add to potential neighbours.\n");
-    }
-
-    message_t *msg = malloc(sizeof(message_t));
-    if (!msg){
-        cperror("malloc");
-        return -5;
-    }
-    memset(msg, 0, sizeof(message_t));
-    rc = bytes_to_message(c, len, n, msg);
-    if (rc != 0){
-        cprint(0, "Received an invalid message.\n");
-        handle_invalid_message(rc, n);
-        free(msg);
-        return -3;
-    }
-
-    cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
-
-    return 0;
-}
-
 void cleaner(void *running){
     pthread_mutex_unlock(&write_mutex);
     pthread_mutex_unlock(&mutex_end_thread);
