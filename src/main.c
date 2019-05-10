@@ -19,6 +19,7 @@
 #include "tlv.h"
 #include "flooding.h"
 #include "websocket.h"
+#include "multicast.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
@@ -90,7 +91,7 @@ int init() {
         return -1;
     }
 
-    interfaces = 0;
+    init_multicast();
 
     return 0;
 }
@@ -352,6 +353,7 @@ int main(int argc, char **argv) {
 
         message_flooding(&tv);
         neighbour_flooding(0);
+        hello_multicast(&tv);
 
         while((msg = pull_message())) {
             rc = send_message(sock, msg, &tv);

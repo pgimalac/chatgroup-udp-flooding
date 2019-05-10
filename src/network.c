@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <net/if.h>
 
 #include <unistd.h>
 #include <stdio.h>
@@ -18,6 +19,7 @@
 #include "interface.h"
 #include "websocket.h"
 #include "onsend.h"
+#include "multicast.h"
 
 // user address
 struct sockaddr_in6 local_addr;
@@ -115,6 +117,7 @@ int bytes_to_message(const u_int8_t *src, size_t buflen, neighbour_t *n, message
 
 int start_server(int port) {
     int rc, s;
+    struct ipv6_mreq mreq = { 0 };
     memset(&local_addr, 0, sizeof(local_addr));
 
     s = socket(PF_INET6, SOCK_DGRAM, 0);
@@ -140,37 +143,74 @@ int start_server(int port) {
 
     char out[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &local_addr, out, INET6_ADDRSTRLEN);
-    if (local_addr.sin6_port)
-        cprint(0, "Start server at %s on port %d.\n", out, ntohs(local_addr.sin6_port));
-    else
+    if (local_addr.sin6_port) {
+        cprint(0, "Start server at %s on port %d.\n",
+               out, ntohs(local_addr.sin6_port));
+    } else {
         cprint(0, "Start server at %s on a random port.\n", out);
+    }
 
-    int num = 1;
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &num, sizeof(num));
+    int one = 1, zero = 0;
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
     }
 
-    num = 0;
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &num, sizeof(num));
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &zero, sizeof(zero));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
     }
 
-    num = 1;
-    rc = setsockopt(s, IPPROTO_IPV6, IPV6_DONTFRAG, &num, sizeof(num));
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_DONTFRAG, &one, sizeof(one));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
     }
+
+    int ifindex = if_nametoindex("wlp2s0b1");
+    if (ifindex < 0) {
+        cperror("if_nametoindex");
+        return -3;
+    }
+
+    multicast->addr->sin6_scope_id = ifindex;
+    memcpy(&mreq.ipv6mr_multiaddr, &multicast->addr->sin6_addr, 16);
+    mreq.ipv6mr_interface = ifindex;
+
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &one, sizeof(one));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &one, sizeof(one));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    /* rc = setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &zero, sizeof(zero)); */
+    /* if (rc < 0) { */
+    /*     cperror("setsockopt"); */
+    /*     return -3; */
+    /* } */
 
     rc = bind(s, (struct sockaddr*)&local_addr, sizeof(local_addr));
     if (rc < 0) {
         cperror("bind");
         return -2;
     }
+
+    rc = setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq));
+    if (rc < 0) {
+        cperror("setsockopt");
+        return -3;
+    }
+
+    inet_ntop(AF_INET6, &mreq.ipv6mr_multiaddr, out, INET6_ADDRSTRLEN);
+    cprint(STDOUT_FILENO, "Join multicast group %s.\n", out);
 
     return s;
 }
