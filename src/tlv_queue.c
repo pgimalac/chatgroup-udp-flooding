@@ -162,11 +162,10 @@ int pmtu_discovery (body_t *tlv, neighbour_t *dst) {
         t = malloc(sizeof(body_t));
         if (!t) return -3;
         len = min(payloadlen - offset, 257);
-        if (len == 1) {
+        if (len == 1)
             t->size = tlv_pad1(&t->content);
-        } else {
+        else
             t->size = tlv_padn(&t->content, len - 2);
-        }
 
         t->next = padn;
         padn = t;
@@ -181,6 +180,8 @@ int pmtu_discovery (body_t *tlv, neighbour_t *dst) {
         free(p); // free padn
         return -2;
     }
+
+    pthread_mutex_lock(&queue_mutex);
 
     if (!queue) {
         queue = p;
@@ -197,9 +198,11 @@ int pmtu_discovery (body_t *tlv, neighbour_t *dst) {
     tlv->next = padn;
     p->msg->body = tlv;
     p->msg->body_length = new_pmtu;
+    p->last = NULL; // the last tlv is not null but we won't use this field here
 
     msg_pmtu_t *msg_pmtu = malloc(sizeof(msg_pmtu_t));
     if (!msg_pmtu) {
+        pthread_mutex_unlock(&queue_mutex);
         return -1;
     }
 
@@ -212,19 +215,21 @@ int pmtu_discovery (body_t *tlv, neighbour_t *dst) {
     msg_pmtu->time = time(0);
 
     hashmap_add(pmtu_map, buffer, msg_pmtu);
+    pthread_mutex_unlock(&queue_mutex);
 
     return new_pmtu;
 }
 
 
 int decrease_pmtu() {
-    size_t i;
     time_t now = time(0);
-    list_t *l, *to_delete = 0;
+    list_t *to_delete = 0;
     msg_pmtu_t *msg_pmtu;
 
-    for (i = 0; i < pmtu_map->capacity; i++) {
-        for (l = pmtu_map->tab[i]; l; l = l->next) {
+    pthread_mutex_lock(&pmtu_map->mutex);
+
+    for (size_t i = 0; i < pmtu_map->capacity; i++) {
+        for (list_t *l = pmtu_map->tab[i]; l; l = l->next) {
             msg_pmtu = (msg_pmtu_t*)((map_elem*)l->val)->value;
             if (now - msg_pmtu->time > TIMEVAL_DEC_PMTU) {
                 msg_pmtu->n->pmtu_discovery_max =
@@ -243,6 +248,8 @@ int decrease_pmtu() {
         bytes_from_neighbour(n, buffer);
         hashmap_remove(pmtu_map, buffer, 1, 1);
     }
+
+    pthread_mutex_unlock(&pmtu_map->mutex);
 
     return 0;
 }

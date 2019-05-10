@@ -202,18 +202,14 @@ static int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     free(body->content);
                     free(body);
                 }
-
                 continue;
             }
 
             delta = dinfo->time - now;
-
-            if (delta < tv) {
+            if (delta < tv)
                 tv = delta;
-            }
         }
     }
-
 
     neighbour_t *obj;
     u_int8_t buf[18];

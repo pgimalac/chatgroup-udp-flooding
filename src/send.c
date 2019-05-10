@@ -16,7 +16,7 @@
 #include "interface.h"
 #include "utils.h"
 
-void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
+static void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
     uint16_t nsize = htons(size), pos;
     body_t data = { 0 };

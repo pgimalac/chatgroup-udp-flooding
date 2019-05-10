@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -58,14 +59,14 @@ int clean_old_data() {
 
 int clean_data_from_frags(frag_t *frag) {
     size_t i;
-    list_t *l, *to_delete = 0;
+    list_t *to_delete = 0;
     datime_t *datime;
     u_int8_t *key;
 
     pthread_mutex_lock(&data_map->mutex);
 
     for (i = 0; i < data_map->capacity; i++) {
-        for (l = data_map->tab[i]; l; l = l->next) {
+        for (list_t *l = data_map->tab[i]; l; l = l->next) {
             datime = ((map_elem*)l->val)->value;
             key = ((map_elem*)l->val)->key;
 
@@ -105,6 +106,7 @@ int clean_old_frags() {
     frag_t *frag;
     time_t now = time(0);
 
+    pthread_mutex_lock(&data_map->mutex);
     pthread_mutex_lock(&fragmentation_map->mutex);
 
     for (i = 0; i < fragmentation_map->capacity; i++) {
@@ -130,6 +132,7 @@ int clean_old_frags() {
     if (i)
         cprint(0, "%lu old message fragments removed.\n", i);
 
+    pthread_mutex_unlock(&data_map->mutex);
     pthread_mutex_unlock(&fragmentation_map->mutex);
 
     return i;

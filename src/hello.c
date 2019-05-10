@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -18,19 +19,18 @@
 
 void hello_potential_neighbours(struct timespec *tv) {
     int rc;
-    size_t i;
     time_t max, delta, now = time(0);
-    list_t *l;
     neighbour_t *p;
     body_t *hello;
     char ipstr[INET6_ADDRSTRLEN];
 
     list_t *to_delete = NULL;
 
+    pthread_mutex_lock(&neighbours->mutex);
     pthread_mutex_lock(&potential_neighbours->mutex);
 
-    for (i = 0; i < potential_neighbours->capacity; i++) {
-        for (l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
+    for (size_t i = 0; i < potential_neighbours->capacity; i++) {
+        for (list_t *l = potential_neighbours->tab[i]; l != NULL; l = l->next) {
             p = (neighbour_t*)l->val;
 
             if (p->short_hello_count >= NBSH) {
@@ -75,8 +75,6 @@ void hello_potential_neighbours(struct timespec *tv) {
         }
     }
 
-    pthread_mutex_unlock(&potential_neighbours->mutex);
-
     while (to_delete != NULL){
         neighbour_t *n = list_pop(&to_delete);
 
@@ -106,6 +104,9 @@ void hello_potential_neighbours(struct timespec *tv) {
         free(n->tutor_id);
         free(n);
     }
+
+    pthread_mutex_unlock(&potential_neighbours->mutex);
+    pthread_mutex_unlock(&neighbours->mutex);
 }
 
 int hello_neighbours(struct timespec *tv) {
@@ -154,8 +155,6 @@ int hello_neighbours(struct timespec *tv) {
         }
     }
 
-    pthread_mutex_unlock(&neighbours->mutex);
-
     while (to_delete) {
         p = (neighbour_t*)list_pop(&to_delete);
         if (!hashset_remove(neighbours, p->addr->sin6_addr.s6_addr, p->addr->sin6_port))
@@ -178,6 +177,7 @@ int hello_neighbours(struct timespec *tv) {
             ipstr, ntohs(p->addr->sin6_port));
         cprint(0, "He did not send long hello for too long \n");
     }
+    pthread_mutex_unlock(&neighbours->mutex);
 
     return size;
 }

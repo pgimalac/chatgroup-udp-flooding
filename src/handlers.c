@@ -101,7 +101,6 @@ static void handle_neighbour(const u_int8_t *tlv, neighbour_t *n) {
 static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     int rc;
     unsigned int size = tlv[1] - 13;
-    hashmap_t *map;
     u_int8_t buffer[18];
 
     cprint(0, "Data received of type %u.\n", tlv[14]);
@@ -109,7 +108,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     pthread_mutex_lock(&data_map->mutex);
     pthread_mutex_lock(&flooding_map->mutex);
 
-    map = hashmap_get(flooding_map, tlv + 2);
+    hashmap_t *map = hashmap_get(flooding_map, tlv + 2);
 
     if (!map && !hashmap_contains(data_map, (void*)tlv + 2)) {
         if (tlv[14] == 0) {
@@ -126,6 +125,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
                 if (!frag){
                     cperror("malloc");
                     pthread_mutex_unlock(&flooding_map->mutex);
+                    pthread_mutex_unlock(&data_map->mutex);
                     return;
                 }
                 frag->id = voidndup(fragid, 12);
@@ -200,13 +200,13 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
         map = hashmap_get(flooding_map, tlv + 2);
     }
 
-    pthread_mutex_unlock(&data_map->mutex);
 
     chat_id_t sender = *(chat_id_t*)(tlv + 2);
     nonce_t nonce = *(nonce_t*)(tlv + 10);
     body_t *body = create_body();
     if (!body){
         pthread_mutex_unlock(&flooding_map->mutex);
+        pthread_mutex_unlock(&data_map->mutex);
         return;
     }
     rc = tlv_ack(&body->content, sender, nonce);
@@ -214,6 +214,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
         perrorbis(ENOMEM, "tlv_ack");
         free(body);
         pthread_mutex_unlock(&flooding_map->mutex);
+        pthread_mutex_unlock(&data_map->mutex);
         return;
     }
 
@@ -231,6 +232,7 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
     push_tlv(body, n);
     pthread_mutex_unlock(&flooding_map->mutex);
+    pthread_mutex_unlock(&data_map->mutex);
 }
 
 static void handle_ack(const u_int8_t *tlv, neighbour_t *n){

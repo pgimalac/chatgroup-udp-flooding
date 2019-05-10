@@ -31,12 +31,11 @@ struct sockaddr_in6 local_addr;
 
 #define MAXSIZE ((1 << 16) + 4)
 int handle_reception () {
-    int rc;
     u_int8_t c[MAXSIZE] = { 0 };
     size_t len = MAXSIZE;
     struct sockaddr_in6 addr = { 0 };
 
-    rc = recv_message(sock, &addr, c, &len);
+    int rc = recv_message(sock, &addr, c, &len);
     if (rc != 0) {
         if (errno == EAGAIN)
             return -1;
@@ -80,48 +79,24 @@ int handle_reception () {
 
     cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
 
-    if (msg->magic != MAGIC) {
+    if (msg->magic != MAGIC)
         cprint(STDERR_FILENO, "Invalid magic value\n");
-    } else if (msg->version != VERSION) {
+    else if (msg->version != VERSION)
         cprint(STDERR_FILENO, "Invalid version\n");
-    } else {
+    else
         handle_tlv(msg->body, n);
-    }
 
      free_message(msg);
 
     return 0;
 }
 
-static int add_interface(struct in6_pktinfo *info) {
-    struct in6_pktinfo *interface;
-
-    for (list_t *l = interfaces; l; l = l->next) {
-        interface = (struct in6_pktinfo*)l->val;
-        if (memcmp(&interface->ipi6_addr, &info->ipi6_addr, 16) == 0
-            && interface->ipi6_ifindex == info->ipi6_ifindex)
-            return 1;
-    }
-
-    interface = malloc(sizeof(struct in6_pktinfo));
-    if (!interface)
-        return -1;
-
-    memcpy(&interface->ipi6_addr, &info->ipi6_addr, 16);
-    interface->ipi6_ifindex = info->ipi6_ifindex;
-
-    list_add(&interfaces, interface);
-    return 0;
-}
-
 int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buflen) {
     if (!out || !buflen) return 0;
 
-    int rc;
     struct in6_pktinfo *info = 0;
     struct iovec iov[1];
     struct msghdr hdr = { 0 };
-    struct cmsghdr *cmsg;
     union {
         unsigned char cmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
         struct cmsghdr align;
@@ -137,11 +112,11 @@ int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buf
     hdr.msg_control = (struct cmsghdr*)u.cmsgbuf;
     hdr.msg_controllen = sizeof(u.cmsgbuf);
 
-    rc = recvmsg(sock, &hdr, 0);
+    int rc = recvmsg(sock, &hdr, 0);
     if (rc < 0) return errno;
     *buflen = rc;
 
-    cmsg = CMSG_FIRSTHDR(&hdr);
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&hdr);
     while(cmsg) {
         if ((cmsg->cmsg_level == IPPROTO_IPV6) &&
             (cmsg->cmsg_type == IPV6_PKTINFO)) {
@@ -162,8 +137,6 @@ int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buf
     inet_ntop(AF_INET6, &info->ipi6_addr, myipstr, INET6_ADDRSTRLEN);
     cprint(0, "Receive message from (%s, %u) on interface (%s, %d) .\n",
            ipstr, ntohs(addr->sin6_port), myipstr, info->ipi6_ifindex);
-
-    add_interface(info);
 
     return 0;
 }

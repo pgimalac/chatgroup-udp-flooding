@@ -6,7 +6,8 @@ FOLDER_ALL = $(FOLDER_SRC) $(FOLDER_STRUCTS)
 
 FILES_SRC = utils.c interface.c base64.c websocket.c onsend.c \
 			tlv_queue.c tlv.c network.c checkers.c send.c \
-			hello.c clean.c neighbour.c flooding.c handlers.c main.c
+			hello.c clean.c neighbour.c flooding.c handlers.c \
+			threads.c signals.c main.c
 
 FILES_STRUCTS = array.c list.c hashmap.c hashset.c
 
@@ -18,7 +19,7 @@ FILES_FP = $(FILES_STRUCTS_FP) $(FILES_SRC_FP)
 OBJ = $(FILES_FP:%.c=%.o)
 
 CC = gcc
-FLAGS = -g -Wall -Wextra -Wno-unused-parameter $(foreach d, $(FOLDER_ALL), -I $(d))
+FLAGS = -g -Wall -Wextra -Wno-unused-parameter $(foreach d, $(FOLDER_ALL), -I $(d)) -rdynamic
 LIBS = -lssl -lcrypto -pthread -lreadline
 
 all: $(NAME)

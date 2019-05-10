@@ -38,7 +38,7 @@ int create_tcpserver(int port) {
     }
 
     int opt = 1;
-    rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
+    rc = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     if (rc < 0){
         perror("setsockopt");
         return -3;
@@ -416,9 +416,8 @@ int handle_ws(int s) {
         payloadlen = len[0] & 0x7f;
     }
 
-    if (mask) {
+    if (mask)
         read(s, maskkey, 4);
-    }
 
     payload = malloc(payloadlen);
     rc = read(s, payload, payloadlen);
@@ -552,12 +551,11 @@ int print_web(const uint8_t *buffer, size_t buflen) {
             frame[0] ^= FINBIT;
 
         pthread_mutex_lock(&clientsockets_mutex);
-        for (l = clientsockets; l; l = l->next) {
+        for (l = clientsockets; l; l = l->next){
             s = *((int*)l->val);
             rc = write(s, frame, 2 + 4 + len);
-            if (rc < 0) {
+            if (rc < 0)
                 continue;
-            }
         }
         pthread_mutex_unlock(&clientsockets_mutex);
     }

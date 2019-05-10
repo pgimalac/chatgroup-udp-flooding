@@ -33,12 +33,18 @@ neighbour_t *new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
     inet_ntop(AF_INET6, ip, ipstr, INET6_ADDRSTRLEN);
     if (hashset_contains(neighbours, ip, port)){
         cprint(0, "Neighbour (%s, %u) already known (symetrical).\n", ipstr, ntohs(port));
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         return 0;
     } else if (hashset_contains(potential_neighbours, ip, port)){
         cprint(0, "Neighbour (%s, %u) already known (potential_neighbours).\n", ipstr, ntohs(port));
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         return 0;
     } else if (max(neighbours->size, potential_neighbours->size) >= MAX_NB_NEIGHBOUR){
         cprint(0, "Already too much neighbours so (%s, %u) wasn't added in the potentials.\n", ipstr, ntohs(port));
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         return 0;
     }
 
@@ -135,16 +141,14 @@ int add_neighbour(const char *hostname, const char *service) {
     return 0;
 }
 
-int send_neighbour_to(neighbour_t *p) {
-    size_t i;
+static int send_neighbour_to(neighbour_t *p) {
     int rc;
-    list_t *l;
     neighbour_t *a;
     body_t *body;
-    char ipstr[INET6_ADDRSTRLEN];
 
-    for (i = 0; i < neighbours->capacity; i++) {
-        for (l = neighbours->tab[i]; l; l = l->next) {
+    // this function is called by neighbours_flooding which locks neighbours so no need to lock neighbours here
+    for (size_t i = 0; i < neighbours->capacity; i++) {
+        for (list_t *l = neighbours->tab[i]; l; l = l->next) {
             a = (neighbour_t*)l->val;
             body = create_body();
             if (!body){
@@ -171,6 +175,7 @@ int send_neighbour_to(neighbour_t *p) {
         }
     }
 
+    char ipstr[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &p->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
     cprint(0, "Send neighbours to (%s, %u).\n", ipstr, ntohs(p->addr->sin6_port));
 
@@ -178,22 +183,17 @@ int send_neighbour_to(neighbour_t *p) {
 }
 
 void neighbour_flooding(short force) {
-    size_t i;
     time_t now = time(0);
-
-    list_t *l;
     neighbour_t *p;
 
     pthread_mutex_lock(&neighbours->mutex);
 
-    for (i = 0; i < neighbours->capacity; i++) {
-        for (l = neighbours->tab[i]; l; l = l->next) {
+    for (size_t i = 0; i < neighbours->capacity; i++)
+        for (list_t *l = neighbours->tab[i]; l; l = l->next) {
             p = (neighbour_t*)l->val;
-            if (force || now - p->last_neighbour_send > NEIGHBOUR_TIMEOUT) {
+            if (force || now - p->last_neighbour_send > NEIGHBOUR_TIMEOUT)
                 send_neighbour_to(p);
-            }
         }
-    }
 
     pthread_mutex_unlock(&neighbours->mutex);
 }

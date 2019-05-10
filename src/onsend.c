@@ -43,19 +43,15 @@ static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timespec 
 static void onsend_neighbour(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     cprint(0, "* Containing neighbour.\n");
     dst->last_neighbour_send = time(0);
-    assert(dst->last_neighbour_send != -1);
 }
 
 static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
-    hashmap_t *map;
-    data_info_t *dinfo;
-    datime_t *datime;
     u_int8_t buffer[18];
     time_t now = time(0), delta;
 
     cprint(0, "* Containing data.\n");
 
-    map = hashmap_get(flooding_map, tlv + 2);
+    hashmap_t *map = hashmap_get(flooding_map, tlv + 2);
     if (!map){
         cprint(0, "Data already acked.\n",
             __FILE__, __LINE__);
@@ -63,7 +59,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     }
 
     bytes_from_neighbour(dst, buffer);
-    dinfo = hashmap_get(map, buffer);
+    data_info_t *dinfo = hashmap_get(map, buffer);
     if (!dinfo){
         cprint(0, "Data already acked.\n",
             __FILE__, __LINE__);
@@ -86,7 +82,7 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     time_t delay = (rand() % (1 << (dinfo->send_count + 2))) + (1 << (dinfo->send_count + 1));
     dinfo->time = now + delay;
     delta = dinfo->time - now;
-    datime = hashmap_get(data_map, tlv + 2);
+    datime_t *datime = hashmap_get(data_map, tlv + 2);
     if (!datime)
         cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
     else

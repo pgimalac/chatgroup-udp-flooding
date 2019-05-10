@@ -52,7 +52,6 @@ int tlv_warning(u_int8_t **buffer, const char *message, const u_int8_t messagele
 
 void handle_tlv(const body_t *tlv, neighbour_t *);
 void handle_invalid_message(int rc, neighbour_t *n);
-int check_tlv_size(const u_int8_t* tlv);
 int check_message_size(const u_int8_t* buffer, int buflen);
 
 int push_tlv(body_t *tlv, neighbour_t *dst);

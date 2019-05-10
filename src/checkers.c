@@ -66,7 +66,7 @@ static int (*checkers[NUMBER_TLV_TYPE + 1])(const u_int8_t*) = {
     check_unknown
 };
 
-int check_tlv_size(const u_int8_t *tlv){
+static int check_tlv_size(const u_int8_t *tlv){
     if (tlv[0] < NUMBER_TLV_TYPE)
         return checkers[tlv[0]](tlv);
     return checkers[NUMBER_TLV_TYPE](tlv);

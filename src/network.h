@@ -24,7 +24,6 @@ int sock;
 chat_id_t id;
 hashset_t *neighbours, *potential_neighbours;
 pthread_mutex_t neighbours_mutex, potential_neighbours_mutex;
-list_t *interfaces;
 
 int handle_reception();
 
