@@ -358,15 +358,11 @@ int main(int argc, char **argv) {
         while((msg = pull_message())) {
             rc = send_message(sock, msg, &tv);
             if (rc == EAFNOSUPPORT || rc == ENETUNREACH){
-                hashset_remove_neighbour(potential_neighbours, msg->dst);
-                hashset_remove_neighbour(neighbours, msg->dst);
                 inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
                           ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
-                    ipstr, msg->dst->addr->sin6_port);
-                free(msg->dst->addr);
-                free(msg->dst->tutor_id);
-                free(msg->dst);
+                       ipstr, htons(msg->dst->addr->sin6_port));
+                remove_neighbour(msg->dst);
             } else if (rc == EMSGSIZE) {
                 cprint(0, "Message is too large.\n");
             } else if (rc != 0) {
