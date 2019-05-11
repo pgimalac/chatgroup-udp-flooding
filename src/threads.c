@@ -192,7 +192,7 @@ void *input_thread(void *running){
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
 
     char cpy[1 << 16], *buffer, *line;
-    while (1){
+    while (1) {
         line = readline("");
 
         if (line == NULL){ // end of stdin reached
@@ -203,8 +203,10 @@ void *input_thread(void *running){
 
         size_t len = strlen(line);
         buffer = purify(line, &len);
-        if (len == 0 || buffer == NULL)
+        if (len == 0 || buffer == NULL){
+            free(line);
             continue;
+        }
 
         if (buffer[0] != COMMAND) {
             const char *p = getPseudo();

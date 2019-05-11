@@ -76,17 +76,22 @@ static const char *usages[] = {
 };
 
 static void add(const char *buf, size_t len) {
+    if (buf == NULL || len == 0) {
+        cprint(STDERR_FILENO, "Usage: %s\n", usages[0]);
+        return;
+    }
+
     int rc;
     char *name = 0, *service = 0;
-    char *buffer = calloc(len + 1, 1);
+    char *buffer = alloca(len + 1);
     memcpy(buffer, buf, len);
+    buffer[len] = 0;
 
     name = strtok(buffer, " ");
     service = strtok(0, " \n");
 
     if (!name || !service) {
         cprint(STDERR_FILENO, "Usage: %s\n", usages[0]);
-        free(buffer);
         return;
     }
 
@@ -95,12 +100,13 @@ static void add(const char *buf, size_t len) {
         cprint(STDERR_FILENO, "Could not add the given neighbour: %s\n", gai_strerror(rc));
     else
         cprint(STDOUT_FILENO, "The neighbour %s, %s was added to potential neighbours\n", name, service);
-
-    free(buffer);
 }
 
 static void name(const char *buffer, size_t len){
-    setPseudo(buffer, len);
+    if (buffer == NULL || len == 0)
+        cprint(STDERR_FILENO, "Usage: %s\n", usages[1]);
+    else
+        setPseudo(buffer, len);
 }
 
 static void nameRandom(const char *buffer, size_t len){
@@ -154,22 +160,21 @@ static void chid(const char *buffer, size_t buflen) {
 #define MAX_BUF_SIZE ((1 << 16) - 1)
 static void transfert(const char *path, size_t buflen) {
     int fd, rc;
-    if (!path || buflen == 0)
-        return;
-
-    uint8_t type = path[0] - '0';
-    char buffer[MAX_BUF_SIZE], *npath = calloc(buflen, 1);
-    if (!npath) {
-        cperror("calloc");
+    if (!path || buflen == 0){
+        cprint(STDERR_FILENO, "Usage: %s\n", usages[8]);
         return;
     }
+
+    uint8_t type = path[0] - '0';
+    char buffer[MAX_BUF_SIZE], *npath = alloca(buflen);
+    npath[buflen - 1] = 0;
+    npath[buflen - 2] = 0;
 
     memcpy(npath, path + 2, buflen - 2);
 
     cprint(STDOUT_FILENO, "Send file %s on network.\n", npath);
     fd = open(npath, O_RDONLY);
     int err = errno;
-    free(npath);
 
     if (fd < 0) {
         perrorbis(err, "open");
@@ -190,15 +195,31 @@ static void transfert(const char *path, size_t buflen) {
 }
 
 static void switchlog(const char *buffer, size_t len){
-    char *bufferbis = memmem(buffer, len, " ", 1);
-    if (bufferbis == NULL){
-        if (logfd == -1)
-            logfd = STDERR_FILENO;
-        else if (logfd != STDERR_FILENO)
-            close(logfd);
-        logfd = -1;
-    } else {
+    char *bufferbis = NULL;
+    if (buffer)
+       bufferbis = purify((char*)buffer, &len);
 
+    if (bufferbis == NULL){
+        if (logfd == -1){
+            logfd = STDERR_FILENO;
+            cprint(STDOUT_FILENO, "Log are now writen on STDERR.\n");
+        } else {
+            if (logfd != STDERR_FILENO)
+                close(logfd);
+            logfd = -1;
+            cprint(STDOUT_FILENO, "Log are not written anymore.\n");
+        }
+    } else {
+        char *buf = alloca(len + 1);
+        memcpy(buf, bufferbis, len);
+        buf[len] = '\0';
+        logfd = open(buf, O_WRONLY | O_CREAT | O_EXCL, S_IRWXO | S_IRWXG | S_IRWXU);
+        if (logfd == -1){
+            cperror("open");
+            cprint(STDOUT_FILENO, "Log are now writen on STDERR.\n");
+            logfd = STDERR_FILENO;
+        } else
+            cprint(STDOUT_FILENO, "Log are now writen on %*s.\n", len, buf);
     }
 
 }
@@ -257,18 +278,21 @@ static void (*interface[])(const char*, size_t) =
 
 
 void handle_command(const char *buffer, size_t len) {
-    cprint(STDOUT_FILENO, SEPARATOR);
     if (len == 0)
         return;
+    cprint(STDOUT_FILENO, SEPARATOR);
 
-    char *ins = memchr(buffer, ' ', len);
+    char *ins = memmem(buffer, len, " ", 1);
     if (!ins) ins = (char*)buffer + len;
     int ind;
 
     for (ind = 0; names[ind] != NULL; ind ++)
         if (strlen(names[ind]) == (size_t)(ins - buffer)
             && strncasecmp(buffer, names[ind], ins - buffer) == 0){
-            interface[ind](ins + 1, len - (ins - buffer) - 1);
+            if (len <= 1 + (size_t)(ins - buffer))
+                interface[ind](NULL, 0);
+            else
+                interface[ind](ins + 1, len - (ins - buffer) - 1);
             break;
         }
 
@@ -313,8 +337,12 @@ void setRandomPseudo(){
 void print_message(const u_int8_t* buffer, int size){
     time_t now = time(0);
     struct tm *t = localtime(&now);
-    cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2,
-           t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, buffer);
+    if (is_utf8(buffer, size))
+        cprint(STDOUT_FILENO, "%*d:%*d:%*d > %*s\n", 2,
+               t->tm_hour, 2, t->tm_min, 2, t->tm_sec, size, buffer);
+    else
+        cprint(STDOUT_FILENO, "%*d:%*d:%*d > (MALFORMED UTF8)\n", 2,
+               t->tm_hour, 2, t->tm_min, 2, t->tm_sec);
 }
 
 void handle_input(char *buffer, size_t buflen) {
