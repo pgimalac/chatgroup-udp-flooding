@@ -78,7 +78,15 @@ static const char *usages[] = {
 static void add(const char *buf, size_t len) {
     int rc;
     char *name = 0, *service = 0;
+
+    printf("%p %lu\n", buf, len);
+    if (!buf || len == 0) {
+        cprint(STDERR_FILENO, "usage: %s\n", usages[0]);
+        return;
+    }
+
     char *buffer = calloc(len + 1, 1);
+    printf("%p\n", buffer);
     memcpy(buffer, buf, len);
 
     name = strtok(buffer, " ");
@@ -268,7 +276,9 @@ void handle_command(const char *buffer, size_t len) {
     for (ind = 0; names[ind] != NULL; ind ++)
         if (strlen(names[ind]) == (size_t)(ins - buffer)
             && strncasecmp(buffer, names[ind], ins - buffer) == 0){
-            interface[ind](ins + 1, len - (ins - buffer) - 1);
+            interface[ind](ins + 1,
+                           (len == (size_t)(ins - buffer)) ?
+                           0 : len - (ins - buffer) -1);
             break;
         }
 
