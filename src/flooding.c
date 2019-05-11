@@ -257,8 +257,12 @@ int message_flooding(struct timespec *tv) {
         }
     }
 
+    datime_t *datime;
     while((dataid = list_pop(&msg_done)) != NULL) {
         map = hashmap_get(flooding_map, dataid);
+        datime = hashmap_get(data_map, dataid);
+        if (datime)
+            datime->last = now;
         if (map){
             if (hashmap_remove(flooding_map, dataid, 1, 0) == 0)
                 cprint(STDERR_FILENO, "%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n",

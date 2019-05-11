@@ -40,9 +40,6 @@ int clean_old_data() {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        hashset_t *set = hashmap_get(flooding_map, datime->data + 2);
-        hashmap_remove(flooding_map, datime->data + 2, 1, 0);
-        hashset_destroy(set);
         if (!hashmap_remove(data_map, datime->data + 2, 1, 0)){
             cprint(STDERR_FILENO, "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n",
                 __FILE__, __LINE__);
@@ -91,9 +88,6 @@ int clean_data_from_frags(frag_t *frag) {
 
     for (i = 0; to_delete; i++) {
         datime = list_pop(&to_delete);
-        hashset_t *set = hashmap_get(flooding_map, datime->data + 2);
-        hashmap_remove(flooding_map, datime->data + 2, 1, 0);
-        hashset_destroy(set);
         if (!hashmap_remove(data_map, datime->data + 2, 1, 0))
             cprint(STDERR_FILENO, "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n", __FILE__, __LINE__);
 
@@ -119,9 +113,8 @@ int clean_old_frags() {
         for (l = fragmentation_map->tab[i]; l; l = l->next) {
             count++;
             frag = ((map_elem*)l->val)->value;
-            if (now - frag->last > FRAG_TIMEOUT) {
+            if (now - frag->last > FRAG_TIMEOUT)
                 list_add(&to_delete, frag);
-            }
         }
     }
 

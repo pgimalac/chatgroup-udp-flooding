@@ -83,7 +83,6 @@ void *web_thread(void *running) {
         if (rc == 0)
             continue;
 
-        pthread_mutex_lock(&clientsockets_mutex);
         if (FD_ISSET(websock, &readfds))
             handle_http();
 
@@ -96,6 +95,7 @@ void *web_thread(void *running) {
             }
         }
 
+        pthread_mutex_lock(&clientsockets_mutex);
         while (to_delete) {
             val = list_pop(&to_delete);
             list_eremove(&clientsockets, val);

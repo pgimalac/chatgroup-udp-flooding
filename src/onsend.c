@@ -1,5 +1,4 @@
 #include <time.h>
-#include <assert.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -31,7 +30,6 @@ static void onsend_padn(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
 
 static void onsend_hello(const u_int8_t *tlv, neighbour_t *dst, struct timespec *tv) {
     dst->last_hello_send = time(0);
-    assert(dst->last_hello_send != -1);
     if (tlv[1] == 8) {
         dst->short_hello_count++;
         cprint(0, "* Containing short hello.\n");
@@ -58,6 +56,12 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
         return;
     }
 
+    datime_t *datime = hashmap_get(data_map, tlv + 2);
+    if (!datime)
+        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
+    else
+        datime->last = now;
+
     bytes_from_neighbour(dst, buffer);
     data_info_t *dinfo = hashmap_get(map, buffer);
     if (!dinfo){
@@ -82,11 +86,6 @@ static void onsend_data(const u_int8_t *tlv, neighbour_t *dst, struct timespec *
     time_t delay = (rand() % (1 << (dinfo->send_count + 2))) + (1 << (dinfo->send_count + 1));
     dinfo->time = now + delay;
     delta = dinfo->time - now;
-    datime_t *datime = hashmap_get(data_map, tlv + 2);
-    if (!datime)
-        cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from a data_map but it wasn't in.\n", __FILE__, __LINE__);
-    else
-        datime->last = now;
 
     if (delta < tv->tv_sec - now)
         tv->tv_sec = now + delta;

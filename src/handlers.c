@@ -111,8 +111,11 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
     pthread_mutex_lock(&flooding_map->mutex);
 
     hashmap_t *map = hashmap_get(flooding_map, tlv + 2);
+    datime_t *datime = hashmap_get(data_map, (void*)tlv + 2);
+    if (datime)
+        datime->last = time(0);
 
-    if (!map && !hashmap_contains(data_map, (void*)tlv + 2)) {
+    if (!map && !datime) {
         if (tlv[14] == 0) {
             cprint(0, "New message received.\n");
             print_message((u_int8_t*)tlv + 15, size);
@@ -177,7 +180,6 @@ static void handle_data(const u_int8_t *tlv, neighbour_t *n){
 
             frag->recv += fragsize;
             frag->last = time(0);
-            assert(frag->last != -1);
             memcpy(frag->buffer + fragpos, tlv + 24, fragsize);
 
             if (frag->recv == frag->size) {
@@ -248,12 +250,11 @@ static void handle_ack(const u_int8_t *tlv, neighbour_t *n){
     bytes_from_neighbour(n, buffer);
     datime_t *datime = hashmap_get(data_map, tlv + 2);
 
+    if (datime)
+        datime->last = time(0);
     if (map) {
         if (!datime)
             cprint(STDERR_FILENO, "%s:%d Tried to get a tlv from data_map but it wasn't in.\n", __FILE__, __LINE__);
-        else {
-            datime->last = time(0);
-        }
 
         hashmap_remove(map, buffer, 1, 1);
     }

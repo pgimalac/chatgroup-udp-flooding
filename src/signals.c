@@ -10,9 +10,6 @@ void cleaner(void *running){
     pthread_mutex_unlock(&mutex_end_thread);
     pthread_mutex_unlock(&neighbours_mutex);
     pthread_mutex_unlock(&potential_neighbours_mutex);
-    pthread_mutex_unlock(&flooding_map_mutex);
-    pthread_mutex_unlock(&data_map_mutex);
-    pthread_mutex_unlock(&fragmentation_map_mutex);
     pthread_mutex_unlock(&queue_mutex);
     pthread_mutex_unlock(&clientsockets_mutex);
     cprint(0, "CLEANER running.\n");
