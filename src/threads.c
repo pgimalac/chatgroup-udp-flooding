@@ -156,7 +156,7 @@ void *send_thread(void *running){
 
         while((msg = pull_message())) {
             rc = send_message(sock, msg, &tv);
-            if (rc == EAFNOSUPPORT || rc == ENETUNREACH){
+            if (rc == EAFNOSUPPORT){
                 inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
                           ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
