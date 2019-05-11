@@ -43,6 +43,8 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     n->id = src_id;
 
     if (is_long && dest_id != id) {
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         cprint(0, "%lx is not my id.\n", dest_id);
         return;
     }
