@@ -202,7 +202,6 @@ void *input_thread(void *running){
         }
 
         size_t len = strlen(line);
-
         buffer = purify(line, &len);
         if (buffer[0] != COMMAND) {
             const char *p = getPseudo();

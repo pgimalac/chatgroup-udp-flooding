@@ -63,7 +63,7 @@ static const char *usages[] = {
     "random",
     "print",
     "juliusz",
-    "neighbour"
+    "neighbour",
     "clear",
     "chid",
     "transfert <type> <path to file>",
