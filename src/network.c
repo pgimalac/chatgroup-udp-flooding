@@ -144,13 +144,12 @@ int recv_message(int sock, struct sockaddr_in6 *addr, u_int8_t *out, size_t *buf
 size_t message_to_iovec(message_t *msg, struct iovec **iov_dest) {
     body_t *p;
     ssize_t i;
-    struct iovec *iov;
 
     int nb = 1;
     for (p = msg->body; p; p = p->next)
         nb++;
 
-    iov = calloc(nb, sizeof(struct iovec));
+    struct iovec *iov = calloc(nb, sizeof(struct iovec));
     if (!iov)
         return 0;
     *iov_dest = iov;

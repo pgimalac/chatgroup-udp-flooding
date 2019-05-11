@@ -90,7 +90,6 @@ void *rec_thread(void *running){
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
     fd_set readfds;
     int rc;
-    size_t i, number_recv = 1;
 
     while (1){
         FD_ZERO(&readfds);
@@ -103,20 +102,10 @@ void *rec_thread(void *running){
             continue;
         }
 
-        if (rc == 0)
+        if (rc == 0 || !FD_ISSET(sock, &readfds))
             continue;
 
-        if (FD_ISSET(sock, &readfds)) {
-            for (i = 0; i < number_recv; i++)
-                if (handle_reception() == -1){
-                    if (number_recv > neighbours->size + 1)
-                        number_recv--;
-                    break;
-                }
-
-            if (i == number_recv && number_recv < 2 * neighbours->size)
-                number_recv++;
-        }
+        while (handle_reception() != -1){}
     }
 
     pthread_cleanup_pop(1);
@@ -157,11 +146,10 @@ void *send_thread(void *running){
                 free(msg->dst->addr);
                 free(msg->dst->tutor_id);
                 free(msg->dst);
-            } else if (rc == EMSGSIZE) {
+            } else if (rc == EMSGSIZE)
                 cprint(0, "Message is too large.\n");
-            } else if (rc != 0) {
+            else if (rc != 0)
                 perrorbis(rc, "SENDMSG");
-            }
             free_message(msg);
         }
 
@@ -193,18 +181,21 @@ void *input_thread(void *running){
         }
 
         size_t len = strlen(line);
-        char *buffer = purify(line, &len);
+        char *buffer = purify(line, &len), *cpy = alloca(len);
+        memcpy(cpy, buffer, len);
+        free(line);
 
         #define S "\e1M\e[1A\e[K"
 
         if (len > 0) {
             write(STDOUT_FILENO, S, strlen(S));
-            print_message((u_int8_t*)buffer, len);
-            handle_input(buffer, len);
+
+            print_message((u_int8_t*)cpy, len);
+            handle_input(cpy, len);
+
             write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
             fsync(STDOUT_FILENO);
         }
-        free(line);
     }
 
     pthread_cleanup_pop(1);
