@@ -63,17 +63,14 @@ void send_data(u_int8_t type, const char *buffer, u_int16_t size){
     int rc = tlv_data(&data.content, id, random_uint32(), type, buffer, size);
 
     if (rc < 0){
-        if (rc == -1)
-            cperror("tlv_data");
-        else if (rc == -2)
-            cprint(0, "Message too long but supposed to be cut...\n");
+        cperror("tlv_data");
         return;
     }
 
     data.size = rc;
 
     if (flooding_add_message(data.content, data.size, 1) != 0)
-        cperror("tlv_data");
+        cperror("flooding_add_message");
 
     free(data.content);
 }

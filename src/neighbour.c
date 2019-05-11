@@ -101,6 +101,7 @@ neighbour_t *new_neighbour(const unsigned char ip[sizeof(struct in6_addr)],
 
     pthread_mutex_unlock(&potential_neighbours->mutex);
     pthread_mutex_unlock(&neighbours->mutex);
+    pthread_cond_broadcast(&send_cond);
 
     return hashset_get(potential_neighbours, ip, port);
 }

@@ -93,6 +93,7 @@ int flooding_add_message(const u_int8_t *data, int size, int user) {
     if (rc != 1)
         hashmap_destroy(ns, 1);
     pthread_mutex_unlock(&data_map->mutex);
+    pthread_cond_broadcast(&send_cond);
 
     return 0;
 }
