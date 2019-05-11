@@ -156,14 +156,16 @@ void *send_thread(void *running){
 
         while((msg = pull_message())) {
             rc = send_message(sock, msg, &tv);
+            inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
+                      ipstr, INET6_ADDRSTRLEN);
             if (rc == EAFNOSUPPORT){
-                inet_ntop(AF_INET6, msg->dst->addr->sin6_addr.s6_addr,
-                          ipstr, INET6_ADDRSTRLEN);
                 cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
                        ipstr, msg->dst->addr->sin6_port);
                 remove_neighbour(msg->dst);
             } else if (rc == EMSGSIZE)
                 cprint(0, "Message is too large.\n");
+            else if (rc == ENETDOWN || rc == ENETUNREACH)
+                cprint(0, "Could not reach (%s, %u).\n", ipstr, msg->dst->addr->sin6_port);
             else if (rc != 0)
                 perrorbis(rc, "SENDMSG");
             free_message(msg);
