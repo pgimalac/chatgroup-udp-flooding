@@ -32,6 +32,8 @@ int clean_old_data();
 
 int clean_old_frags();
 
+int remove_neighbour(neighbour_t *);
+
 void neighbour_flooding(short);
 
 #endif
