@@ -380,3 +380,83 @@ int is_number(char *str) {
     while (*str && isdigit(*str)) str++;
     return *str == 0;
 }
+
+// shamefully copied from https://stackoverflow.com/questions/1031645/how-to-detect-utf-8-in-plain-c
+// slightly changed for non null-terminated strings
+short is_utf8(const unsigned char * string, size_t len){
+    if(!string || len <= 0)
+        return 0;
+
+    size_t offset = 0;
+    while(offset < len) {
+        if( (// ASCII
+             // use string[offset] <= 0x7F to allow ASCII control characters
+                string[offset] == 0x09 ||
+                string[offset] == 0x0A ||
+                string[offset] == 0x0D ||
+                (0x20 <= string[offset] && string[offset] <= 0x7E)
+            )
+        ) {
+            offset += 1;
+            continue;
+        }
+
+        if( len - offset > 1 && (// non-overlong 2-byte
+                (0xC2 <= string[offset] && string[offset] <= 0xDF) &&
+                (0x80 <= string[offset + 1] && string[offset + 1] <= 0xBF)
+            )
+        ) {
+            offset += 2;
+            continue;
+        }
+
+        if( len - offset > 2 && ((// excluding overlongs
+                string[offset] == 0xE0 &&
+                (0xA0 <= string[offset + 1] && string[offset + 1] <= 0xBF) &&
+                (0x80 <= string[offset + 2] && string[offset + 2] <= 0xBF)
+            ) ||
+            (// straight 3-byte
+                ((0xE1 <= string[offset] && string[offset] <= 0xEC) ||
+                    string[offset] == 0xEE ||
+                    string[offset] == 0xEF) &&
+                (0x80 <= string[offset + 1] && string[offset + 1] <= 0xBF) &&
+                (0x80 <= string[offset + 2] && string[offset + 2] <= 0xBF)
+            ) ||
+            (// excluding surrogates
+                string[offset] == 0xED &&
+                (0x80 <= string[offset + 1] && string[offset + 1] <= 0x9F) &&
+                (0x80 <= string[offset + 2] && string[offset + 2] <= 0xBF)
+            )
+        )) {
+            offset += 3;
+            continue;
+        }
+
+        if( len - offset > 3 && ((// planes 1-3
+                string[offset] == 0xF0 &&
+                (0x90 <= string[offset + 1] && string[offset + 1] <= 0xBF) &&
+                (0x80 <= string[offset + 2] && string[offset + 2] <= 0xBF) &&
+                (0x80 <= string[offset + 3] && string[offset + 3] <= 0xBF)
+            ) ||
+            (// planes 4-15
+                (0xF1 <= string[offset] && string[offset] <= 0xF3) &&
+                (0x80 <= string[offset + 1] && string[offset + 1] <= 0xBF) &&
+                (0x80 <= string[offset + 2] && string[offset + 2] <= 0xBF) &&
+                (0x80 <= string[offset + 3] && string[offset + 3] <= 0xBF)
+            ) ||
+            (// plane 16
+                string[offset] == 0xF4 &&
+                (0x80 <= string[offset + 1] && string[offset + 1] <= 0x8F) &&
+                (0x80 <= string[offset + 2] && string[offset + 2] <= 0xBF) &&
+                (0x80 <= string[offset + 3] && string[offset + 3] <= 0xBF)
+            ))
+        ) {
+            offset += 4;
+            continue;
+        }
+
+        return 0;
+    }
+
+    return 1;
+}

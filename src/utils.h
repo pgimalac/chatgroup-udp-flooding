@@ -15,8 +15,6 @@ pthread_cond_t send_cond;
  * Generic useful functions
  */
 
-pid_t httppid;
-
 void init_random();
 
 void* voidndup(const void*, int);
@@ -52,5 +50,7 @@ int max(int a, int b);
 char *purify(char *buffer, size_t *len);
 
 int is_number(char *);
+
+short is_utf8(const unsigned char * string, size_t len);
 
 #endif
