@@ -19,7 +19,7 @@
 \begin{abstract}
   Ce rapport est un compte rendu du travail fourni pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'inondation décrit par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
 
-  Plusieurs extentions ont été devéloppées parmis lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l'innondation}, \textbf{l'implémentation d'une interface web(\ref{sec:web})} et \textbf{la découverte du PMTU(\ref{sec:pmtu})}.
+  Plusieurs extensions ont été développées parmi lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l’inondation}, \textbf{l'implémentation d'une interface web(\ref{sec:web})} et \textbf{la découverte du PMTU(\ref{sec:pmtu})}.
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
@@ -29,10 +29,10 @@ Un \textrm{Makefile} est fournis pour compiler le projet:  \textit{'make all'}.\
 
 L'exécutable produit s'appelle \textit{chat}.
 \begin{itemize}
-\item \textrm{-- - port} ou \textrm{-p} suivi du numéro de port définit le port sur lequel lancer le server de chat. Si aucun port n'est précisé, il est alors choisit aléatoirement.
-\item \textrm{- -webport} suivi du port sur lequel faire lancer le serveur web de l'application. Si aucun port n'est précisé, alors il est choisit aléatoirement entre 8080 et 8089.
-\item \textrm{- -pseudo} suivit d'un pseudonyme. Un pseudonyme aléatoire est choisi dans une liste s'il n'est pas précisé.
-\item \textrm{- -logs} ou \textrm{-l} suivit du chemin relatif vers un fichier où écrire les logs. Si le fichier n'existe pas il est créé. Si aucun fichier de log n'est précisé, les logs de l'application sont affichés sur la sortie standard d'erreur.
+\item \textrm{-{}-port} ou \textrm{-p} suivi du numéro de port définit le port sur lequel lancer le serveur de chat. Si aucun port n'est précisé, il est alors choisit aléatoirement.
+\item \textrm{-{}-webport} suivi du port sur lequel faire lancer le serveur web de l'application. Si aucun port n'est précisé, alors il est choisit aléatoirement entre 8080 et 8089.
+\item \textrm{-{}-pseudo} suivit d'un pseudonyme. Un pseudonyme aléatoire est choisi dans une liste s'il n'est pas précisé.
+\item \textrm{-{}-logs} ou \textrm{-l} suivit du chemin relatif vers un fichier où écrire les logs. Si le fichier n'existe pas il est créé. Si aucun fichier de log n'est précisé, les logs de l'application sont affichés sur la sortie standard d'erreur.
 \end{itemize}
 
 La commande suivante lance donc un serveur de chat sur le port 1212 accessible depuis une interface web sur le port 8089 (\href{localhost:8089}{localhost:8089}) et l'utilisateur de interface dans le terminal a pour pseudonyme Bob.
@@ -41,7 +41,7 @@ La commande suivante lance donc un serveur de chat sur le port 1212 accessible d
 ./chat --port 1212 --web-port 8089 --pseudo Bob
 \end{verbatim}
 
-Aucune option n'est necéssaire pour lancer le programme.
+Aucune option n'est nécessaire pour lancer le programme.
 
 \section{Interface}
 
@@ -54,7 +54,7 @@ L'interface dans le terminal est en ligne de commande, elle interagit donc en li
 \item[juliusz] équivalent à ``/add jch.irif.fr 1212''.
 \item[neighbour] force l'envoi de tlv neighbour.
 \item[clear] efface le terminal (fonctionne au moins sur bash et zsh).
-\item[chid] change l'id de manière aléatoire.
+\item[chid] change l'identifiant de manière aléatoire.
 \item[transfert <type> <path>] envoie le fichier \textit{path} avec le protocole de fragmentation. Quel que soit le fichier, il est envoyé avec le type donné. La description des types est données dans la section \ref{sec:frag}.
 \item[help] affiche l'ensemble des commandes.
 \item[quit] quitte programme, envoie des tlv goaway au passage.
@@ -62,7 +62,7 @@ L'interface dans le terminal est en ligne de commande, elle interagit donc en li
 
 Tout ce qui n'est pas une commande, ie. tout ce qui ne commence pas par un \textrm{/}, est un message qui sera envoyé sur le réseau. Le préfixe \textit{pseudo: } sera automatiquement ajouté devant le message.\\
 
-Nous affichons par defaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{L'affichage peut être totalement personnalisé dans \textrm{interface.h}: couleurs de police et de fond, italique, gras, texte clignotant,...}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
+Nous affichons par défaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{L'affichage peut être totalement personnalisé dans \textrm{interface.h}: couleurs de police et de fond, italique, gras, texte clignotant,...}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
 
 Pour ajouter en voisin l'interface de Juliusz et envoyer les deux messages \textit{Bob: Bonjours tout le monde !} et \textit{Bob: Je suis très heureux de vous voir.}, il faudra donc entrer les commandes suivantes.
 
@@ -72,32 +72,32 @@ Bonjour tout le monde !
 Je suis très heureux de vous voir.
 \end{verbatim}
 
-Une interface web a aussi été implémentée, mais étant une extention nous en reparlerons dans la section \ref{sec:web}.
+Une interface web a aussi été implémentée, mais étant une extension nous en reparlerons dans la section \ref{sec:web}.
 
 \section{Fonctionnalitées}
 
 \subsection{Sujet minimal}
 Le sujet minimal a été entièrement implémenté.
-Nous avons ajouté un handler lors de l'interruption du programme pour envoyer un TLV GoAway à tous les voisins indiquant que nous quittons le réseau.
+Nous avons ajouté un gestionnaire de signal lors de l'interruption du programme pour envoyer un TLV GoAway à tous les voisins indiquant que nous quittons le réseau.
 
-Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa resistance aux paquets buggés.
+Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa résistance aux paquets buggés.
 
 
 \textit{Les extentions suivantes sont présentées dans l'ordre dans lequel elles ont été implémentées dans le projet.}
 
 \subsection{Agrégation de TLV\label{sec:agrega}}
-Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:struct}) de messages acccessible grâce à deux méthodes:
+Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:struct}) de messages accessible grâce à deux méthodes:
 
 \begin{description}
 \item[pull\_tlv] Retire un message à envoyer de la file des messages à envoyer.
 \item[push\_tlv] Cette fonction attends un TLV et un voisin en paramètre. Elle ajoute le tlv donné à un message si avec cet ajout la taille du message reste plus petite que le PMTU de ce voisin. Si un tlv ne peut être inséré dans aucun message, un nouveau message est ajouté à la fin de la file.
 \end{description}
 
-Chaque voisin possède un attribu \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avons plus tard implémenté la découverte de PMTU (section \ref{sec:pmtu}).
+Chaque voisin possède un attribut \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avons plus tard implémenté la découverte de PMTU (section \ref{sec:pmtu}).
 
 
 \subsection{Fragmentation des gros messages\label{sec:frag}}
-Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing list du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être innondés même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient faite de reconstituer le message à l'arrivée.
+Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing liste du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être inondés même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient faite de reconstituer le message à l'arrivée.
 
 Le format des TLV est le suivant:
 
@@ -123,7 +123,7 @@ Le format des TLV est le suivant:
 
 On reconnaît la structure d'un TLV Data auquel on a ajouté les champs \textit{Nonce du message fragmenté}, \textit{Type}, \textit{Taille totale du message}, \textit{Position du fragment} et \textit{Fragment}. Aussi le message est correctement inondé par les pairs qui n'ont pas implémenté le protocole, le \textit{Nonce} du data étant différent pour chaque message. Les fragments d'un même message peuvent être rassemblés grâce au champ \textit{Nonce du message fragmenté} partagé par tous les fragments de ce dernier.
 
-Le champ type permet de savoir comment interpréter le message reçu. Au cours de nos échanges sur la mailing list, nous avons proposé les attributions suivantes qui ont été acceptés.
+Le champ type permet de savoir comment interpréter le message reçu. Au cours de nos échanges sur la mailing liste, nous avons proposé les attributions suivantes qui ont été acceptés.
 
 \begin{description}
 \item[0] Texte UTF-8
@@ -134,7 +134,7 @@ Le champ type permet de savoir comment interpréter le message reçu. Au cours d
 \item[5] SVG
 \end{description}
 
-Cette attribution de type nous permet notemment de différentier la reception d'un long texte de la reception d'une image. Si nous recevons une image nous pouvons alors l'afficher dans notre interface web.
+Cette attribution de type nous permet notamment de différentier la réception d'un long texte de la réception d'une image. Si nous recevons une image nous pouvons alors l'afficher dans notre interface web.
 
 Nous rassemblons tous les messages fragmentés que nous recevons, une analyse du type pourrait être faite pour ne pas s'encombrer de gros messages dont ne feront rien une fois rassemblés.
 
@@ -142,11 +142,11 @@ Des tests ont été fait avec \textrm{Alexandre Moine} et \textrm{Tristan Franç
 
 \subsection{Interface web, protocole HTTP et WebSocket\label{sec:web}}
 
-Après avoir jetté un coup d'oeil à l'implémentation de l'interface web de julius, nous avons remarqué qu'il utilisait le protocole WebSocket pour communiquer entre son interface web (\href{http://jch.irif.fr:8082/}{http://jch.irif.fr:8082/}) et son application, accessible sur le port 1212. Nous aimions surtout l'idée d'implémenter une interface graphique, non pas grâce à l'utilisation d'une bibliothèque graphique lourde et compliquée, mais à travers l'implémentation d'un protocole réseau. De plus, le besoin d'une interface graphique se faisait ressentir à cause de la quantitée astronomique de logs que nous affichions, il nous a donc semblé que cette solution permettait de le faire tout en restant dans les bornes de ce cours.\\
+Après avoir jeté un coup d’œil à l'implémentation de l'interface web de Julius, nous avons remarqué qu'il utilisait le protocole WebSocket pour communiquer entre son interface web (\href{http://jch.irif.fr:8082/}{http://jch.irif.fr:8082/}) et son application, accessible sur le port 1212. Nous aimions surtout l'idée d'implémenter une interface graphique, non pas grâce à l'utilisation d'une bibliothèque graphique lourde et compliquée, mais à travers l'implémentation d'un protocole réseau. De plus, le besoin d'une interface graphique se faisait ressentir à cause de la quantité astronomique de logs que nous affichions, il nous a donc semblé que cette solution permettait de le faire tout en restant dans les bornes de ce cours.\\
 
-Nous avons donc implémenté un serveur \textrm{HTTP}\footnote{\href{https://tools.ietf.org/html/rfc2616}{RFC2616}} très basique pour afficher une page web, créer la connection WebSocket et charger des images depuis un dossier temporaire. Il n'est pas très sécurisé et n'implémente pas tous les détails du protocole, nous sommes au courant, mais l'objectif étant d'avoir une interface graphique simple dans le navigateur et surtout d'implémenter le protocole WebSocket, nous avons mis de côté ces points là.\\
+Nous avons donc implémenté un serveur \textrm{HTTP}\footnote{\href{https://tools.ietf.org/html/rfc2616}{RFC2616}} très basique pour afficher une page web, créer la connexion WebSocket et charger des images depuis un dossier temporaire. Il n'est pas très sécurisé et n'implémente pas tous les détails du protocole, nous sommes au courant, mais l'objectif étant d'avoir une interface graphique simple dans le navigateur et surtout d'implémenter le protocole WebSocket, nous avons mis de côté ces points là.\\
 
-Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connection WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connection \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connection TCP n'est plus fermée avant que l'un des deux pairs ne le decide.
+Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connex0ion WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connexion \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connexion TCP n'est plus fermée avant que l'un des deux pairs ne le décide.
 Une trame WebSocket est au format suivant
 
 \begin{verbatim}
@@ -177,34 +177,34 @@ Le bit \textrm{FIN} est à 1 si sa charge utile (payload) est le dernier fragmen
 \item[0x1] Texte
 \item[0x2] Données binaires
   ...
-\item[0x8] Fin de connection
+\item[0x8] Fin de connexion
 \item[0x9] Ping
 \item[0xA] Pong
 \end{description}
 
-L'échange de ping et de pong permet de s'assurer que le pair reçoit encore les messages, la reception d'un ping doit être suivie aussi vite que possible de l'envoi d'un pong. Notre implémentation du protocole n'envoie jamais de ping.
+L'échange de ping et de pong permet de s'assurer que le pair reçoit encore les messages, la réception d'un ping doit être suivie aussi vite que possible de l'envoi d'un pong. Notre implémentation du protocole n'envoie jamais de ping.
 
 La communication entre le client web et notre serveur se fait à travers ce protocole.
 \begin{enumerate}
-\item Le client envoie du texte à travers la socket qui est interprétée comme celle de l'interface du terminal (sauf en ce qui concerne l'ajout du pseudo au debut).
-\item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentielles failles de sécuritées (injection de javascript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
+\item Le client envoie du texte à travers la socket qui est interprétée comme celle de l'interface du terminal (sauf en ce qui concerne l'ajout du pseudo au début).
+\item Le serveur envoie du texte au client qui l'affiche tel quel dans le navigateur. Cette partie est source de potentielles failles de sécurité (injection de JavaScript dans le client d'un autre), nous sommes au courant mais avons choisit d'ignorer le problème ayant d'autres choses à faire.
 \end{enumerate}
 
 \subsection{Découverte de PMTU\label{sec:pmtu}}
 
 Pour pouvoir implémenter l'agrégation de messages, nous maintenons pour chaque voisin un entier non signé de 2 octets représentant le \textrm{PMTU}\footnote{Path Maximum Unit Transfert} avec celui-ci. Pour implémenter la découverte de \textrm{PMTU}, il nous suffisait donc de trouver un moyen de déterminer si un message de taille donnée était correctement reçu.
 
-Nous avons ensuite remarqué que lorsqu'un TLV Data est reçu, il est toujours suivit d'un ACK en réponse. L'idée est donc de prendre régulièrement des Data et de les envoyer dans message que nous comblons avec des PADn afin d'accèder à la taille voulue. Si la donnée est reçue nous recevons un ACK, nous en déduisons donc que la taille du message est plus petite que le \textrm{PMTU}, si nous ne reçevons pas de ACK nous supposons que nous sommes au dessus du \textrm{PMTU}. Ainsi nous pouvons faire une recherche dichitomique du PMTU.
+Nous avons ensuite remarqué que lorsqu'un TLV Data est reçu, il est toujours suivit d'un ACK en réponse. L'idée est donc de prendre régulièrement des Data et de les envoyer dans message que nous comblons avec des PADn afin d’accéder à la taille voulue. Si la donnée est reçue nous recevons un ACK, nous en déduisons donc que la taille du message est plus petite que le \textrm{PMTU}, si nous ne recevons pas de ACK nous supposons que nous sommes au dessus du \textrm{PMTU}. Ainsi nous pouvons faire une recherche dichotomique du PMTU.
 
 On note que si le ACK se perds alors que le message est reçu, on se contente de baisser la borne supérieure du PMTU.
 
 
-\subsection{Extentions envisagées mais non développées}
+\subsection{Extensions envisagées mais non développées}
 
 \begin{description}
-\item[Concurrence] Nous avons un gestion de la concurrence sans parallélisation ; nous essayions de lire et d'envoyer un nombre de message raisonnable pour notre nombre de voisins symétriques. Plus tard nous avons implémenté un version plus efficace qui parralélise la reception, l'envoie et l'interface web si possible. Cependant l'efficacité de cette version est trop questionnable pour être rendue\footnote{Cette version est sur la branche \textrm{threads} du projet git. Si vous souhaitez y jetter un coup d'oeil dites le nous pour que vous nous ajoutions au dépôt}.
-\item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à innonder pour transferer des fichiers de cette taille est tellement grand que cet usage semble peut approprié à ce genre d'application.
-\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extention cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extention et l'arrivée des examens nous à forcé à laisser tomber.
+\item[Concurrence] Nous avons un gestion de la concurrence sans parallélisation ; nous essayions de lire et d'envoyer un nombre de message raisonnable pour notre nombre de voisins symétriques. Plus tard nous avons implémenté un version plus efficace qui parallélise la reception, l'envoie et l'interface web si possible. Cependant l'efficacité de cette version est trop questionnable pour être rendue\footnote{Cette version est sur la branche \textrm{threads} du projet git. Si vous souhaitez y jeter un coup d’œil dites le nous pour que vous nous ajoutions au dépôt}.
+\item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à inonder pour transférer des fichiers de cette taille est tellement grand que cet usage semble peut approprié à ce genre d'application.
+\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extension cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extension et l'arrivée des examens nous à forcé à laisser tomber.
 \end{description}
 
 \section{Plus sur l'implémentation\label{sec:implem}}
@@ -233,13 +233,13 @@ Les messages à envoyer sont stockés dans une liste circulaire.
 La boucle principale fait dans l'ordre:
 \begin{enumerate}
 \item gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon on leur envoie un hello long.
-\item si le nombre de voisin symétrique n'est pas trop élevé, gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hellos courts, ils sont retirés, sinon on leur en envoie un autre.
+\item si le nombre de voisin symétrique n'est pas trop élevé, gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hello courts, ils sont retirés, sinon on leur en envoie un autre.
 \item inondation des messages aux voisins, si un voisin n'a pas envoyé de ack après 5 envois, il est rétrogradé en potentiel.
 \item envoi de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
 \item on retire un par un les messages de la liste de messages et on les envoie.
 \item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
 \item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{\textbf{[voir extensions]}}.
-\item appel à \textit{select} sur STDIN et la socket utilisée, en donnant un timeout qui est le minimum des prochains moments où l'une des actions ci-dessus sera nécéssaire.
+\item appel à \textit{select} sur STDIN et la socket utilisée, en donnant un timeout qui est le minimum des prochains moments où l'une des actions ci-dessus sera nécessaire.
 \item si STDIN est à lire, traitement de l'entrée standard (commande ou envoi de message).
 \item s'il y a un message reçu, on va lire la socket un certains nombre de fois (pour éviter une congestion s'il y a beaucoup de messages reçus). Ce nombre est compris entre le nombre de voisins et deux fois le nombre de voisins et varie en fonction du nombre de messages reçus à chaque tour de boucle.
 \end{enumerate}

@@ -82,13 +82,11 @@ static void add(const char *buf, size_t len) {
     }
 
     int rc;
-    char *name = 0, *service = 0;
     char *buffer = alloca(len + 1);
     memcpy(buffer, buf, len);
     buffer[len] = 0;
 
-    name = strtok(buffer, " ");
-    service = strtok(0, " \n");
+    char *name = strtok(buffer, " "), *service = strtok(0, " \n");
 
     if (!name || !service) {
         cprint(STDERR_FILENO, "Usage: %s\n", usages[0]);

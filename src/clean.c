@@ -140,3 +140,32 @@ int clean_old_frags() {
 
     return i;
 }
+
+
+int remove_neighbour(neighbour_t *n) {
+    list_t *l;
+    size_t i;
+    hashmap_t *map;
+    u_int8_t buffer[18];
+
+    bytes_from_neighbour(n, buffer);
+
+    pthread_mutex_lock(&flooding_map->mutex);
+    for (i = 0; i < flooding_map->capacity; i++) {
+        for (l = flooding_map->tab[i]; l; l = l->next) {
+            map = ((map_elem*)l->val)->value;
+            if(hashmap_remove(map, buffer, 1, 1)) {
+                cprint(0, "Remove from here\n");
+            }
+        }
+    }
+    pthread_mutex_unlock(&flooding_map->mutex);
+
+    hashset_remove_neighbour(potential_neighbours, n);
+    hashset_remove_neighbour(neighbours, n);
+    free(n->addr);
+    free(n->tutor_id);
+    free(n);
+
+    return 0;
+}
