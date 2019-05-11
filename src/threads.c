@@ -15,11 +15,31 @@
 #include "tlv.h"
 #include "onsend.h"
 
-int launch_threads(){
-    pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
-    char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
-    void *(*starters[NUMBER_THREAD])(void*) = {web_thread, rec_thread, send_thread, input_thread};
+pthread_t *thread_id[NUMBER_THREAD] =
+    {
+     &web_pt,
+     &rec_pt,
+     &send_pt,
+     &input_pt
+    };
 
+char *runnings[NUMBER_THREAD] =
+    {
+     &web_running,
+     &rec_running,
+     &send_running,
+     &input_running
+    };
+
+void *(*starters[NUMBER_THREAD])(void*) =
+    {
+     web_thread,
+     rec_thread,
+     send_thread,
+     input_thread
+    };
+
+int launch_threads(){
     for (int i = 0; i < NUMBER_THREAD; i++){
         *runnings[i] = 0;
         int rc = pthread_create(thread_id[i], 0, starters[i], runnings[i]);
@@ -194,6 +214,14 @@ void *input_thread(void *running){
 
         size_t len = strlen(line);
         char *buffer = purify(line, &len);
+        char *prefixed_buffer = 0;
+        if (buffer[0] != '/') {
+            const char *p = getPseudo();
+            len += strlen(p) + 2;
+            prefixed_buffer = malloc(len + 1);
+            sprintf(prefixed_buffer, "%s: %s", p, buffer);
+            buffer = prefixed_buffer;
+        }
 
         #define S "\e1M\e[1A\e[K"
 
@@ -204,6 +232,7 @@ void *input_thread(void *running){
             write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
             fsync(STDOUT_FILENO);
         }
+        free(prefixed_buffer);
         free(line);
     }
 

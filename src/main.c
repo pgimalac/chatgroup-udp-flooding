@@ -267,11 +267,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, quit);
     cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
-    void *ret = NULL;
-
-    pthread_t *thread_id[NUMBER_THREAD] = {&web_pt, &rec_pt, &send_pt, &input_pt};
-    char *runnings[NUMBER_THREAD] = {&web_running, &rec_running, &send_running, &input_running};
-    void *(*starters[NUMBER_THREAD])(void*) = {web_thread, rec_thread, send_thread, input_thread};
+    void *ret = NULL;;
 
     rc = launch_threads();
     if (rc != 0)

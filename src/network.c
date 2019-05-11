@@ -77,7 +77,8 @@ int handle_reception () {
         return -3;
     }
 
-    cprint(0, "Received message : magic %d, version %d, size %d\n", msg->magic, msg->version, msg->body_length);
+    cprint(0, "Received message : magic %d, version %d, size %d\n",
+           msg->magic, msg->version, msg->body_length);
 
     if (msg->magic != MAGIC)
         cprint(STDERR_FILENO, "Invalid magic value\n");
