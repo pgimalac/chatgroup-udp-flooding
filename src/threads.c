@@ -198,13 +198,11 @@ void *input_thread(void *running){
         #define S "\e1M\e[1A\e[K"
 
         if (len > 0) {
-            pthread_mutex_lock(&write_mutex);
             write(STDOUT_FILENO, S, strlen(S));
             print_message((u_int8_t*)buffer, len);
             handle_input(buffer, len);
             write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
             fsync(STDOUT_FILENO);
-            pthread_mutex_unlock(&write_mutex);
         }
         free(line);
     }
