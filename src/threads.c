@@ -215,6 +215,11 @@ void *input_thread(void *running){
         size_t len = strlen(line);
         char *buffer = purify(line, &len);
         char *prefixed_buffer = 0;
+        if (!buffer) {
+            free(line);
+            continue;
+        }
+
         if (buffer[0] != '/') {
             const char *p = getPseudo();
             len += strlen(p) + 2;
