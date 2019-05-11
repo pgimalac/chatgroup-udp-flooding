@@ -264,38 +264,22 @@ static const char *names[] =
      NULL
     };
 
-// c'est une ignominie
-static const char *completion_names[] =
-    {
-     "/add",
-     "/name",
-     "/random",
-     "/print",
-     "/juliusz",
-     "/neighbour",
-     "/clear",
-     "/chid",
-     "/transfert",
-     "/switchlog",
-     "/help",
-     "/quit",
-     NULL
-    };
-
 char *interface_generator(const char *text, int state)
 {
     static int list_index, len;
-    const char *name;
+    char *name;
 
     if (!state) {
         list_index = 0;
         len = strlen(text);
     }
 
-    while ((name = completion_names[list_index++])) {
+    while ((names[list_index])) {
+        name = strappl("/", names[list_index++], 0);
         if (strncmp(name, text, len) == 0) {
-            return strdup(name);
+            return name;
         }
+        free(name);
     }
 
     return NULL;
