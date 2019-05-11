@@ -110,7 +110,6 @@ void *rec_thread(void *running){
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
     fd_set readfds;
     int rc;
-    size_t i, number_recv = 1;
 
     while (1){
         FD_ZERO(&readfds);
@@ -123,20 +122,10 @@ void *rec_thread(void *running){
             continue;
         }
 
-        if (rc == 0)
+        if (rc == 0 || !FD_ISSET(sock, &readfds))
             continue;
 
-        if (FD_ISSET(sock, &readfds)) {
-            for (i = 0; i < number_recv; i++)
-                if (handle_reception() == -1){
-                    if (number_recv > neighbours->size + 1)
-                        number_recv--;
-                    break;
-                }
-
-            if (i == number_recv && number_recv < 2 * neighbours->size)
-                number_recv++;
-        }
+        while (handle_reception() != -1){}
     }
 
     pthread_cleanup_pop(1);
@@ -173,11 +162,10 @@ void *send_thread(void *running){
                 cprint(0, "Could not reach (%s, %u) so it was removed from the neighbours.\n",
                        ipstr, msg->dst->addr->sin6_port);
                 remove_neighbour(msg->dst);
-            } else if (rc == EMSGSIZE) {
+            } else if (rc == EMSGSIZE)
                 cprint(0, "Message is too large.\n");
-            } else if (rc != 0) {
+            else if (rc != 0)
                 perrorbis(rc, "SENDMSG");
-            }
             free_message(msg);
         }
 
@@ -199,8 +187,9 @@ void *input_thread(void *running){
     pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
 
+    char cpy[1 << 16], *buffer, *line;
     while (1){
-        char *line = readline("");
+        line = readline("");
 
         if (line == NULL){ // end of stdin reached
             int *ret = malloc(sizeof(int));
@@ -209,32 +198,32 @@ void *input_thread(void *running){
         }
 
         size_t len = strlen(line);
-        char *buffer = purify(line, &len);
-        char *prefixed_buffer = 0;
+        buffer = purify(line, &len);
+
         if (!buffer) {
             free(line);
             continue;
         }
 
-        if (buffer[0] != '/') {
+        if (buffer[0] != COMMAND) {
             const char *p = getPseudo();
             len += strlen(p) + 2;
-            prefixed_buffer = malloc(len + 1);
-            sprintf(prefixed_buffer, "%s: %s", p, buffer);
-            buffer = prefixed_buffer;
-        }
+            snprintf(cpy, 1 << 16, "%s: %s", p, buffer);
+        } else
+            memcpy(cpy, buffer, len);
+        free(line);
 
         #define S "\e1M\e[1A\e[K"
 
         if (len > 0) {
             write(STDOUT_FILENO, S, strlen(S));
-            print_message((u_int8_t*)buffer, len);
-            handle_input(buffer, len);
+
+            print_message((u_int8_t*)cpy, len);
+            handle_input(cpy, len);
+
             write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
             fsync(STDOUT_FILENO);
         }
-        free(prefixed_buffer);
-        free(line);
     }
 
     pthread_cleanup_pop(1);

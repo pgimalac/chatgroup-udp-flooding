@@ -63,12 +63,13 @@ static const char *usages[] = {
     "random",
     "print",
     "juliusz",
-    "neighbour"
+    "neighbour",
     "clear",
     "chid",
     "transfert <type> <path to file>",
     "help",
-    "quit"
+    "quit",
+    NULL,
 };
 
 static void add(const char *buf, size_t len) {
