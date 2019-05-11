@@ -199,11 +199,8 @@ void *input_thread(void *running){
 
         size_t len = strlen(line);
         buffer = purify(line, &len);
-
-        if (!buffer) {
-            free(line);
+        if (len == 0 || buffer == NULL)
             continue;
-        }
 
         if (buffer[0] != COMMAND) {
             const char *p = getPseudo();
@@ -215,15 +212,13 @@ void *input_thread(void *running){
 
         #define S "\e1M\e[1A\e[K"
 
-        if (len > 0) {
-            write(STDOUT_FILENO, S, strlen(S));
+        write(STDOUT_FILENO, S, strlen(S));
 
-            print_message((u_int8_t*)cpy, len);
-            handle_input(cpy, len);
+        print_message((u_int8_t*)cpy, len);
+        handle_input(cpy, len);
 
-            write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
-            fsync(STDOUT_FILENO);
-        }
+        write(STDOUT_FILENO, CLBEG, strlen(CLBEG));
+        fsync(STDOUT_FILENO);
     }
 
     pthread_cleanup_pop(1);

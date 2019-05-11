@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -67,6 +69,7 @@ static const char *usages[] = {
     "clear",
     "chid",
     "transfert <type> <path to file>",
+    "switchlog",
     "help",
     "quit",
     NULL,
@@ -186,6 +189,20 @@ static void transfert(const char *path, size_t buflen) {
     send_data(type, buffer, rc);
 }
 
+static void switchlog(const char *buffer, size_t len){
+    char *bufferbis = memmem(buffer, len, " ", 1);
+    if (bufferbis == NULL){
+        if (logfd == -1)
+            logfd = STDERR_FILENO;
+        else if (logfd != STDERR_FILENO)
+            close(logfd);
+        logfd = -1;
+    } else {
+
+    }
+
+}
+
 static void help(const char *buffer, size_t len){
     cprint(STDOUT_FILENO, "Possible commands are:\n");
     for (const char **usage = usages; *usage; usage++)
@@ -215,6 +232,7 @@ static const char *names[] =
      "clear",
      "chid",
      "transfert",
+     "switchlog",
      "help",
      "quit",
      NULL
@@ -231,6 +249,7 @@ static void (*interface[])(const char*, size_t) =
      clear,
      chid,
      transfert,
+     switchlog,
      help,
      quit,
      NULL

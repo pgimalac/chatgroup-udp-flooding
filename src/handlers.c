@@ -43,6 +43,8 @@ static void handle_hello(const u_int8_t *tlv, neighbour_t *n){
     n->id = src_id;
 
     if (is_long && dest_id != id) {
+        pthread_mutex_unlock(&potential_neighbours->mutex);
+        pthread_mutex_unlock(&neighbours->mutex);
         cprint(0, "%lx is not my id.\n", dest_id);
         return;
     }
@@ -299,16 +301,14 @@ static void handle_goaway(const u_int8_t *tlv, neighbour_t *n){
     if (tlv[1] > 1)
         cprint(0, "Go away message: %*s\n", tlv[1] - 1, tlv + 3);
 
+    n->status = NEIGHBOUR_POT;
     if (hashset_remove(neighbours, n->addr->sin6_addr.s6_addr, n->addr->sin6_port))
         cprint(0, "Remove %lx from friends.\n", n->id);
     else
         cprint(0, "Received a goaway from someone that wasn't a friend.\n");
 
     int rc = hashset_add(potential_neighbours, n);
-    if (rc == 2)
-        cprint(STDERR_FILENO, "%s:%d Tried to add a neighbour to potentials but it was already in.\n",
-            __FILE__, __LINE__);
-    else if (rc == 0)
+    if (rc == 0)
         perrorbis(ENOMEM, "hashset_add");
     else
         cprint(0, "Add (%s, %u) to potential friends\n", ipstr, ntohs(n->addr->sin6_port));
@@ -404,6 +404,7 @@ void handle_invalid_message(int rc, neighbour_t *n){
         }
         msg->size = size;
         inet_ntop(AF_INET6, &n->addr->sin6_addr, ipstr, INET6_ADDRSTRLEN);
+        n->status = NEIGHBOUR_POT;
         cprint(0, "Remove (%s, %u) from neighbour list and add to potential neighbours.\n",
             ipstr, ntohs(n->addr->sin6_port));
 
