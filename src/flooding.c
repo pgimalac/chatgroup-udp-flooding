@@ -161,6 +161,7 @@ static int flooding_send_msg(const char *dataid, list_t **msg_done) {
                     ipstr, ntohs(dinfo->neighbour->addr->sin6_port));
                 cprint(0, "He did not answer to data for too long.\n");
 
+                dinfo->neighbour->status = NEIGHBOUR_POT;
                 if (hashset_remove(neighbours,
                                dinfo->neighbour->addr->sin6_addr.s6_addr,
                                dinfo->neighbour->addr->sin6_port) == NULL){

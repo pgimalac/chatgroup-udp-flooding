@@ -157,6 +157,7 @@ int hello_neighbours(struct timespec *tv) {
 
     while (to_delete) {
         p = (neighbour_t*)list_pop(&to_delete);
+        p->status = NEIGHBOUR_POT;
         if (!hashset_remove(neighbours, p->addr->sin6_addr.s6_addr, p->addr->sin6_port))
             cprint(STDERR_FILENO, "%s:%d Tried to remove a neighbour that wasn't actually one.\n",
                 __FILE__, __LINE__);
