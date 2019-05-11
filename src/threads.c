@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 #include <arpa/inet.h>
 #include <errno.h>
 
@@ -189,6 +190,8 @@ void *input_thread(void *running){
     pthread_cleanup_push(cleaner, running);
     pthread_setcanceltype(PTHREAD_CANCEL_ENABLE, 0);
 
+    rl_attempted_completion_function = interface_completion;
+
     char cpy[1 << 16], *buffer, *line;
     while (1) {
         line = readline("");
@@ -210,8 +213,11 @@ void *input_thread(void *running){
             const char *p = getPseudo();
             len += strlen(p) + 2;
             snprintf(cpy, 1 << 16, "%s: %s", p, buffer);
-        } else
+        } else {
             memcpy(cpy, buffer, len);
+            cpy[len] = 0;
+            add_history(cpy);
+        }
         free(line);
 
         #define S "\e1M\e[1A\e[K"

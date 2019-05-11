@@ -68,4 +68,6 @@ void print_message(const u_int8_t*, int);
 
 void print_file(u_int8_t type, const u_int8_t *buffer, size_t len);
 
+char **interface_completion(const char *text, int start, int end);
+
 #endif

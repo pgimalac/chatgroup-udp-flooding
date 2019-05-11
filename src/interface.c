@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <time.h>
 #include <stdlib.h>
+#include <readline/readline.h>
 
 #include "types.h"
 #include "interface.h"
@@ -95,9 +96,13 @@ static void add(const char *buf, size_t len) {
 
     rc = add_neighbour(name, service);
     if (rc != 0)
-        cprint(STDERR_FILENO, "Could not add the given neighbour: %s\n", gai_strerror(rc));
+        cprint(STDERR_FILENO,
+               "Could not add the given neighbour: %s\n",
+               gai_strerror(rc));
     else
-        cprint(STDOUT_FILENO, "The neighbour %s, %s was added to potential neighbours\n", name, service);
+        cprint(STDOUT_FILENO,
+               "The neighbour %s, %s was added to potential neighbours\n",
+               name, service);
 }
 
 static void name(const char *buffer, size_t len){
@@ -128,7 +133,9 @@ static void print(const char *buffer, size_t len){
     if (hashset_isempty(potential_neighbours)){
         cprint(STDOUT_FILENO, "You have no potential_neighbour.\n");
     } else {
-        cprint(STDOUT_FILENO, "You have %lu potential neighbour%s:\n", potential_neighbours->size,
+        cprint(STDOUT_FILENO,
+               "You have %lu potential neighbour%s:\n",
+               potential_neighbours->size,
                     potential_neighbours->size == 1 ? "" : "s");
         hashset_iter(potential_neighbours, __print);
     }
@@ -256,6 +263,32 @@ static const char *names[] =
      "quit",
      NULL
     };
+
+char *interface_generator(const char *text, int state)
+{
+    static int list_index, len;
+    char *name;
+
+    if (!state) {
+        list_index = 0;
+        len = strlen(text);
+    }
+
+    while ((names[list_index])) {
+        name = strappl("/", names[list_index++], 0);
+        if (strncmp(name, text, len) == 0) {
+            return name;
+        }
+        free(name);
+    }
+
+    return NULL;
+}
+
+char **interface_completion(const char *text, int start, int end) {
+    rl_attempted_completion_over = 1;
+    return rl_completion_matches(text, interface_generator);
+}
 
 static void (*interface[])(const char*, size_t) =
     {
