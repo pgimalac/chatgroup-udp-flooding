@@ -194,10 +194,10 @@ static int (*option_handlers[NBOPT])(char *) =
     };
 
 static const char *usage =
-    "usage: %s [-l[file] | --logs <log file>]\n"
-    "%*s[-p | -port <port number>]\n"
-    "%*s[--web-port <port number>]\n"
-    "%*s[--pseudo <pseudo>]\n";
+    "usage: %s [-l[file] | -{}-logs <log file>]\n"
+    "%*s[-p | -{}-port <port number>]\n"
+    "%*s[-w | -{}-web-port <port number>]\n"
+    "%*s[-{}-pseudo <pseudo>]\n";
 
 int parse_args(int argc, char **argv) {
     int rc, c, option_index, padding;
@@ -205,7 +205,7 @@ int parse_args(int argc, char **argv) {
 
     while (1) {
 
-        c = getopt_long(argc, argv, "p:l:", options, &option_index);
+        c = getopt_long(argc, argv, "p:l:w:", options, &option_index);
 
         if (c == -1)
             break;
@@ -221,6 +221,10 @@ int parse_args(int argc, char **argv) {
 
         case 'l':
             rc = opt_log(optarg);
+            break;
+
+        case 'w':
+            rc = opt_webport(optarg);
             break;
 
         default:

@@ -10,6 +10,11 @@
 
 \usepackage[pdftex, pdfauthor={Maxime Flin, Pierre Gimalac}, pdftitle={Rapport projet}, pdfsubject={chatgroup with udp flooding}, pdfkeywords={UDP, chatgroup, flooding}, colorlinks=true, linkcolor=black]{hyperref}
 
+
+\usepackage{url} %permet de mettre des URL actifs \url{}
+\let\urlorig\url
+\renewcommand{\url}[1]{\begin{otherlanguage}{english}\urlorig{#1}\end{otherlanguage}}
+
 \author{Maxime Flin \& Pierre Gimalac}
 \title{Rapport de Projet}
 
@@ -23,14 +28,14 @@
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
-L'application est développé en C pour ses systèmes UNIX respectant les normes POSIX. Elle utilise l'API socket, les fonctions de la \textrm{glibc} et la fonction \textrm{SHA1} de la bibliothèque \textrm{OpenSSL}.
+L'application est développé en C pour les systèmes UNIX respectant les normes POSIX. Elle utilise l'API socket, les fonctions de la \textrm{glibc} et la fonction \textrm{SHA1} de la bibliothèque \textrm{OpenSSL}.
 
 Un \textrm{Makefile} est fournis pour compiler le projet:  \textit{'make all'}.\\
 
 L'exécutable produit s'appelle \textit{chat}.
 \begin{itemize}
 \item \textrm{-{}-port} ou \textrm{-p} suivi du numéro de port définit le port sur lequel lancer le serveur de chat. Si aucun port n'est précisé, il est alors choisit aléatoirement.
-\item \textrm{-{}-webport} suivi du port sur lequel faire lancer le serveur web de l'application. Si aucun port n'est précisé, alors il est choisit aléatoirement entre 8080 et 8089.
+\item \textrm{-{}-webport} ou \textrm{-w} suivi du port sur lequel faire lancer le serveur web de l'application. Si aucun port n'est précisé, alors il est choisit aléatoirement entre 8080 et 8089.
 \item \textrm{-{}-pseudo} suivit d'un pseudonyme. Un pseudonyme aléatoire est choisi dans une liste s'il n'est pas précisé.
 \item \textrm{-{}-logs} ou \textrm{-l} suivit du chemin relatif vers un fichier où écrire les logs. Si le fichier n'existe pas il est créé. Si aucun fichier de log n'est précisé, les logs de l'application sont affichés sur la sortie standard d'erreur.
 \end{itemize}
@@ -56,13 +61,14 @@ L'interface dans le terminal est en ligne de commande, elle interagit donc en li
 \item[clear] efface le terminal (fonctionne au moins sur bash et zsh).
 \item[chid] change l'identifiant de manière aléatoire.
 \item[transfert <type> <path>] envoie le fichier \textit{path} avec le protocole de fragmentation. Quel que soit le fichier, il est envoyé avec le type donné. La description des types est données dans la section \ref{sec:frag}.
+\item[switchlog [<logfile>]] si un fichier est donné en argument, la sortie log s'écrit sur le fichier donné (qui pour des raisons de sécurité ne doit pas exister et sera créé). S'il n'y a pas d'argument, alors si les logs étaient activés ils sont éteints et vice-versa (alors écrits sur stderr).
 \item[help] affiche l'ensemble des commandes.
 \item[quit] quitte programme, envoie des tlv goaway au passage.
 \end{description}
 
 Tout ce qui n'est pas une commande, ie. tout ce qui ne commence pas par un \textrm{/}, est un message qui sera envoyé sur le réseau. Le préfixe \textit{pseudo: } sera automatiquement ajouté devant le message.\\
 
-Nous affichons par défaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textrm{logs}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{L'affichage peut être totalement personnalisé dans \textrm{interface.h}: couleurs de police et de fond, italique, gras, texte clignotant,...}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
+Nous affichons par défaut (beaucoup) de logs sur la sortie d'erreur (comme dit dans la section \ref{sec:exec}, ils peuvent être redirigé dans un fichier avec l'option \textbf{logs}, ou arrêtés avec \textbf{switchlog}). Pour y voir plus clair, nous avons ajouté un code couleur au différents type de messages\footnote{L'affichage peut être totalement personnalisé dans \textrm{interface.h}: couleurs de police et de fond, italique, gras, texte clignotant,...}. Nous avons choisi d'afficher la sortie standard dans la couleur normale, les logs en jaune et les erreurs en rouge. Pour ce faire nous avons implémenté la fonction \textit{cprint} dans \textit{utils} qui étends \textit{dprintf} en mettant les messages à la bonne couleur selon la sortie voulue.\\
 
 Pour ajouter en voisin l'interface de Juliusz et envoyer les deux messages \textit{Bob: Bonjours tout le monde !} et \textit{Bob: Je suis très heureux de vous voir.}, il faudra donc entrer les commandes suivantes.
 
@@ -127,7 +133,6 @@ Le champ type permet de savoir comment interpréter le message reçu. Au cours d
 
 \begin{description}
 \item[0] Texte UTF-8
-\item[1] Non attribué
 \item[2] Image gif
 \item[3] Image jpg
 \item[4] Image png
@@ -146,7 +151,7 @@ Après avoir jeté un coup d’œil à l'implémentation de l'interface web de J
 
 Nous avons donc implémenté un serveur \textrm{HTTP}\footnote{\href{https://tools.ietf.org/html/rfc2616}{RFC2616}} très basique pour afficher une page web, créer la connexion WebSocket et charger des images depuis un dossier temporaire. Il n'est pas très sécurisé et n'implémente pas tous les détails du protocole, nous sommes au courant, mais l'objectif étant d'avoir une interface graphique simple dans le navigateur et surtout d'implémenter le protocole WebSocket, nous avons mis de côté ces points là.\\
 
-Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connex0ion WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connexion \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connexion TCP n'est plus fermée avant que l'un des deux pairs ne le décide.
+Nous avons ensuite implémenté le protocole \textrm{WebSocket}\footnote{\href{https://tools.ietf.org/html/rfc6455}{RFC6455}}. La connexion WebSocket s'effectue après un ``\textit{Handshake}'' à travers une connexion \textrm{HTTP} ayant le champs \textrm{Upgrade: websocket}. On reçoit une clef secrète \textrm{Sec-WebSocket-Key}, on la concatène à une ``\textit{magic string}'', on la hash avec \textrm{SHA1} puis on envoie une réponse \textrm{HTTP} de type 101 contenant le champ \textrm{Sec-WebSocket-Accept} ayant pour valeur l'encodage en base64 du hash. À partir de ce moment la connexion TCP n'est plus fermée avant que l'un des deux pairs ne le décide.
 Une trame WebSocket est au format suivant
 
 \begin{verbatim}
@@ -198,13 +203,18 @@ Nous avons ensuite remarqué que lorsqu'un TLV Data est reçu, il est toujours s
 
 On note que si le ACK se perds alors que le message est reçu, on se contente de baisser la borne supérieure du PMTU.
 
+\subsection{Concurrence}
+Nous avions une gestion de la concurrence sans parallélisation ; nous essayions de lire et d'envoyer un nombre de message raisonnable pour notre nombre de voisins symétriques. Plus tard nous avons implémenté un version plus efficace qui parallélise la lecture de l'entrée standard, la reception, l'envoi et l'interface web si possible.
+
+Grâce à des tests particulièrement intensifs nous avons pu éliminer beaucoup de problèmes apportés par les threads (en particulier des deadlock), avec plus ou moins de facilité (la difficulté d'affichage d'une backtrace propre depuis le code C nous a un peu ralenti mais une fois certaines commandes de gdb connues, le problème disparait).
+
+La concurrence nous permet également d'améliorer grandement l'utilisation du terminal. L'utilisation de la bibliothèque readline nous a permis d'éviter qu'un message que l'on est en train de taper ne soit coupé par l'affichage des logs ou autre. On peut utiliser les chaînes de contrôles bash\footnote{\url{https://wiki.archlinux.org/index.php/Bash/Prompt\_customization\#Common\_capabilities}}pour effacer la ligne courante, afficher ce que l'on veut afficher puis grâce à readline on peut réafficher le texte précédemment tapé.
 
 \subsection{Extensions envisagées mais non développées}
 
 \begin{description}
-\item[Concurrence] Nous avons un gestion de la concurrence sans parallélisation ; nous essayions de lire et d'envoyer un nombre de message raisonnable pour notre nombre de voisins symétriques. Plus tard nous avons implémenté un version plus efficace qui parallélise la reception, l'envoie et l'interface web si possible. Cependant l'efficacité de cette version est trop questionnable pour être rendue\footnote{Cette version est sur la branche \textrm{threads} du projet git. Si vous souhaitez y jeter un coup d’œil dites le nous pour que vous nous ajoutions au dépôt}.
 \item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à inonder pour transférer des fichiers de cette taille est tellement grand que cet usage semble peut approprié à ce genre d'application.
-\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extension cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extension et l'arrivée des examens nous à forcé à laisser tomber.
+\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extension cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extension et l'arrivée des examens nous ont forcé à laisser tomber.
 \end{description}
 
 \section{Plus sur l'implémentation\label{sec:implem}}
@@ -214,23 +224,30 @@ Les fichiers sources du projets sont dans le dossier \textrm{src}. Le code est r
 
 \begin{description}
 \item[types.h] contient les structures essentielles utilisées pour l'implémentation du protocole.
-\item[main.c] contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.
+\item[main] contient la boucle principale du programme, une fonction d'initialisation et des fonctions de gestion de l'entrée standard.
 \item[structs] contient les structures de données utilisées dans le projet: hashmap, hashset, liste chaînée, arraylist.
-\item[interface.c] contient les fonctions liées à l'interface (changement de pseudonyme, gestion de commandes, affichages des messages).
-\item[network.c, flooding.c] contiennent les fonctions liées à l'inondation, à la réception et à l'envoi de messages.
+\item[interface] contient les fonctions liées à l'interface (changement de pseudonyme, gestion de commandes, affichages des messages).
+\item[network] contient des fonctions générales liées au réseau.
+\item[flooding, send, clean, tlv\_queue] contiennent les fonctions liées à l'inondation, à la réception et à l'envoi de messages.
+\item[hello, neighbour] contiennent des fonctions liées aux voisins et à l'envoi de tlv neighbour.
 \item[tlv, checkers, handlers, onsend] contiennent des fonctions de gestion de tlv (création, vérification et gestion à la réception,...).
-\item[util.c] contient des fonctions diverses utilisées tout au long du projet.
+\item[base64, webinterface] contiennent des fonctions liées à l'interface web.
+\item[threads, signal] contiennent des fonctions liées aux threads et aux signaux.
+\item[utils] contient des fonctions diverses utilisées tout au long du projet.
 \end{description}
 
 \subsection{Structures utilisées\label{sec:struct}}
+Les voisins sont stockés dans des hashset.
+
 Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
 
 Les fragments de messages sont stockés dans une hashmap. \hyperref[sec:frag]{\textbf{[voir extensions]}}
 
 Les messages à envoyer sont stockés dans une liste circulaire.
 
-\subsection{Boucle principale}
-La boucle principale fait dans l'ordre:
+\subsection{Boucles principales}
+\begin{itemize}
+    \item Thread d'envoi
 \begin{enumerate}
 \item gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon on leur envoie un hello long.
 \item si le nombre de voisin symétrique n'est pas trop élevé, gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hello courts, ils sont retirés, sinon on leur en envoie un autre.
@@ -239,10 +256,16 @@ La boucle principale fait dans l'ordre:
 \item on retire un par un les messages de la liste de messages et on les envoie.
 \item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
 \item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{\textbf{[voir extensions]}}.
-\item appel à \textit{select} sur STDIN et la socket utilisée, en donnant un timeout qui est le minimum des prochains moments où l'une des actions ci-dessus sera nécessaire.
-\item si STDIN est à lire, traitement de l'entrée standard (commande ou envoi de message).
-\item s'il y a un message reçu, on va lire la socket un certains nombre de fois (pour éviter une congestion s'il y a beaucoup de messages reçus). Ce nombre est compris entre le nombre de voisins et deux fois le nombre de voisins et varie en fonction du nombre de messages reçus à chaque tour de boucle.
+\item appel à \textbf{pthread\_cond\_timedwait} qui bloque jusqu'à ce que la condition d'attente soit finie (ici c'est le cas quand on push un tlv) ou après un certain temps en fonction des points ci-dessus (qui modifient une \textbf{timespec} pour indiquer la prochaine action nécessaire).
 \end{enumerate}
+    \item Thread de réception
+
+On boucle sur un select puis s'il y a un message reçu, on va lire la socket tant qu'il y a des messages à lire, et traiter les messages associés.
+    \item Thread de l'entrée standard
+
+On boucle sur un appel à \textbf{readline} puis s'il y a un message à lire, on le traite selon s'il s'agit d'une commande ou d'un message à envoyer.
+    \item Thread de l'interface web
+\end{itemize}
 
 \end{document}
 
