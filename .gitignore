@@ -9,3 +9,7 @@ rapport.pdf
 chat
 vgcore*
 *.synctex.gz
+*.jpg
+*.png
+*.svg
+*.git
