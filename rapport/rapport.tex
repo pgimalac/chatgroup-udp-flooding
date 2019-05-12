@@ -80,7 +80,7 @@ Je suis très heureux de vous voir.
 
 Une interface web a aussi été implémentée, mais étant une extension nous en reparlerons dans la section \ref{sec:web}.
 
-\section{Fonctionnalitées}
+\section{Fonctionnalités}
 
 \subsection{Sujet minimal}
 Le sujet minimal a été entièrement implémenté.
@@ -88,10 +88,12 @@ Nous avons ajouté un gestionnaire de signal lors de l'interruption du programme
 
 Nous inondons les data à des temps aléatoires pour augmenter la probabilité de réduire le nombre d’inondation à faire d'un même message.
 
-Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa résistance aux paquets buggés.\\
+Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa résistance aux paquets buggés.
+
+Nous envoyons des warnings et des goaway très spécifiques si l'on nous envoie des tlv ou des messages mal formés.\\
 
 
-\textit{Les extentions suivantes sont présentées dans l'ordre dans lequel elles ont été implémentées dans le projet.}
+\textit{Les extensions suivantes sont présentées dans l'ordre dans lequel elles ont été implémentées dans le projet.}
 
 \subsection{Agrégation de TLV\label{sec:agrega}}
 Les messages a envoyer sont stocké dans une file (plus de détails dans la section \ref{sec:struct}) de messages accessible grâce à deux méthodes:
@@ -102,7 +104,6 @@ Les messages a envoyer sont stocké dans une file (plus de détails dans la sect
 \end{description}
 
 Chaque voisin possède un attribut \textrm{PMTU} correspondant à une approximation inférieure du réel \textrm{PMTU} avec ce voisin. Nous avons plus tard implémenté la découverte de PMTU (section \ref{sec:pmtu}).
-
 
 \subsection{Fragmentation des gros messages\label{sec:frag}}
 Nous avons implémenté le protocole de fragmentation de gros messages proposé par \textrm{Alexandre Moine} et \textrm{Tristan François} sur la mailing liste du projet. Ils proposaient d'utiliser un nouveau type de data afin que les TLV puissent être inondés même par les pairs n'ayant pas implémenté la fragmentation et permettre à ceux qui l'avaient faite de reconstituer le message à l'arrivée.
@@ -242,7 +243,7 @@ Les fichiers sources du projets sont dans le dossier \textrm{src}. Le code est r
 \subsection{Structures utilisées\label{sec:struct}}
 Les voisins sont stockés dans des hashset. \textrm{neighbours} contient les voisins symétriques et \textrm{potential\_neighbours} les voisins potentiels.
 
-Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap, respectivement \textrm{data\_map} et \textrm{flooding\_map}. Dans le second cas, il s'agit d'une hashmap de hashmap. À un message on associe un map qui fait la correspondance entre un voisin encore à inonder et les informations relative à cette inondation (date du dernier envoi, nombre d'envois...).
+Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap, respectivement \textrm{data\_map} et \textrm{flooding\_map}. Dans le second cas, il s'agit d'une hashmap de hashmap. À un message on associe une hashmap qui fait la correspondance entre un voisin encore à inonder et les informations relative à cette inondation (date du dernier envoi, nombre d'envois...).
 
 Les fragments de messages sont stockés dans la hashmap \textrm{fragmentation\_map} \hyperref[sec:frag]{(voir section \ref{sec:frag})}. On utilise aussi une hashmap (\textrm{pmtu\_map}) pour faire correspondre un message au voisin dont on essaye d'estimer le pmtu.
 
@@ -274,11 +275,11 @@ Les messages à envoyer sont stockés dans une liste circulaire.
 
 Ce projet fut par bien des aspects le plus intéressant que nous ayons eu à réaliser en 3 années de licences d'informatique.
 
-L'implémentation d'un chat décentralisé est une chose amusante en soit, d'autant plus que l'interface développée par Juliusz Chroboczek nous permettait de tester et communiquer en même temps avec tous les autres étudiants travaillant sur ce projet. De plus la mailing-list mise en place par le professeur nous maintenait éveillé aux proprets des autres groupes et nous amenait à échanger. Nous avons proposé un protocole d'échange de très gros messages, une association type de fichier/type de data et des TLV en vue de l'implémentation d'une sécurité cryptographique. On communique, il se passe des choses, le projet est vivant ; c'est pour ça qu'on fait du réseau et pas un shell\footnote{le projet de système du semestre 5}.\\
+L'implémentation d'un chat décentralisé est une chose amusante en soit, d'autant plus que l'interface développée par Juliusz Chroboczek nous permettait de tester et communiquer en même temps avec tous les autres étudiants travaillant sur ce projet. De plus la mailing-list mise en place par le professeur nous maintenait éveillé aux proprets des autres groupes et nous amenait à échanger. Nous avons proposé un protocole d'échange de très gros messages, une association type de fichier/type de data et des TLV en vue de l'implémentation d'une sécurité cryptographique. On communique, il se passe des choses, le projet est vivant ; c'est pour ça qu'on fait du réseau et pas un shell\footnote{Le projet de système du semestre 5}.\\
 
 Nous avons aussi pu apprendre de nombreuses choses dépassant le contenu du cours. Autant sur des protocoles de programmation réseaux \hyperref[sec:web]{(voir section \ref{sec:web})} que sur des aspects de programmation C comme les threads et même les chaînes de contrôle Bash\hyperref[sec:con]{(voir section \ref{sec:con})}.\\
 
-Le seul bémol est la programmation C ; nous avons eu de nombreux problèmes d'implémentation dans nos hashmap et hashset qui ne seraient jamais arrivés avec un langage disposant d'une bibliothèque standard plus conséquente. De plus, notre gestion de la concurrence est particulièrement lourde et probablement pas systématiquement optimale. L'implémentation de ce même projet dans un langage comme \textrm{Rust}\footnote{Que nous connaissons et aimons particulièrement.} ou \textrm{Go}\footnote{Que nous connaissons un peu et sommes désireux de connaître plus.} aurait été beaucoup plus simple et aurait conduit à une application vraisemblablement plus solide.
+Le seul bémol est la programmation C ; nous avons eu de nombreux problèmes d'implémentation dans nos hashmap et hashset qui ne seraient jamais arrivés avec un langage disposant d'une bibliothèque standard plus conséquente. De plus, notre gestion de la concurrence est particulièrement lourde et probablement pas systématiquement optimale. L'implémentation de ce même projet dans un langage comme \textrm{Rust}\footnote{Que nous connaissons et aimons particulièrement.} ou \textrm{Go}\footnote{Que nous connaissons peu mais aurions été désireux de connaître plus.} aurait été beaucoup plus simple et aurait conduit à une application vraisemblablement plus solide.
 
 \end{document}
 

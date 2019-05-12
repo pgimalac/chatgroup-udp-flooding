@@ -340,6 +340,10 @@ const char* getPseudo(){
 
 void setPseudo(const char *buf, size_t len){
     buf = purify((char*)buf, &len);
+    while (len > 0 && buf[0] == '/'){
+        buf ++;
+        len --;
+    }
 
     if (len > PSEUDO_LENGTH){
         cprint(STDERR_FILENO, "Nickname too long.\n");

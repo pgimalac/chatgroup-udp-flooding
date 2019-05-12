@@ -221,9 +221,6 @@ static int flooding_send_msg(const char *dataid, list_t **msg_done) {
 
         bytes_from_neighbour(obj, buf);
         rc = hashmap_remove(map, buf, 1, 1);
-        if (rc == 0)
-            cprint(STDERR_FILENO, "%s:%d Tried to remove a dataid from flooding map but it wasn't in.\n",
-                __FILE__, __LINE__);
     }
 
     if (map->size == 0 && !list_add(msg_done, voidndup(dataid, 12)))
@@ -249,8 +246,10 @@ int message_flooding(struct timespec *tv) {
             dataid = (char*)((map_elem*)l->val)->key;
 
             rc = flooding_send_msg(dataid, &msg_done);
-            if (rc < 0)
+            if (rc < 0){
+                list_add(&msg_done, dataid);
                 continue;
+            }
 
             if (rc < tv->tv_sec - now)
                 tv->tv_sec = now + rc;
