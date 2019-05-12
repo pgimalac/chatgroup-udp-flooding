@@ -208,13 +208,14 @@ Nous avions une gestion de la concurrence sans parallélisation ; nous essayions
 
 Grâce à des tests particulièrement intensifs nous avons pu éliminer beaucoup de problèmes apportés par les threads (en particulier des deadlock), avec plus ou moins de facilité (la difficulté d'affichage d'une backtrace propre depuis le code C nous a un peu ralenti mais une fois certaines commandes de gdb connues, le problème disparait).
 
-La concurrence nous permet également d'améliorer grandement l'utilisation du terminal. L'utilisation de la bibliothèque readline nous a permis d'éviter qu'un message que l'on est en train de taper ne soit coupé par l'affichage des logs ou autre. On peut utiliser les chaînes de contrôles bash\footnote{\url{https://wiki.archlinux.org/index.php/Bash/Prompt\_customization\#Common\_capabilities}}pour effacer la ligne courante, afficher ce que l'on veut afficher puis grâce à readline on peut réafficher le texte précédemment tapé.
+La concurrence nous permet également d'améliorer grandement l'utilisation du terminal. L'utilisation de la bibliothèque readline nous a permis d'éviter qu'un message que l'on est en train de taper ne soit coupé par l'affichage des logs ou autre. On peut utiliser les chaînes de contrôles bash\footnote{\url{https://wiki.archlinux.org/index.php/Bash/Prompt\_customization\#Common\_capabilities}} pour effacer la ligne courante, afficher ce que l'on veut afficher puis grâce à readline on peut réafficher le texte précédemment tapé.
 
 \subsection{Extensions envisagées mais non développées}
 
 \begin{description}
-\item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à inonder pour transférer des fichiers de cette taille est tellement grand que cet usage semble peut approprié à ce genre d'application.
-\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extension cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extension et l'arrivée des examens nous ont forcé à laisser tomber.
+\item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à inonder pour transférer des fichiers de cette taille est tellement grand que cet usage semble peu approprié à ce genre d'application.
+\item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extension cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extension et l'arrivée des examens (ainsi que l'absence de réponse à notre dernier mail) nous ont forcé à laisser tomber.
+\item[Multicast]
 \end{description}
 
 \section{Plus sur l'implémentation\label{sec:implem}}
@@ -256,7 +257,7 @@ Les messages à envoyer sont stockés dans une liste circulaire.
 \item on retire un par un les messages de la liste de messages et on les envoie.
 \item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
 \item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{\textbf{[voir extensions]}}.
-\item appel à \textbf{pthread\_cond\_timedwait} qui bloque jusqu'à ce que la condition d'attente soit finie (ici c'est le cas quand on push un tlv) ou après un certain temps en fonction des points ci-dessus (qui modifient une \textbf{timespec} pour indiquer la prochaine action nécessaire).
+\item appel à \textbf{pthread\_cond\_timedwait} qui bloque jusqu'à ce que la condition d'attente soit finie (ici c'est le cas quand on push un tlv) ou après un certain temps en fonction des points ci-dessus (qui modifient une \textbf{timespec} pour indiquer le temps de la prochaine action).
 \end{enumerate}
     \item Thread de réception
 
