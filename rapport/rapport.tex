@@ -24,7 +24,7 @@
 \begin{abstract}
   Ce rapport est un compte rendu du travail fourni pour le projet du cours de programmation réseau. Nous avons implémenté un chat décentralisé selon le protocole d'inondation décrit par Juliusz Chroboczek dans le sujet et \textbf{interopérable avec son implémentation}.
 
-  Plusieurs extensions ont été développées parmi lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l’inondation}, \textbf{l'implémentation d'une interface web(\ref{sec:web})} et \textbf{la découverte du PMTU(\ref{sec:pmtu})}.
+  Plusieurs extensions ont été développées parmi lesquelles \textbf{l'agrégation de tlv(\ref{sec:agrega})}, \textbf{la fragmentation de gros messages(\ref{sec:frag})}, \textbf{quelques optimisations de l’inondation}, \textbf{l'implémentation d'une interface web(\ref{sec:web})}, \textbf{la découverte du PMTU(\ref{sec:pmtu})} et de la \textbf{concurrence(\ref{sec:con})}.
 \end{abstract}
 
 \section{Compilation et exécution\label{sec:exec}}
@@ -86,7 +86,9 @@ Une interface web a aussi été implémentée, mais étant une extension nous en
 Le sujet minimal a été entièrement implémenté.
 Nous avons ajouté un gestionnaire de signal lors de l'interruption du programme pour envoyer un TLV GoAway à tous les voisins indiquant que nous quittons le réseau.
 
-Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa résistance aux paquets buggés.
+Nous innondons les data à des temps aléatoires pour augmenter la probabilitée de réduire le nombre d'innondation à faire d'un même message.
+
+Nous avons soumis notre implémentation à des séries de tests implacables pour tester son efficacité et sa résistance aux paquets buggés.\\
 
 
 \textit{Les extentions suivantes sont présentées dans l'ordre dans lequel elles ont été implémentées dans le projet.}
@@ -203,7 +205,7 @@ Nous avons ensuite remarqué que lorsqu'un TLV Data est reçu, il est toujours s
 
 On note que si le ACK se perds alors que le message est reçu, on se contente de baisser la borne supérieure du PMTU.
 
-\subsection{Concurrence}
+\subsection{Concurrence\label{sec:con}}
 Nous avions une gestion de la concurrence sans parallélisation ; nous essayions de lire et d'envoyer un nombre de message raisonnable pour notre nombre de voisins symétriques. Plus tard nous avons implémenté un version plus efficace qui parallélise la lecture de l'entrée standard, la reception, l'envoi et l'interface web si possible.
 
 Grâce à des tests particulièrement intensifs nous avons pu éliminer beaucoup de problèmes apportés par les threads (en particulier des deadlock), avec plus ou moins de facilité (la difficulté d'affichage d'une backtrace propre depuis le code C nous a un peu ralenti mais une fois certaines commandes de gdb connues, le problème disparait).
@@ -215,6 +217,7 @@ La concurrence nous permet également d'améliorer grandement l'utilisation du t
 \begin{description}
 \item[Très très gros messages] Ayant implémenté la fragmentation de gros messages nous nous réjouissions à l'idée de pouvoir s'envoyer des images. Nous nous sommes vite rendu compte que la taille moyenne des images aujourd'hui est plutôt de l'ordre du méga-octet. Nous avons alors proposé un type de Data similaire à celui des gros messages mais avec un taille totale sur 4 octets au lieu de 2. Toutefois, le nombre de TLV à inonder pour transférer des fichiers de cette taille est tellement grand que cet usage semble peut approprié à ce genre d'application.
 \item[Sécurité cryptographique] Nous avions sérieusement réfléchit à une extension cryptographique et proposé à cet effet des TLV pour l'échange de clef sur la mailing-list. La complexité de l'implémentation d'une telle extension et l'arrivée des examens nous ont forcé à laisser tomber.
+\item[Multicast] Cette extention a été faite par d'autres groupes ; nous nous sommes demandé pourquoi ne pas la faire. Finalement, comme il est compliqué d'envoyer des messages en multicast au delà du lien local, nous avons trouvé que cette extention présentait peut d'intérêt et de ce fait n'avons pas trouvé la motivation de l'implémenter.
 \end{description}
 
 \section{Plus sur l'implémentation\label{sec:implem}}
@@ -237,11 +240,11 @@ Les fichiers sources du projets sont dans le dossier \textrm{src}. Le code est r
 \end{description}
 
 \subsection{Structures utilisées\label{sec:struct}}
-Les voisins sont stockés dans des hashset.
+Les voisins sont stockés dans des hashset. \textrm{neighbours} contient les voisins symétriques et \textrm{potential\_neighbours} les voisins potentiels.
 
-Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap. Dans le second cas, il s'agit d'une hashmap de hashset (chaque hashset contient les voisins encore à inonder pour le message donné).
+Les messages reçus récemment et les messages à inonder sont chacun stockés par une hashmap, respectivement \textrm{data\_map} et \textrm{flooding\_map}. Dans le second cas, il s'agit d'une hashmap de hashmap. À un message on associe un map qui fait la correspondance entre un voisin encore à innonder et les informations relative à cette innondation (date du dernier envoi, nombre d'envois...).
 
-Les fragments de messages sont stockés dans une hashmap. \hyperref[sec:frag]{\textbf{[voir extensions]}}
+Les fragments de messages sont stockés dans la hashmap \textrm{fragmentation\_map} \hyperref[sec:frag]{(voir section \ref{sec:frag})}. On utilise aussi une hashmap (\textrm{pmtu\_map}) pour faire correspondre un message au voisin dont on essaye d'estimer le pmtu.
 
 Les messages à envoyer sont stockés dans une liste circulaire.
 
@@ -249,23 +252,32 @@ Les messages à envoyer sont stockés dans une liste circulaire.
 \begin{itemize}
     \item Thread d'envoi
 \begin{enumerate}
-\item gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon on leur envoie un hello long.
-\item si le nombre de voisin symétrique n'est pas trop élevé, gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hello courts, ils sont retirés, sinon on leur en envoie un autre.
-\item inondation des messages aux voisins, si un voisin n'a pas envoyé de ack après 5 envois, il est rétrogradé en potentiel.
-\item envoi de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
-\item on retire un par un les messages de la liste de messages et on les envoie.
-\item suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
-\item suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{\textbf{[voir extensions]}}.
-\item appel à \textbf{pthread\_cond\_timedwait} qui bloque jusqu'à ce que la condition d'attente soit finie (ici c'est le cas quand on push un tlv) ou après un certain temps en fonction des points ci-dessus (qui modifient une \textbf{timespec} pour indiquer la prochaine action nécessaire).
+\item Gestion des voisins symétriques: s'ils n'ont pas envoyé un hello long dans les deux dernières minutes, ils deviennent potentiels, sinon si on ne leur a pas envoyé de hello long depuis 30 secondes on leur en envoie un.
+\item Si le nombre de voisin symétrique est trop petit ; gestion des voisins potentiels: s'ils n'ont pas répondu à plus de 5 hello courts, ils sont retirés, sinon si on ne leur a pas envoyé un hello long depuis un certain temps (à croissance exponnentielle), on leur en envoie un autre.
+\item Inondation des messages aux voisins. Si un voisin n'a pas envoyé de ack après 5 envois, il est rétrogradé en potentiel.
+\item Envoi de tlv neighbour aux voisins pour lesquels on ne l'a pas fait depuis 2 minutes.
+\item On retire un par un les messages de la file de messages et on les envoie.
+\item Suppression des vieux messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 45 secondes).
+\item Suppression des vieux fragments de messages (ceux pour lesquels aucun data n'a été envoyé ou aucun ack reçu depuis plus de 60 secondes) \hyperref[sec:frag]{(voir section \ref{sec:frag})}.
+\item appel à \textbf{pthread\_cond\_timedwait} qui bloque jusqu'à ce que la condition d'attente soit finie, ici c'est le cas quand on push un tlv \hyperref[sec:frag]{(voir section \ref{sec:agrega})}, ou après un certain temps en fonction des points ci-dessus (qui modifient une \textbf{struct timespec} pour indiquer la date de la prochaine action à effectuer).
 \end{enumerate}
-    \item Thread de réception
-
-On boucle sur un select puis s'il y a un message reçu, on va lire la socket tant qu'il y a des messages à lire, et traiter les messages associés.
-    \item Thread de l'entrée standard
-
-On boucle sur un appel à \textbf{readline} puis s'il y a un message à lire, on le traite selon s'il s'agit d'une commande ou d'un message à envoyer.
-    \item Thread de l'interface web
+\item Thread de réception \\
+  On boucle sur un select puis s'il y a un message reçu, on va lire la socket tant qu'il y a des messages à lire, et traiter les messages associés.
+\item Thread de l'entrée standard \\
+  On boucle sur un appel à \textbf{readline} puis s'il y a un message à lire, on le traite selon s'il s'agit d'une commande ou d'un message à envoyer.
+\item Thread de l'interface web \\
+  On boucle sur un select liée à la socket passive du serveur \textrm{HTTP} et au sockets \textrm{TCP} correspondantes aux connexions WebSocket. Dans le premier cas on répond immédiatement à la requête \textrm{HTTP} et dans le second cas on lit la trame websocket et on agit quand on en reçoit une avec le bit \textrm{FIN} à 1 \hyperref[sec:web]{(voir section \ref{sec:web})}.
 \end{itemize}
+
+\section{Conclusion}
+
+Ce projet fut par bien des aspects le plus intéressant que nous ayions eu à réaliser en 3 années de licences d'informatique.
+
+L'implémentation d'un chat décentralisé est une chose amusante en soit, d'autant plus que l'interface développée par Juliusz Chroboczek nous permettait de tester et communiquer en même temps avec tous les autres étudiants travaillant sur ce projet. De plus la mailing list mise en place par le professeur nous maintenait éveillé aux progrets des autres groupes et nous amenait à échanger. Nous avons proposé un protocole d'échange de très gros messages, une association type de fichier/type de data et des TLV en vu de l'implémentation d'une sécurité cryptographique. On communique, il se passe des choses, le projet est vivant ; c'est pour ça qu'on fait du réseaux et pas un shell.
+
+Nous avons aussi pu apprendre de nombreuses choses dépassant le contenu du cours. Autant sur des protocoles de programmation réseaux \hyperref[sec:web]{(voir section \ref{sec:web})} que sur des aspects de programmation C comme les threads \hyperref[sec:con]{(voir section \ref{sec:con})}.
+
+Le seul bémol est la programmation C ; nous avons eu de nombreux problèmes d'implémentation dans nos hashmap et hashset dont il n'aurait jamais été question avec un langage disposant d'une bibliothèque standard plus conséquente. De plus, notre gestion de la concurrence est particulièrement lourde et probablement pas systématiquement optimale. L'implémentation de ce même projet dans un langage comme \textrm{Rust}\footnote{Que nous connaissons et aimons particulièrement.} ou \textrm{Go}\footnote{Que nous connaissons un peu et sommes désireux de connaitre plus.} aurait été beaucoup plus simple et aurait conduit à une application vraisemblablement plus solide.
 
 \end{document}
 
