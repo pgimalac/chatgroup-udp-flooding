@@ -278,7 +278,8 @@ int start_server(int port) {
         return -3;
     }
 
-    rc = setsockopt(s, IPPROTO_IP, IP_DONTFRAG, &num, sizeof(num));
+    num = IP_PMTUDISC_DO;
+    rc = setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER, &num, sizeof(num));
     if (rc < 0) {
         cperror("setsockopt");
         return -3;
