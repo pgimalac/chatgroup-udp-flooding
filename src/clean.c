@@ -1,20 +1,19 @@
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <unistd.h>
 
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
-#include "network.h"
-#include "tlv.h"
 #include "flooding.h"
-#include "utils.h"
-#include "structs/list.h"
 #include "interface.h"
+#include "network.h"
+#include "structs/list.h"
+#include "tlv.h"
 #include "utils.h"
 
 int clean_old_data() {
@@ -26,7 +25,7 @@ int clean_old_data() {
 
     for (i = 0; i < data_map->capacity; i++) {
         for (l = data_map->tab[i]; l; l = l->next) {
-            datime = ((map_elem*)l->val)->value;
+            datime = ((map_elem *)l->val)->value;
 
             // never remove messages fragments
             // without removing all associated fragments
@@ -44,9 +43,10 @@ int clean_old_data() {
         hashmap_remove(flooding_map, datime->data + 2, 1, 0);
         hashmap_destroy(map, 1);
 
-        if (!hashmap_remove(data_map, datime->data + 2, 1, 0)){
-            cprint(STDERR_FILENO, "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n",
-                __FILE__, __LINE__);
+        if (!hashmap_remove(data_map, datime->data + 2, 1, 0)) {
+            cprint(STDERR_FILENO,
+                   "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n", __FILE__,
+                   __LINE__);
         }
 
         free(datime->data);
@@ -71,8 +71,8 @@ int clean_data_from_frags(frag_t *frag) {
 
     for (i = 0; i < data_map->capacity; i++) {
         for (list_t *l = data_map->tab[i]; l; l = l->next) {
-            datime = ((map_elem*)l->val)->value;
-            key = ((map_elem*)l->val)->key;
+            datime = ((map_elem *)l->val)->value;
+            key = ((map_elem *)l->val)->key;
 
             // here we consider only data
             if (datime->data[0] != 4 || datime->data[14] != DATA_FRAG)
@@ -96,7 +96,9 @@ int clean_data_from_frags(frag_t *frag) {
         hashmap_remove(flooding_map, datime->data + 2, 1, 0);
         hashmap_destroy(map, 1);
         if (!hashmap_remove(data_map, datime->data + 2, 1, 0))
-            cprint(STDERR_FILENO, "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n", __FILE__, __LINE__);
+            cprint(STDERR_FILENO,
+                   "%s:%d HASHMAP REMOVE COULD NOT REMOVE datime\n", __FILE__,
+                   __LINE__);
 
         free(datime->data);
         free(datime);
@@ -119,7 +121,7 @@ int clean_old_frags() {
     for (i = 0; i < fragmentation_map->capacity; i++) {
         for (l = fragmentation_map->tab[i]; l; l = l->next) {
             count++;
-            frag = ((map_elem*)l->val)->value;
+            frag = ((map_elem *)l->val)->value;
             if (now - frag->last > FRAG_TIMEOUT)
                 list_add(&to_delete, frag);
         }
@@ -144,7 +146,6 @@ int clean_old_frags() {
     return i;
 }
 
-
 int remove_neighbour(neighbour_t *n) {
     list_t *l;
     size_t i;
@@ -156,8 +157,8 @@ int remove_neighbour(neighbour_t *n) {
     pthread_mutex_lock(&flooding_map->mutex);
     for (i = 0; i < flooding_map->capacity; i++) {
         for (l = flooding_map->tab[i]; l; l = l->next) {
-            map = ((map_elem*)l->val)->value;
-            if(hashmap_remove(map, buffer, 1, 1))
+            map = ((map_elem *)l->val)->value;
+            if (hashmap_remove(map, buffer, 1, 1))
                 cprint(0, "Remove from here\n");
         }
     }

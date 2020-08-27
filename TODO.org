@@ -6,7 +6,6 @@
    for every function call check what is returned,...
    maybe do a function to free some memory that could be called when needed
 ** DONE send a warning (like juliusz does)
-<<<<<<< HEAD
 *** TODO MARTIAN neighbours
 *** TODO not my id
 * Bonus [4/14]
@@ -31,10 +30,8 @@
 ** TODO Multicast
    ff12:b456:dad4:cee1:4589:71de:a2ec:e66
    port 1212
-<<<<<<< HEAD
 ** DONE Fragmentation [2/3]
-*** DONE Alexandre/Tristan-protocol
-*** DONE image, videos, etc... send & reception
-=======
 ** TODO TCP-Friendly
 ** TODO Firewalls & NAT
+*** DONE Alexandre/Tristan-protocol
+*** DONE image, videos, etc... send & reception

@@ -1,8 +1,8 @@
 #ifndef __H_UTILS
 #define __H_UTILS
 
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "types.h"
 
@@ -17,7 +17,7 @@ pthread_cond_t send_cond;
 
 void init_random();
 
-void* voidndup(const void*, int);
+void *voidndup(const void *, int);
 
 u_int64_t random_uint64();
 
@@ -29,9 +29,9 @@ unsigned int hash_neighbour_data(const u_int8_t ip[16], u_int16_t port);
 
 unsigned int hash_key(const char *idnonce, int len);
 
-char *strappl(char* str1, ...);
+char *strappl(char *str1, ...);
 
-char *strappv(char** str);
+char *strappv(char **str);
 
 void bytes_from_neighbour(const neighbour_t *n, u_int8_t buffer[18]);
 
@@ -51,6 +51,6 @@ char *purify(char *buffer, size_t *len);
 
 int is_number(char *);
 
-short is_utf8(const unsigned char * string, size_t len);
+short is_utf8(const unsigned char *string, size_t len);
 
 #endif

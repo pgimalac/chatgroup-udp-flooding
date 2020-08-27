@@ -1,34 +1,33 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/uio.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/time.h>
-#include <string.h>
 #include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <readline/readline.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/uio.h>
+#include <unistd.h>
 
+#include "flooding.h"
+#include "interface.h"
+#include "network.h"
+#include "onsend.h"
+#include "signals.h"
+#include "threads.h"
 #include "tlv.h"
 #include "types.h"
 #include "utils.h"
-#include "network.h"
-#include "interface.h"
-#include "tlv.h"
-#include "flooding.h"
 #include "websocket.h"
-#include "onsend.h"
-#include "threads.h"
-#include "signals.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 49151
 
 static int port = 0, pseudo_set = 0;
 
-static pthread_cond_t initiate_cond(){
+static pthread_cond_t initiate_cond() {
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
     return cond;
 }
@@ -46,7 +45,7 @@ int init() {
         return -1;
 
     potential_neighbours = hashset_init();
-    if (potential_neighbours == NULL){
+    if (potential_neighbours == NULL) {
         hashset_destroy(neighbours);
         return -1;
     }
@@ -68,14 +67,14 @@ int init() {
     cprint(0, "Create tmpdir %s.\n", fptmpdir);
 
     flooding_map = hashmap_init(12);
-    if (flooding_map == NULL){
+    if (flooding_map == NULL) {
         hashset_destroy(neighbours);
         hashset_destroy(potential_neighbours);
         return -1;
     }
 
     data_map = hashmap_init(12);
-    if (data_map == NULL){
+    if (data_map == NULL) {
         hashset_destroy(neighbours);
         hashset_destroy(potential_neighbours);
         hashmap_destroy(flooding_map, 0);
@@ -83,7 +82,7 @@ int init() {
     }
 
     fragmentation_map = hashmap_init(12);
-    if (fragmentation_map == NULL){
+    if (fragmentation_map == NULL) {
         hashset_destroy(neighbours);
         hashset_destroy(potential_neighbours);
         hashmap_destroy(flooding_map, 0);
@@ -121,14 +120,11 @@ int init() {
 }
 
 #define NBOPT 4
-static struct option options[] =
-    {
-     {"port",     required_argument, 0, 0},
-     {"web-port", required_argument, 0, 0},
-     {"logs",     required_argument, 0, 0},
-     {"pseudo",   required_argument, 0, 0},
-     {0, 0, 0, 0}
-    };
+static struct option options[] = {{"port", required_argument, 0, 0},
+                                  {"web-port", required_argument, 0, 0},
+                                  {"logs", required_argument, 0, 0},
+                                  {"pseudo", required_argument, 0, 0},
+                                  {0, 0, 0, 0}};
 
 static int opt_port(char *arg) {
     if (!is_number(arg)) {
@@ -147,7 +143,8 @@ static int opt_port(char *arg) {
 
 static int opt_webport(char *port) {
     if (!is_number(port)) {
-        fprintf(stderr, "Web port must be a number. %s is not a number.\n", port);
+        fprintf(stderr, "Web port must be a number. %s is not a number.\n",
+                port);
         return -1;
     }
 
@@ -162,7 +159,7 @@ static int opt_webport(char *port) {
 
 static int opt_log(char *file) {
     if (file) {
-        int fd = open(file, O_CREAT|O_WRONLY, 0644);
+        int fd = open(file, O_CREAT | O_WRONLY, 0644);
         if (fd < 0) {
             cperror("open");
         } else {
@@ -185,19 +182,13 @@ static int opt_pseudo(char *name) {
     return 0;
 }
 
-static int (*option_handlers[NBOPT])(char *) =
-    {
-     opt_port,
-     opt_webport,
-     opt_log,
-     opt_pseudo
-    };
+static int (*option_handlers[NBOPT])(char *) = {opt_port, opt_webport, opt_log,
+                                                opt_pseudo};
 
-static const char *usage =
-    "usage: %s [-l[file] | -{}-logs <log file>]\n"
-    "%*s[-p | -{}-port <port number>]\n"
-    "%*s[-w | -{}-web-port <port number>]\n"
-    "%*s[-{}-pseudo <pseudo>]\n";
+static const char *usage = "usage: %s [-l[file] | -{}-logs <log file>]\n"
+                           "%*s[-p | -{}-port <port number>]\n"
+                           "%*s[-w | -{}-web-port <port number>]\n"
+                           "%*s[-{}-pseudo <pseudo>]\n";
 
 int parse_args(int argc, char **argv) {
     int rc, c, option_index, padding;
@@ -210,7 +201,7 @@ int parse_args(int argc, char **argv) {
         if (c == -1)
             break;
 
-        switch(c) {
+        switch (c) {
         case 0:
             rc = option_handlers[option_index](optarg);
             break;
@@ -245,12 +236,15 @@ int main(int argc, char **argv) {
     int rc;
 
     rc = init();
-    if (rc != 0) return rc;
+    if (rc != 0)
+        return rc;
 
     rc = parse_args(argc, argv);
-    if (rc < 0) return rc;
+    if (rc < 0)
+        return rc;
 
-    if (!pseudo_set) setRandomPseudo();
+    if (!pseudo_set)
+        setRandomPseudo();
 
     cprint(STDOUT_FILENO, "Welcome %s.\n", getPseudo());
 
@@ -271,7 +265,8 @@ int main(int argc, char **argv) {
     signal(SIGINT, quit);
     cprint(STDOUT_FILENO, "%s\n", SEPARATOR);
 
-    void *ret = NULL;;
+    void *ret = NULL;
+    ;
 
     rc = launch_threads();
     if (rc != 0)
@@ -282,12 +277,12 @@ int main(int argc, char **argv) {
         pthread_cond_wait(&cond_end_thread, &mutex_end_thread);
 
         for (int i = 0; i < NUMBER_THREAD; i++)
-            if (*runnings[i] == 0){
+            if (*runnings[i] == 0) {
                 cprint(0, "THREAD %d ended\n", i + 1);
                 pthread_join(*thread_id[i], &ret);
                 cprint(0, "The thread was joined.\n");
 
-                if (ret == PTHREAD_CANCELED || ret == NULL){
+                if (ret == PTHREAD_CANCELED || ret == NULL) {
                     // cancel thread so there is a thread running 'quit'
                     cprint(0, "Thread %d was cancelled.\n", i);
                     pthread_mutex_unlock(&mutex_end_thread);
@@ -295,20 +290,24 @@ int main(int argc, char **argv) {
                     return 1;
                 }
 
-                if (*(int*)ret == 0){ // normal shutdown
+                if (*(int *)ret == 0) { // normal shutdown
                     free(ret);
                     rc = 0;
                     goto quit;
                 }
                 free(ret);
 
-                cprint(STDERR_FILENO, "A thread was stopped, trying to restart it\n");
-                rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);
-                if (rc){
+                cprint(STDERR_FILENO,
+                       "A thread was stopped, trying to restart it\n");
+                rc = pthread_create(thread_id[i], NULL, starters[i],
+                                    runnings[i]);
+                if (rc) {
                     sleep(5);
-                    rc = pthread_create(thread_id[i], NULL, starters[i], runnings[i]);
-                    if (rc){
-                        cprint(STDERR_FILENO, "Could not restart the thread.\n");
+                    rc = pthread_create(thread_id[i], NULL, starters[i],
+                                        runnings[i]);
+                    if (rc) {
+                        cprint(STDERR_FILENO,
+                               "Could not restart the thread.\n");
                         rc = 1;
                         goto quit;
                     }
@@ -319,7 +318,7 @@ int main(int argc, char **argv) {
         pthread_mutex_unlock(&mutex_end_thread);
     }
 
-    quit:
-        pthread_mutex_unlock(&mutex_end_thread);
-        quit(rc);
+quit:
+    pthread_mutex_unlock(&mutex_end_thread);
+    quit(rc);
 }

@@ -1,24 +1,24 @@
 #define _GNU_SOURCE
 
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <openssl/sha.h>
+#include <sys/socket.h>
 
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "base64.h"
-#include "utils.h"
-#include "structs/list.h"
-#include "structs/hashmap.h"
 #include "flooding.h"
 #include "interface.h"
+#include "structs/hashmap.h"
+#include "structs/list.h"
+#include "utils.h"
 #include "websocket.h"
 
 int pagelen = 0;
@@ -26,7 +26,7 @@ char page[16384];
 
 int create_tcpserver(int port) {
     int rc, s, fd;
-    struct sockaddr_in6 sin6 = { 0 };
+    struct sockaddr_in6 sin6 = {0};
 
     sin6.sin6_family = PF_INET6;
     sin6.sin6_port = htons(port);
@@ -39,12 +39,12 @@ int create_tcpserver(int port) {
 
     int opt = 1;
     rc = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-    if (rc < 0){
+    if (rc < 0) {
         perror("setsockopt");
         return -3;
     }
 
-    rc = bind(s, (struct sockaddr*)&sin6, sizeof(struct sockaddr_in6));
+    rc = bind(s, (struct sockaddr *)&sin6, sizeof(struct sockaddr_in6));
     if (rc < 0) {
         perror("bind");
         return -2;
@@ -79,7 +79,7 @@ const char *STATUSLINE = "HTTP/1.1 200 OK\r\n";
 const char *MAGICSTRINGWS = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const size_t MSWSL = strlen("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
 const char *SWITPROTO = "HTTP/1.1 101 Switching Protocols\r\n"
-    "Upgrade: websocket\r\nConnection: Upgrade\r\n";
+                        "Upgrade: websocket\r\nConnection: Upgrade\r\n";
 
 static int not_found(int s) {
     write(s, NOT_FOUND, strlen(NOT_FOUND));
@@ -121,9 +121,9 @@ static int get_static_file(int s, const char *path, size_t len) {
         content_type = "Content-Type: image/png\r\n";
     } else if (memcmp(pt, ".jpg", len - (pt - path)) == 0) {
         content_type = "Content-Type: image/jpg\r\n";
-    } else if (memcmp(pt,".gif", len - (pt - path)) == 0) {
+    } else if (memcmp(pt, ".gif", len - (pt - path)) == 0) {
         content_type = "Content-Type: image/gif\r\n";
-    } else if (memcmp(pt,".svg", len - (pt - path)) == 0) {
+    } else if (memcmp(pt, ".svg", len - (pt - path)) == 0) {
         content_type = "Content-Type: image/svg\r\n";
     } else {
         content_type = "Content-Type: text/html\r\n";
@@ -177,10 +177,12 @@ static int get_ws(int s, const char *buffer, size_t len) {
         return bad_request(s);
 
     ptr = memmem(buffer, len, "Sec-WebSocket-Key: ", 19);
-    if (!ptr) return bad_request(s);
+    if (!ptr)
+        return bad_request(s);
 
     end = memchr(ptr, '\r', len - (ptr - buffer));
-    if (!end) return bad_request(s);
+    if (!end)
+        return bad_request(s);
 
     keylen = end - ptr - 19;
     key = alloca(keylen + MSWSL);
@@ -204,7 +206,7 @@ static int get_ws(int s, const char *buffer, size_t len) {
     return 0;
 }
 
-int handle_http () {
+int handle_http() {
     int rc, s, i;
     size_t len = 0;
     char buffer[4096];
@@ -241,10 +243,12 @@ int handle_http () {
 
     char *sp1, *sp2;
     sp1 = memchr(buffer, ' ', len);
-    if (!sp1 || sp1[1] != '/') return bad_request(s);
+    if (!sp1 || sp1[1] != '/')
+        return bad_request(s);
 
     sp2 = memchr(sp1 + 1, ' ', len - (sp1 - buffer));
-    if (!sp2) return bad_request(s);
+    if (!sp2)
+        return bad_request(s);
 
     if (memcmp(sp2 + 1, "HTTP/1.1", 8)) {
         cprint(STDERR_FILENO, "no HTTP/1.1\n");
@@ -276,24 +280,21 @@ int handle_http () {
 #define OPPONG 0x0a
 
 static const int png_sig_len = 8;
-static const int8_t png_sig[] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+static const int8_t png_sig[] = {0x89, 0x50, 0x4e, 0x47,
+                                 0x0d, 0x0a, 0x1a, 0x0a};
 
 static const int gif_sig_len[] = {6, 6};
-static const int8_t gif_sig[] =
-    {
-     0x47, 0x49, 0x46, 0x38, 0x37, 0x61,
-     0x47, 0x49, 0x46, 0x38, 0x39, 0x61
-    };
+static const int8_t gif_sig[] = {0x47, 0x49, 0x46, 0x38, 0x37, 0x61,
+                                 0x47, 0x49, 0x46, 0x38, 0x39, 0x61};
 
 static const int jpg_sig_len[] = {4, 12, 4};
-static const int8_t jpg_sig[] =
-    { 0xFF, 0xD8, 0xFF, 0xDB,
-      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
-      0xFF, 0xD8, 0xFF, 0xEE
-    };
+static const int8_t jpg_sig[] = {0xFF, 0xD8, 0xFF, 0xDB, 0xFF, 0xD8, 0xFF,
+                                 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46,
+                                 0x00, 0x01, 0xFF, 0xD8, 0xFF, 0xEE};
 
 static uint8_t file_type(const int8_t *buffer, size_t len) {
-    if (len < 4) return 0;
+    if (len < 4)
+        return 0;
 
     if (memcmp(buffer, png_sig, png_sig_len) == 0) {
         return 4;
@@ -319,13 +320,11 @@ typedef struct fragws {
     size_t buflen;
 } fragws_t;
 
-
-static int send_pong (int s, const int8_t *payload, size_t buflen) {
+static int send_pong(int s, const int8_t *payload, size_t buflen) {
     int rc;
     uint8_t frame[1024];
     uint32_t mask = random_uint32();
-    size_t len, i, j, count = 0,
-        size = (buflen < 125 ? 1 : buflen / 125);
+    size_t len, i, j, count = 0, size = (buflen < 125 ? 1 : buflen / 125);
 
     cprint(0, "Ping received, send pong.\n");
 
@@ -404,12 +403,12 @@ int handle_ws(int s) {
     switch (len[0] & 0x7f) {
     case 126:
         read(s, len, 2);
-        payloadlen = ntohs(*((uint16_t*)len));
+        payloadlen = ntohs(*((uint16_t *)len));
         break;
 
     case 127:
         read(s, len, 8);
-        payloadlen = ntohs(*((uint64_t*)len));
+        payloadlen = ntohs(*((uint64_t *)len));
         break;
 
     default:
@@ -437,13 +436,14 @@ int handle_ws(int s) {
     }
 
     decoded = malloc(payloadlen);
-    for(int64_t i = 0; i < payloadlen; i++)
+    for (int64_t i = 0; i < payloadlen; i++)
         decoded[i] = payload[i] ^ maskkey[i % 4];
 
     frag = hashmap_get(webmessage_map, &s);
     if (!frag) {
         if (opcode == OPCONT) {
-            cprint(STDERR_FILENO, "continue frame but there is nothing to continue\n");
+            cprint(STDERR_FILENO,
+                   "continue frame but there is nothing to continue\n");
             close(s);
             free(payload);
             free(decoded);
@@ -467,20 +467,21 @@ int handle_ws(int s) {
 
     if (fin) {
         switch (frag->opcode) {
-        case OPTXT: //text
+        case OPTXT: // text
             cprint(STDOUT_FILENO, "%*s\n", frag->buflen, frag->buffer);
-            handle_input((char*)frag->buffer, frag->buflen);
+            handle_input((char *)frag->buffer, frag->buflen);
             break;
 
-        case OPBIN: //bin
+        case OPBIN: // bin
             type = file_type(frag->buffer, frag->buflen);
             if (type >= 255) {
-                cprint(0, "Received unknown file type from web app. Assume this is text.\n");
-                send_data(0, (char*)frag->buffer, frag->buflen);
-                print_file(0, (u_int8_t*)frag->buffer, frag->buflen);
+                cprint(0, "Received unknown file type from web app. Assume "
+                          "this is text.\n");
+                send_data(0, (char *)frag->buffer, frag->buflen);
+                print_file(0, (u_int8_t *)frag->buffer, frag->buflen);
             } else {
-                send_data(type, (char*)frag->buffer, frag->buflen);
-                print_file(type, (u_int8_t*)frag->buffer, frag->buflen);
+                send_data(type, (char *)frag->buffer, frag->buflen);
+                print_file(type, (u_int8_t *)frag->buffer, frag->buflen);
             }
 
             break;
@@ -488,24 +489,24 @@ int handle_ws(int s) {
         case OPCLOSE: // close
             // send close
             if (frag->buflen) {
-                uint16_t code = ntohs(*((uint16_t*)frag->buffer));
+                uint16_t code = ntohs(*((uint16_t *)frag->buffer));
                 cprint(0, "close code %u\n", code);
             }
 
             if (frag->buflen > 2) {
-                cprint(0, "closing message: %*s\n",
-                       frag->buflen - 2, frag->buffer + 2);
+                cprint(0, "closing message: %*s\n", frag->buflen - 2,
+                       frag->buffer + 2);
             }
 
             status = -1;
             close(s);
             break;
 
-        case OPPING: //ping
+        case OPPING: // ping
             send_pong(s, frag->buffer, frag->buflen);
             break;
 
-        case OPPONG: //pong
+        case OPPONG: // pong
             break;
         }
     }
@@ -551,8 +552,8 @@ int print_web(const uint8_t *buffer, size_t buflen) {
             frame[0] ^= FINBIT;
 
         pthread_mutex_lock(&clientsockets_mutex);
-        for (l = clientsockets; l; l = l->next){
-            s = *((int*)l->val);
+        for (l = clientsockets; l; l = l->next) {
+            s = *((int *)l->val);
             rc = write(s, frame, 2 + 4 + len);
             if (rc < 0)
                 continue;

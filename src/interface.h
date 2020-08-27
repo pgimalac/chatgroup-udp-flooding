@@ -54,17 +54,17 @@
 #define SEPARATOR "===============================================\n"
 #define COMMAND '/'
 
-void setPseudo(const char*, size_t len);
+void setPseudo(const char *, size_t len);
 
-const char* getPseudo();
+const char *getPseudo();
 
 void setRandomPseudo();
 
-void handle_command(const char*, size_t len);
+void handle_command(const char *, size_t len);
 
 void handle_input(char *buffer, size_t buflen);
 
-void print_message(const u_int8_t*, int);
+void print_message(const u_int8_t *, int);
 
 void print_file(u_int8_t type, const u_int8_t *buffer, size_t len);
 

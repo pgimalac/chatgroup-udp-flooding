@@ -1,25 +1,24 @@
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
-#include "network.h"
-#include "tlv.h"
 #include "flooding.h"
-#include "utils.h"
-#include "structs/list.h"
 #include "interface.h"
+#include "network.h"
+#include "structs/list.h"
+#include "tlv.h"
 #include "utils.h"
 
 static void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
     uint16_t i = 0, n = size / 233, count = 0, len;
     uint16_t nsize = htons(size), pos;
-    body_t data = { 0 };
+    body_t data = {0};
     char content[256], *offset;
     u_int32_t nonce_frag = random_uint32();
 
@@ -44,25 +43,27 @@ static void frag_data(u_int8_t type, const char *buffer, u_int16_t size) {
         memcpy(offset, buffer + count, len);
         offset += len;
 
-        data.size = tlv_data(&data.content, id, random_uint32(), 220, content, len + 9);
+        data.size =
+            tlv_data(&data.content, id, random_uint32(), 220, content, len + 9);
         flooding_add_message(data.content, data.size, 1);
         free(data.content);
         count += len;
     }
 }
 
-void send_data(u_int8_t type, const char *buffer, u_int16_t size){
-    if (buffer == 0 || size <= 0) return;
+void send_data(u_int8_t type, const char *buffer, u_int16_t size) {
+    if (buffer == 0 || size <= 0)
+        return;
 
     if (size > 255) {
         frag_data(type, buffer, size);
         return;
     }
 
-    body_t data = { 0 };
+    body_t data = {0};
     int rc = tlv_data(&data.content, id, random_uint32(), type, buffer, size);
 
-    if (rc < 0){
+    if (rc < 0) {
         cperror("tlv_data");
         return;
     }
@@ -74,5 +75,3 @@ void send_data(u_int8_t type, const char *buffer, u_int16_t size){
 
     free(data.content);
 }
-
-

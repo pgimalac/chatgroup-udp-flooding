@@ -1,8 +1,8 @@
 #ifndef __H_TYPES
 #define __H_TYPES
 
-#include <stdlib.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include "structs/hashmap.h"
 
@@ -53,7 +53,8 @@ int push_tlv(body_t *tlv, neighbour_t *dst);
 
 message_t *pull_message();
 
-message_t *create_message(u_int8_t, u_int8_t, u_int16_t, body_t*, neighbour_t*);
+message_t *create_message(u_int8_t, u_int8_t, u_int16_t, body_t *,
+                          neighbour_t *);
 
 hashmap_t *flooding_map, *data_map, *fragmentation_map;
 

@@ -19,7 +19,7 @@ typedef struct map_elem {
 /**
  * Allocate a new hashset
  */
-hashmap_t* hashmap_init(int keylen);
+hashmap_t *hashmap_init(int keylen);
 
 /**
  * Add the given element in the given set
